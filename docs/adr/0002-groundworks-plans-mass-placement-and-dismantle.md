@@ -20,4 +20,4 @@ A pass may take up spans of several families, but one span never crosses between
 - The mod id is `groundworks`, the packages are `io.github._5thlayer.groundworks`, and the repository is `5thlayer/groundworks`. The version restarts at 0.1.0. Beltworks and the Pack change their builds and imports, and nothing else resolves the old id.
 - ADR 0001 holds: open refusals, predicate opt-in, and hooks as events. The dismantle previews move inside the library, so the no-order rule between Takeovers no longer has two Consumers claiming the same screen.
 - The API stays 0.x until the Pack places pipes by stretch. The Stretch's seam has then been used by a second Consumer, and its shape is no longer only a belt's.
-- The height gesture and the detour rules are decided in their own question before the Stretch moves in.
+- The height gesture and the detour rules are decided in their own question before the Stretch moves in. They are decided in ADR 0004.

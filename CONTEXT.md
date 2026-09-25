@@ -71,3 +71,25 @@ _Avoid_: rotate the preview (the preview only follows the plan), rotate the ghos
 **Rotate in Place**:
 **Rotate** on a placed block: the block under the crosshair turns, and what turning means is the block's own -- a belt tile turns, a machine keeps its contents. A block that cannot take the turn is refused with its reason and nothing changes; there is no preview of it. It turns only blocks a **Consumer** has stated it turns, a statement separate from **Opt-in**: Beltworks states its own blocks, the Pack states every block.
 _Avoid_: placed rotate, wrench rotate
+
+### Stretching
+
+**Stretch**:
+The blocks one drag of a held item lays, planned, charged, laid and refused whole. Its route passes through every **Anchor**, one **Leg** after another. It never changes height by itself: only **Raise** and **Lower** do.
+_Avoid_: run, zoop, drag (the gesture, not what it lays)
+
+**Anchor**:
+A point of a **Stretch**'s route that the player fixed: its start, each point a sneak-click adds, and the aimed end. The aim picks only where it lies seen from above; its height is the stretch's height there, never the aimed block's. Only the start takes a height of its own, from **Raise** and **Lower**.
+_Avoid_: corner (a block's shape, not a point of a route), waypoint, node
+
+**Leg**:
+The part of a **Stretch** from one **Anchor** to the next. It rises or falls by the height the player set right after its first anchor, along its first direction, then runs level to the next anchor. Seen from above it is one straight line or two joined by one turn. What a rise is built of is the item's: slopes for a belt, a straight climb for a pipe.
+_Avoid_: segment, section
+
+**Raise** / **Lower**:
+The two actions (`G` and `B` by default) that move the held item's next placement one block up or down, wherever a **Placement Preview** is drawn. The height is capped by the player's reach, in whole blocks. On a single placement it moves the block straight up or down from where it would go, and it stays with the held stack until the stack's last item is placed. Storing a **Stretch**'s start uses it up as the start's height. From then on they set the rise of the **Leg** being drawn, one net height per leg, which the next stored anchor freezes into it.
+_Avoid_: height gesture (the pair's old working name), elevate, lift
+
+**Detour**:
+The way a **Leg** goes round an obstacle at its own height, flat, on the side of the leg the player stands on, and never far from the straight line. What is an obstacle is the item's to say; a leg that no detour clears is refused.
+_Avoid_: pathfinding, reroute, go-around
