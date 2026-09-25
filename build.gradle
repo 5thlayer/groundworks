@@ -99,3 +99,16 @@ publishing {
         }
     }
 }
+
+// A version in the local maven repository never changes: Consumers resolve it by version and the
+// Pack's drift check reads its jar, so a fix is the next patch version (docs/agents/releases.md).
+// Gradle's own mavenLocal() says where that is, and it's removed again so nothing resolves from it.
+tasks.withType(PublishToMavenLocal).configureEach {
+    def local = repositories.mavenLocal()
+    repositories.remove(local)
+    def published = new File(local.url.path, "${maven_group.replace('.', '/')}/$archives_name/$mod_version")
+    doFirst {
+        if (published.exists()) throw new GradleException(
+                "Groundworks $mod_version is already in $published, and a published version never changes: bump mod_version")
+    }
+}

@@ -1,8 +1,6 @@
 ## Releases
 
-A release bumps `mod_version` in `gradle.properties`, then runs `./gradlew publishToMavenLocal`. Each version is published once, so a fix ships as the next patch version. Before publishing, confirm the new version has no folder under `~/.m2/repository/io/github/5thlayer/groundworks/`. ADR 0001 sets the API's semver: below 1.0 a breaking change bumps the minor version.
-
-Why: Beltworks and the Pack (adamico/planetary-factory) read Groundworks from `~/.m2` by version. Republishing replaces the jar under the same coordinate. A Consumer resolved to that version then gets different code with no signal, and the Pack's drift check reads it as a jar nobody chose.
+A change a Consumer can use or will notice adds its line under `## Unreleased` in `CHANGELOG.md` as it lands. Before bumping `mod_version`, publishing to `~/.m2` or tagging a release, read `docs/agents/releases.md`: releases go through `scripts/release.sh`, and a published version never changes.
 
 ## Agent skills
 
