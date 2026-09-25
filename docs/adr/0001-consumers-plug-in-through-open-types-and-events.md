@@ -16,4 +16,4 @@ Every Consumer keeps one contract the library can't enforce: an item that plans 
 
 ## Consequences
 
-- The library's API is semver from 0.1.0: a breaking change bumps the minor version below 1.0. Consumers declare a version range, because the jar nested in Beltworks and the one the Pack depends on resolve to a single loaded version.
+- The library's API is semver from 0.1.0. Below 1.0, only a breaking change bumps the minor version; an addition or a fix bumps the patch. Consumers declare a version range up to the next minor, because the jar nested in Beltworks and the one the Pack depends on resolve to a single loaded version. An addition then lands inside every Consumer's range, and no Consumer needs a release of its own to pass it on. 0.2.0 to 0.4.0 were additions that bumped the minor, and each one forced a Beltworks release before the Pack could load it.
