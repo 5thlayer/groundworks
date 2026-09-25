@@ -23,6 +23,8 @@ tasks.withType(Jar).configureEach {
     archiveVersion = "$minecraft_version-$mod_version"
 }
 
+def gameTestReport = layout.buildDirectory.file('reports/gametest.xml').get().asFile
+
 neoForge {
     version = neoforge_version
 
@@ -31,6 +33,14 @@ neoForge {
         client {
             client()
             programArguments.addAll '--username', 'Developer', '--uuid', '123456781234123412341234567890ab'
+        }
+        // Runs the library's game tests headless and exits, non-zero if any fails. 26.1 has no
+        // namespace property, so the selector is what keeps vanilla's tests out.
+        // A directory of its own, so nothing the dev client loads or saves reaches it.
+        gameTestServer {
+            type = 'gameTestServer'
+            gameDirectory = project.file('run/gametest')
+            programArguments.addAll '--tests', "${mod_id}:*", '--report', gameTestReport.absolutePath
         }
     }
 
@@ -43,6 +53,22 @@ neoForge {
     // Game types on the test classpath, not a booted game: the tests are of rules that read no
     // registry, so a plan's blocks can be positions with no state.
     addModdingDependenciesTo sourceSets.test
+}
+
+// The server says only how many tests passed, so the report is read back to name them: a green
+// run that didn't run a test is no evidence for it. The report, not the exit code, decides, so a
+// failing run still names its tests; a server that crashes writes no report and fails here too.
+tasks.named('runGameTestServer') {
+    ignoreExitValue = true
+    doFirst { gameTestReport.delete() }
+    doLast {
+        if (!gameTestReport.exists()) throw new GradleException("The game test server wrote no report at $gameTestReport")
+        def cases = new groovy.xml.XmlSlurper().parse(gameTestReport).'**'.findAll { it.name() == 'testcase' }
+        if (cases.isEmpty()) throw new GradleException('The game test server ran no tests')
+        cases.each { logger.lifecycle("${it.failure.size() ? 'FAILED' : 'passed'}  ${it.@name}") }
+        def failed = cases.count { it.failure.size() }
+        if (failed) throw new GradleException("$failed of ${cases.size()} game tests failed")
+    }
 }
 
 dependencies {

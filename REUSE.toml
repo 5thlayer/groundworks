@@ -11,6 +11,7 @@ path = [
     "**/*.mods.toml",
     "**/*.md",
     "src/main/resources/**/*.json",
+    "src/main/resources/**/*.nbt",
     "LICENSE",
 ]
 SPDX-FileCopyrightText = "2026 5thlayer"

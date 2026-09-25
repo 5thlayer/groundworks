@@ -3,6 +3,7 @@
 
 package io.github._5thlayer.groundworks;
 
+import io.github._5thlayer.groundworks.gametest.GroundworksGameTests;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionResult;
@@ -33,6 +34,7 @@ public final class Groundworks {
 
     public Groundworks(IEventBus modBus) {
         COMPONENTS.register(modBus);
+        GroundworksGameTests.register(modBus);
         // An event rather than an item's own use: the tools that dismantle are no one's in particular.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, PlayerInteractEvent.RightClickBlock.class, event -> {
             InteractionResult result = Dismantles.useOn(event.getEntity(), event.getHand(), event.getPos());
