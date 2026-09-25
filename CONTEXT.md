@@ -7,7 +7,7 @@ A library mod that shows a player what a held item would place before they click
 ### Parties
 
 **placementpreview**:
-This library. It owns the plan, the drawing and the hooks, and nothing about any particular block.
+This library. It owns the plan, the drawing, the hooks and **Rotate**, and nothing about any particular block.
 _Avoid_: preview lib, the renderer
 
 **Consumer**:
@@ -53,3 +53,21 @@ _Avoid_: always hook, indicator
 **Outline**:
 A red outline round given block positions, which **Consumers** use to mark what a **Takeover** would take up.
 _Avoid_: dismantle outline, highlight
+
+### Rotating
+
+**Rotate**:
+One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the held item is rotatable -- its plan is drawn and the block it places has a facing, an axis or a rotation -- and otherwise **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
+_Avoid_: rotate key, turn, wrench rotate
+
+**Reverse Rotate**:
+**Rotate** the other way (`Shift+R` by default), on both targets. A separate action rather than a modifier, so it can be rebound alone.
+_Avoid_: counter-rotate, rotate back
+
+**Rotate the Plan**:
+**Rotate** on the held item: its next placement turns a quarter from the way the player looks, and the **Placement Preview** redraws with it. The turn is relative to the look, not a compass direction, because the player's camera turns. It stays with the held stack until the stack's last item is placed. It applies only where a **Placement Preview** is drawn, so it never turns a placement the player cannot see.
+_Avoid_: rotate the preview (the preview only follows the plan), rotate the ghost, held rotate
+
+**Rotate in Place**:
+**Rotate** on a placed block: the block under the crosshair turns, and what turning means is the block's own -- a belt tile turns, a machine keeps its contents. A block that cannot take the turn is refused with its reason and nothing changes; there is no preview of it. It turns only blocks a **Consumer** has stated it turns, a statement separate from **Opt-in**: Beltworks states its own blocks, the Pack states every block.
+_Avoid_: placed rotate, wrench rotate
