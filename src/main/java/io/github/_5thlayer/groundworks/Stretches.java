@@ -91,6 +91,21 @@ public final class Stretches {
     }
 
     /**
+     * Where a sneak-click at this hit would store the start, at the height held, or {@code null}
+     * when it wouldn't: the player isn't sneaking, the stack doesn't stretch, or a stretch is
+     * already being drawn with it. Such a click places nothing, so it has no plan, and the
+     * preview draws the start instead, with the look it would store.
+     */
+    public static @Nullable BlockPos startAt(Level level, Player player, ItemStack stack, BlockHitResult hit) {
+        if (!player.isShiftKeyDown() || builderOf(stack.getItem()) == null || storedOn(level, stack) != null) {
+            return null;
+        }
+        return new StretchState(null, Raise.heightOf(player, stack))
+                .started(level.dimension(), spotOf(level, player, stack, hit), player.getDirection())
+                .stored().start();
+    }
+
+    /**
      * What a click with the held stack at this hit would lay, or {@code null} when no stretch is
      * being drawn with it. Safe on either side, reading the world without touching it.
      */

@@ -4,6 +4,7 @@
 package io.github._5thlayer.groundworks.gametest;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,6 +22,7 @@ import net.minecraft.gametest.framework.GameTestInstance;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
@@ -44,7 +46,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * server has. A dev client, which enables game tests too, draws these blocks.
  *
  * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, and the one item,
- * {@link #STRETCHES_PLANKS}, whose legs {@link LineOfPlanks} builds, are registered only when game
+ * {@link #STRETCHES_ARROWS}, whose legs {@link LineOfArrows} builds, are registered only when game
  * tests are enabled, for the same reason. The builder is registered at mod construction, as a
  * Consumer's is, so a dev client draws the item's stretches too.
  */
@@ -66,8 +68,17 @@ public final class GroundworksGameTests {
 
     private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Groundworks.MOD_ID);
 
-    /** The tests' stretch-able item, which lays a {@linkplain LineOfPlanks line of planks}. */
-    static final DeferredItem<Item> STRETCHES_PLANKS = ITEMS.registerSimpleItem("gametest_stretches_planks");
+    /**
+     * The tests' stretch-able item: magenta glazed terracotta, placed one at a time as any block
+     * item is, and stretched as a {@linkplain LineOfArrows line of arrows}. It leaves the block's
+     * own item alone, so the block still names vanilla's as its item.
+     */
+    static final DeferredItem<BlockItem> STRETCHES_ARROWS = ITEMS.registerItem("gametest_stretches_arrows",
+            properties -> new BlockItem(LineOfArrows.ARROW, properties) {
+                @Override
+                public void registerBlocks(Map<Block, Item> map, Item item) {
+                }
+            });
 
     /** The vanilla blocks the tests opt in. */
     private static final Set<Block> TEST_BLOCKS = ConcurrentHashMap.newKeySet();
@@ -86,7 +97,7 @@ public final class GroundworksGameTests {
         if (GameTestHooks.isGametestEnabled()) {
             BLOCKS.register(modBus);
             ITEMS.register(modBus);
-            Stretches.register(new LineOfPlanks());
+            Stretches.register(new LineOfArrows());
         }
         // Posted only when game tests are enabled, so a production server never registers the tests.
         modBus.addListener(GroundworksGameTests::registerTests);

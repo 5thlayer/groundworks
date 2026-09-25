@@ -13,6 +13,8 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 
@@ -21,6 +23,9 @@ import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
  * start with an arrow the way its first leg heads, and an outline round each anchor added since. A
  * Marker, so they stay whatever the aim while the player looks for the end. The stretch itself is
  * the Placement Preview's, as the plan a click would lay.
+ *
+ * <p>Before one is, while the player sneaks, the start a sneak-click would store is drawn the same
+ * way at the aim, so the way the stretch will run is seen before it starts.
  */
 final class StretchPreview {
 
@@ -36,11 +41,18 @@ final class StretchPreview {
         if (Stretches.builderOf(stack.getItem()) == null) {
             return;
         }
+        SubmitCustomGeometryEvent geometry = event.getGeometry();
         StoredStretch stored = Stretches.storedOn(event.getLevel(), stack);
         if (stored == null) {
+            BlockPos start = event.getHitResult() instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                    ? Stretches.startAt(event.getLevel(), event.getPlayer(), stack, hit)
+                    : null;
+            if (start != null) {
+                Outline.draw(geometry, List.of(start), COLOUR);
+                arrow(geometry, start, event.getPlayer().getDirection());
+            }
             return;
         }
-        SubmitCustomGeometryEvent geometry = event.getGeometry();
         Outline.draw(geometry, stored.anchorPositions(), COLOUR);
         Outline.draw(geometry, List.of(stored.start()), COLOUR);
         arrow(geometry, stored.start(), stored.look());

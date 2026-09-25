@@ -81,7 +81,8 @@ public final class Placements {
      * frame (behind the preview's cache) and the server asks it on the click.
      *
      * <p>While a {@linkplain Stretches Stretch} is being drawn with the main hand's stack, it is the
-     * stretch that a click would lay.
+     * stretch that a click would lay. A sneak-click that would store a stretch's start places
+     * nothing, so it has no plan.
      */
     @Nullable
     public static PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand,
@@ -91,6 +92,9 @@ public final class Placements {
             return null;
         }
         if (hand == InteractionHand.MAIN_HAND) {
+            if (player != null && Stretches.startAt(level, player, stack, hit) != null) {
+                return null;
+            }
             PlacementPlan stretch = Stretches.planFor(level, player, stack, hit);
             if (stretch != null) {
                 return stretch;

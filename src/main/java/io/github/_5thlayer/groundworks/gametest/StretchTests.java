@@ -28,8 +28,8 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The Stretch on the tests' own stretch-able item, whose legs are a {@linkplain LineOfPlanks line
- * of planks} and whose rise climbs straight up in place. Every click goes through the server
+ * The Stretch on the tests' own stretch-able item, whose legs are a {@linkplain LineOfArrows line
+ * of arrows} and whose rise climbs straight up in place. Every click goes through the server
  * player's own {@code useItemOn} and {@code useItem}, so through the events Groundworks answers,
  * and every press through {@link Raise#press}, as the keys' payload does. The preview's markers are
  * checked by hand.
@@ -60,6 +60,7 @@ final class StretchTests {
         tests.test("no_room_to_return_refuses_the_stretch_whole", 20, StretchTests::noRoomToReturn);
         tests.test("laying_resets_the_stored_stretch_and_the_height", 20, StretchTests::layingResets);
         tests.test("clearing_resets_the_stored_stretch_and_the_height", 20, StretchTests::clearingResets);
+        tests.test("with_no_stretch_stored_a_click_places_one_block_as_planned", 20, StretchTests::single);
     }
 
     private static void flat(GameTestHelper helper) {
@@ -166,22 +167,22 @@ final class StretchTests {
     }
 
     private static void returned(GameTestHelper helper) {
-        BlockPos birch = new BlockPos(3, 1, 2);
-        helper.setBlock(birch, Blocks.BIRCH_PLANKS);
+        BlockPos replaced = new BlockPos(3, 1, 2);
+        helper.setBlock(replaced, LineOfArrows.REPLACED);
         ListeningPlayer player = holding(helper, 16);
         start(helper, player);
         List<BlockPos> laid = layAsPlanned(helper, player, new BlockPos(5, 0, 2));
         expectLaid(helper, laid, line(1, 5, 1, 2));
         expectHeld(helper, player, 11);
-        if (!player.getInventory().hasAnyMatching(stack -> stack.is(Items.BIRCH_PLANKS))) {
-            helper.fail("the replaced birch plank was not returned", birch);
+        if (!player.getInventory().hasAnyMatching(stack -> stack.is(Items.LIGHT_BLUE_GLAZED_TERRACOTTA))) {
+            helper.fail("the replaced block was not returned", replaced);
         }
         helper.succeed();
     }
 
     private static void noRoomToReturn(GameTestHelper helper) {
-        BlockPos birch = new BlockPos(3, 1, 2);
-        helper.setBlock(birch, Blocks.BIRCH_PLANKS);
+        BlockPos replaced = new BlockPos(3, 1, 2);
+        helper.setBlock(replaced, LineOfArrows.REPLACED);
         ListeningPlayer player = holding(helper, 16);
         var inventory = player.getInventory().getNonEquipmentItems();
         for (int slot = 0; slot < inventory.size(); slot++) {
@@ -194,8 +195,8 @@ final class StretchTests {
         expectRefused(helper, player, end, Refusal.Stretch.NO_ROOM_TO_RETURN);
         click(helper, player, end, false);
         expectNothingLaidOrCharged(helper, player, 16, List.of(new BlockPos(1, 1, 2), new BlockPos(2, 1, 2)));
-        if (!helper.getBlockState(birch).is(Blocks.BIRCH_PLANKS)) {
-            helper.fail("the refused stretch replaced the birch plank with " + helper.getBlockState(birch), birch);
+        if (!helper.getBlockState(replaced).is(LineOfArrows.REPLACED)) {
+            helper.fail("the refused stretch replaced the light blue terracotta with " + helper.getBlockState(replaced), replaced);
         }
         helper.succeed();
     }
@@ -224,9 +225,27 @@ final class StretchTests {
         helper.succeed();
     }
 
+    /** The item places as any block item does until a start is stored, and its block still names vanilla's item. */
+    private static void single(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        BlockPos floor = new BlockPos(4, 0, 4);
+        PlacementPlan plan = plan(helper, player, floor);
+        click(helper, player, floor, false);
+        BlockPos placed = helper.absolutePos(floor.above());
+        if (plan == null || !plan.blocks().equals(List.of(new PlacementPlan.Placed(placed, LineOfArrows.pointing(Direction.EAST))))
+                || !helper.getBlockState(floor.above()).equals(LineOfArrows.pointing(Direction.EAST))) {
+            helper.fail("the plan was " + plan + ", the click placed " + helper.getBlockState(floor.above()), floor.above());
+        }
+        expectHeld(helper, player, 15);
+        if (LineOfArrows.ARROW.asItem() != Items.MAGENTA_GLAZED_TERRACOTTA) {
+            helper.fail("magenta glazed terracotta names " + LineOfArrows.ARROW.asItem() + " as their item");
+        }
+        helper.succeed();
+    }
+
     /**
      * Lays the stretch to an end aimed at {@code floor}'s top and answers where the plan asked first
-     * put planks, failing unless the click laid exactly that. The positions are absolute, since
+     * put arrows, failing unless the click laid exactly that. The positions are absolute, since
      * {@code GameTestHelper#relativePos} turns even an unrotated test half round.
      */
     private static List<BlockPos> layAsPlanned(GameTestHelper helper, ListeningPlayer player, BlockPos floor) {
@@ -255,8 +274,8 @@ final class StretchTests {
             for (int y = 1; y < 5; y++) {
                 for (int z = 0; z < 9; z++) {
                     BlockPos pos = new BlockPos(x, y, z);
-                    if (helper.getBlockState(pos).is(Blocks.OAK_PLANKS) && !wanted.contains(helper.absolutePos(pos))) {
-                        helper.fail("a plank was laid outside the plan", pos);
+                    if (helper.getBlockState(pos).is(LineOfArrows.ARROW) && !wanted.contains(helper.absolutePos(pos))) {
+                        helper.fail("a arrow was laid outside the plan", pos);
                     }
                 }
             }
@@ -273,8 +292,8 @@ final class StretchTests {
     private static void expectNothingLaidOrCharged(GameTestHelper helper, ListeningPlayer player, int held,
                                                    List<BlockPos> unlaid) {
         for (BlockPos pos : unlaid) {
-            if (helper.getBlockState(pos).is(Blocks.OAK_PLANKS)) {
-                helper.fail("a refused stretch laid a plank", pos);
+            if (helper.getBlockState(pos).is(LineOfArrows.ARROW)) {
+                helper.fail("a refused stretch laid a arrow", pos);
             }
         }
         expectHeld(helper, player, held);
@@ -297,7 +316,7 @@ final class StretchTests {
         }
     }
 
-    /** Planks from {@code fromX} to {@code toX} at height {@code y}, in row {@code z}. */
+    /** Arrows from {@code fromX} to {@code toX} at height {@code y}, in row {@code z}. */
     private static List<BlockPos> line(int fromX, int toX, int y, int z) {
         List<BlockPos> line = new ArrayList<>();
         for (int x = fromX; x <= toX; x++) {
@@ -332,7 +351,7 @@ final class StretchTests {
         ListeningPlayer player = new ListeningPlayer(helper, new BlockPos(0, 1, 0));
         player.setYRot(Direction.EAST.toYRot());
         player.setYHeadRot(Direction.EAST.toYRot());
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GroundworksGameTests.STRETCHES_PLANKS.get(), count));
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GroundworksGameTests.STRETCHES_ARROWS.get(), count));
         return player;
     }
 
