@@ -16,8 +16,8 @@ import net.neoforged.neoforge.common.NeoForge;
 
 /**
  * The client half: the Placement Preview, which has no toggle and no state beyond its own cache,
- * the Dismantle's preview, which takes the frame before any Consumer's Takeover, and the keys for
- * Rotate and for Raise and Lower.
+ * the Dismantle's preview, which takes the frame before any Consumer's Takeover, the Stretch's
+ * markers, and the keys for Rotate and for Raise and Lower.
  */
 @Mod(value = Groundworks.MOD_ID, dist = Dist.CLIENT)
 public final class GroundworksClient {
@@ -30,6 +30,7 @@ public final class GroundworksClient {
         modBus.addListener(RegisterKeyMappingsEvent.class, event -> event.registerCategory(KEYS));
         NeoForge.EVENT_BUS.addListener(PlacementPreview::onSubmitGeometry);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, DismantlePreview::onTakeover);
+        NeoForge.EVENT_BUS.addListener(StretchPreview::onMarker);
         modBus.addListener(RotateKeys::onRegisterKeys);
         NeoForge.EVENT_BUS.addListener(RotateKeys::onClientTick);
         modBus.addListener(RaiseKeys::onRegisterKeys);

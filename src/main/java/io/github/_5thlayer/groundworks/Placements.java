@@ -65,9 +65,13 @@ public final class Placements {
         return false;
     }
 
-    /** Whether a Placement Preview is drawn for this item: it plans its own placement, or its block is opted in. */
+    /**
+     * Whether a Placement Preview is drawn for this item: it plans its own placement, its block is
+     * opted in, or it {@linkplain Stretches stretches}.
+     */
     static boolean isDrawn(Item item) {
-        return item instanceof PlansPlacement || item instanceof BlockItem block && isOptedIn(block.getBlock());
+        return item instanceof PlansPlacement || item instanceof BlockItem block && isOptedIn(block.getBlock())
+                || Stretches.builderOf(item) != null;
     }
 
     /**
@@ -75,6 +79,9 @@ public final class Placements {
      *
      * <p>Safe on either side, and it reads the world without touching it: the client asks it every
      * frame (behind the preview's cache) and the server asks it on the click.
+     *
+     * <p>While a {@linkplain Stretches Stretch} is being drawn with the main hand's stack, it is the
+     * stretch that a click would lay.
      */
     @Nullable
     public static PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand,
@@ -82,6 +89,12 @@ public final class Placements {
         Item item = stack.getItem();
         if (!isDrawn(item)) {
             return null;
+        }
+        if (hand == InteractionHand.MAIN_HAND) {
+            PlacementPlan stretch = Stretches.planFor(level, player, stack, hit);
+            if (stretch != null) {
+                return stretch;
+            }
         }
         return planFor(item, new BlockPlaceContext(level, player, hand, stack, hit));
     }

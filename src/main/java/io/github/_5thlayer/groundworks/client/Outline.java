@@ -19,7 +19,7 @@ import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.joml.Vector3f;
 
 /** A red outline round each of the given blocks, which marks what a
- * {@link PlacementPreviewEvent.Takeover} would take up. */
+ * {@link PlacementPreviewEvent.Takeover} would take up, or one in a colour of Groundworks' own. */
 public final class Outline {
 
     private static final int COLOUR = 0xFFFF4040;
@@ -31,6 +31,10 @@ public final class Outline {
     }
 
     public static void draw(SubmitCustomGeometryEvent event, Collection<BlockPos> positions) {
+        draw(event, positions, COLOUR);
+    }
+
+    static void draw(SubmitCustomGeometryEvent event, Collection<BlockPos> positions, int colour) {
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
         PoseStack poseStack = event.getPoseStack();
         SubmitNodeCollector collector = event.getSubmitNodeCollector();
@@ -38,15 +42,15 @@ public final class Outline {
             poseStack.pushPose();
             poseStack.translate(pos.getX() - camera.x(), pos.getY() - camera.y(), pos.getZ() - camera.z());
             collector.submitCustomGeometry(poseStack, RenderTypes.lines(), (pose, buffer) ->
-                    OUTLINE.forAllEdges((x1, y1, z1, x2, y2, z2) -> line(buffer, pose, x1, y1, z1, x2, y2, z2)));
+                    OUTLINE.forAllEdges((x1, y1, z1, x2, y2, z2) -> line(buffer, pose, colour, x1, y1, z1, x2, y2, z2)));
             poseStack.popPose();
         }
     }
 
-    private static void line(VertexConsumer buffer, PoseStack.Pose pose,
-                             double x1, double y1, double z1, double x2, double y2, double z2) {
+    static void line(VertexConsumer buffer, PoseStack.Pose pose, int colour,
+                     double x1, double y1, double z1, double x2, double y2, double z2) {
         Vector3f normal = new Vector3f((float) (x2 - x1), (float) (y2 - y1), (float) (z2 - z1)).normalize();
-        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(COLOUR).setNormal(pose, normal).setLineWidth(WIDTH);
-        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(COLOUR).setNormal(pose, normal).setLineWidth(WIDTH);
+        buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(colour).setNormal(pose, normal).setLineWidth(WIDTH);
+        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(colour).setNormal(pose, normal).setLineWidth(WIDTH);
     }
 }

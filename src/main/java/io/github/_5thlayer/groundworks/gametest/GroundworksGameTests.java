@@ -13,6 +13,7 @@ import com.mojang.serialization.MapCodec;
 import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.Placements;
 import io.github._5thlayer.groundworks.Rotate;
+import io.github._5thlayer.groundworks.Stretches;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -20,12 +21,14 @@ import net.minecraft.gametest.framework.GameTestInstance;
 import net.minecraft.gametest.framework.TestData;
 import net.minecraft.gametest.framework.TestEnvironmentDefinition;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.gametest.GameTestHooks;
 import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
@@ -40,8 +43,10 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * construction as ADR 0001 has it, and they hold on the server alone, which is all a game-test
  * server has. A dev client, which enables game tests too, draws these blocks.
  *
- * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, is registered only when game
- * tests are enabled, for the same reason.
+ * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, and the one item,
+ * {@link #STRETCHES_PLANKS}, whose legs {@link LineOfPlanks} builds, are registered only when game
+ * tests are enabled, for the same reason. The builder is registered at mod construction, as a
+ * Consumer's is, so a dev client draws the item's stretches too.
  */
 public final class GroundworksGameTests {
 
@@ -59,6 +64,11 @@ public final class GroundworksGameTests {
     static final DeferredBlock<RefusesToTurnBlock> REFUSES_TO_TURN =
             BLOCKS.registerBlock("gametest_refuses_to_turn", RefusesToTurnBlock::new);
 
+    private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Groundworks.MOD_ID);
+
+    /** The tests' stretch-able item, which lays a {@linkplain LineOfPlanks line of planks}. */
+    static final DeferredItem<Item> STRETCHES_PLANKS = ITEMS.registerSimpleItem("gametest_stretches_planks");
+
     /** The vanilla blocks the tests opt in. */
     private static final Set<Block> TEST_BLOCKS = ConcurrentHashMap.newKeySet();
 
@@ -75,6 +85,8 @@ public final class GroundworksGameTests {
         TEST_TYPES.register(modBus);
         if (GameTestHooks.isGametestEnabled()) {
             BLOCKS.register(modBus);
+            ITEMS.register(modBus);
+            Stretches.register(new LineOfPlanks());
         }
         // Posted only when game tests are enabled, so a production server never registers the tests.
         modBus.addListener(GroundworksGameTests::registerTests);
@@ -93,6 +105,7 @@ public final class GroundworksGameTests {
         RotateTests.register(tests);
         RotateInPlaceTests.register(tests);
         RaiseTests.register(tests);
+        StretchTests.register(tests);
     }
 
     private static Identifier id(String path) {

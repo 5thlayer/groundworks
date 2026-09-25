@@ -78,7 +78,7 @@ public final class Raise {
     }
 
     // No height is no component, so a stack lowered back stacks again with one never raised.
-    private static void setHeight(ItemStack stack, Height height) {
+    static void setHeight(ItemStack stack, Height height) {
         if (height.equals(Height.NONE)) {
             stack.remove(Groundworks.HEIGHT.get());
         } else {

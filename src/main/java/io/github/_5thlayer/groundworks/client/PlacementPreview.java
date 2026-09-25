@@ -18,6 +18,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.PlanHull;
 import io.github._5thlayer.groundworks.Placements;
+import io.github._5thlayer.groundworks.Stretches;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -154,7 +155,10 @@ final class PlacementPreview {
             key = new Key(stack.copy(), now.aimed(), now.face(), now.facing(), now.sneaking());
             cached = Placements.planFor(level, player, InteractionHand.MAIN_HAND, stack, hit);
             shown = cached == null ? Map.of() : shownFaces(level, cached);
-            guide = cached == null ? null : HeightGuide.at(level, player, stack, hit);
+            // A stretch's height is its leg's rise, drawn in the plan itself, not a move of the aimed spot.
+            guide = cached == null || Stretches.storedOn(level, stack) != null
+                    ? null
+                    : HeightGuide.at(level, player, stack, hit);
         }
         return cached;
     }
