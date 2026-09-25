@@ -1,0 +1,73 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.147'
+}
+
+group = maven_group
+version = mod_version
+base.archivesName = archives_name
+
+java {
+    withSourcesJar()
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+}
+
+// The Minecraft version goes in the jar's name and not in the library's version:
+// placementpreview-26.1.2-0.1.0.jar.
+tasks.withType(Jar).configureEach {
+    archiveVersion = "$minecraft_version-$mod_version"
+}
+
+neoForge {
+    version = neoforge_version
+
+    runs {
+        // The same player every launch, so a dev save keeps its inventory and position.
+        client {
+            client()
+            programArguments.addAll '--username', 'Developer', '--uuid', '123456781234123412341234567890ab'
+        }
+    }
+
+    mods {
+        "$mod_id" {
+            sourceSet sourceSets.main
+        }
+    }
+
+    // Game types on the test classpath, not a booted game: the tests are of rules that read no
+    // registry, so a plan's blocks can be positions with no state.
+    addModdingDependenciesTo sourceSets.test
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+processResources {
+    inputs.property 'version', version
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand version: version
+    }
+}
+
+// Maven local only for now, which is what a Consumer's development build depends on.
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}

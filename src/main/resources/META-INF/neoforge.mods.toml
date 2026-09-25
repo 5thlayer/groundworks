@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+issueTrackerURL = "https://github.com/5thlayer/placementpreview/issues"
+license = "MIT"
+
+[[mods]]
+modId = "placementpreview"
+version = "${version}"
+displayName = "Placement Preview"
+authors = "5thlayer"
+description = '''
+A library that shows what a held item would place before the click, for the mods that plan their placements through it.
+'''
+
+[[dependencies.placementpreview]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.1.2.77,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.placementpreview]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.1.2]"
+ordering = "NONE"
+side = "BOTH"
