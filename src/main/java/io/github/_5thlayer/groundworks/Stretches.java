@@ -46,7 +46,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The aim picks only where an anchor lies seen from above; the stretch's height there is the
  * start's and each leg's rise before it (ADR 0004). The route is {@link StretchRoute}'s, and each
- * leg is its builder's.
+ * leg is its builder's, gone round what the builder refuses at a position by a {@link Detours
+ * detour} when one clears it.
  *
  * <p>Laying charges one held item per placed block, nothing in creative, and hands each replaced
  * block back to the inventory. A stretch the inventory can't pay for, or has no room to take back
@@ -150,7 +151,8 @@ public final class Stretches {
         for (int i = 0; i < route.size(); i++) {
             Leg.Column first = route.get(i).getFirst();
             Leg leg = new Leg(new BlockPos(first.x(), from.getY(), first.z()), rises.get(i), route.get(i));
-            PlacementPlan built = builder.build(level, item, leg);
+            PlacementPlan built = Detours.plan(leg, player == null ? null : player.blockPosition(),
+                    detour -> builder.build(level, item, detour));
             for (PlacementPlan.Placed placed : built.blocks()) {
                 blocks.put(placed.pos(), placed.state());
                 if (built.replaces().contains(placed.pos())) {

@@ -54,6 +54,10 @@ final class StretchTests {
                 StretchTests::secondLeg);
         tests.test("an_end_aimed_at_a_wall_at_the_stretch_s_height_is_refused_and_nothing_is_laid_or_charged", 20,
                 StretchTests::intoAWall);
+        tests.test("a_block_on_the_line_is_detoured_on_the_player_s_side_as_the_preview_drew", 20,
+                StretchTests::detour);
+        tests.test("a_stretch_blocked_across_the_band_is_refused_whole_at_the_first_obstacle", 20,
+                StretchTests::blockedAcrossTheBand);
         tests.test("an_end_behind_the_look_is_refused", 20, StretchTests::behindTheLook);
         tests.test("not_enough_items_refuses_the_stretch_whole", 20, StretchTests::notEnoughItems);
         tests.test("a_replaced_block_is_returned_to_the_inventory", 20, StretchTests::returned);
@@ -142,6 +146,41 @@ final class StretchTests {
                 "message.groundworks.gametest_blocked"))) {
             helper.fail("the player was told " + player.heard);
         }
+        helper.succeed();
+    }
+
+    /** The player stands north of the line, at the platform's corner, so the detour goes north. */
+    private static void detour(GameTestHelper helper) {
+        BlockPos stone = new BlockPos(3, 1, 2);
+        helper.setBlock(stone, Blocks.STONE);
+        ListeningPlayer player = holding(helper, 16);
+        start(helper, player);
+        List<BlockPos> laid = layAsPlanned(helper, player, new BlockPos(5, 0, 2));
+        expectLaid(helper, laid, List.of(new BlockPos(1, 1, 2), new BlockPos(2, 1, 2), new BlockPos(2, 1, 1),
+                new BlockPos(3, 1, 1), new BlockPos(4, 1, 1), new BlockPos(4, 1, 2), new BlockPos(5, 1, 2)));
+        if (!helper.getBlockState(stone).is(Blocks.STONE)) {
+            helper.fail("the detour replaced the stone with " + helper.getBlockState(stone), stone);
+        }
+        expectHeld(helper, player, 9);
+        helper.succeed();
+    }
+
+    /** A wall across the line, as far to either side as a detour may stray. */
+    private static void blockedAcrossTheBand(GameTestHelper helper) {
+        for (int z = 1; z <= 7; z++) {
+            helper.setBlock(new BlockPos(4, 1, z), Blocks.STONE);
+        }
+        ListeningPlayer player = holding(helper, 16);
+        click(helper, player, new BlockPos(1, 0, 4), true);
+        BlockPos end = new BlockPos(6, 0, 4);
+        PlacementPlan plan = plan(helper, player, end);
+        Refusal wall = new Refusal.At(LineOfArrows.Blocked.BLOCKED, helper.absolutePos(new BlockPos(4, 1, 4)));
+        if (plan == null || !wall.equals(plan.refusal())) {
+            helper.fail("the plan was " + plan + ", not refused at the wall on the line", end);
+        }
+        click(helper, player, end, false);
+        expectNothingLaidOrCharged(helper, player, 16, List.of());
+        expectLaid(helper, List.of(), List.of());
         helper.succeed();
     }
 

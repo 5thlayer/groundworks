@@ -91,7 +91,7 @@ The two actions (`G` and `B` by default) that move the held item's next placemen
 _Avoid_: height gesture (the pair's old working name), elevate, lift
 
 **Detour**:
-The way a **Leg** goes round an obstacle at its own height, flat, on the side of the leg the player stands on, and never far from the straight line. What is an obstacle is the item's to say; a leg that no detour clears is refused.
+The way a **Leg** goes round an obstacle at its own height, flat, on the side of the leg the player stands on, and never far from the straight line. It leaves and meets the leg's **Anchors** the way the leg does, so the rise stays put and the next leg heads the same way; an obstacle right beside an anchor is not gone round. What is an obstacle is the item's to say; a leg that no detour clears is refused.
 _Avoid_: pathfinding, reroute, go-around
 
 ### Dismantling
