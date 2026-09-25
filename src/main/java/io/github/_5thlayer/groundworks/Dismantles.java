@@ -127,9 +127,10 @@ public final class Dismantles {
         return family.span(level, start, end);
     }
 
-    static Component message(DismantleFamily family, Refusal refusal) {
+    /** Not the same kind names the start's block, the kind the end would have had to be. */
+    static Component message(DismantleFamily family, Component startName, Refusal refusal) {
         return refusal == Refusal.Dismantle.NOT_SAME_KIND
-                ? Component.translatable("message.groundworks.dismantle_not_same_kind")
+                ? Component.translatable("message.groundworks.dismantle_not_same_kind", startName)
                 : family.message(refusal);
     }
 
@@ -190,7 +191,7 @@ public final class Dismantles {
                 DismantleFamily family = familyOf(start.state());
                 DismantleSpan span = spanFrom(level, start, pos);
                 if (span.isRefused()) {
-                    tell(player, message(family, span.refusal()));
+                    tell(player, message(family, start.state().getBlock().getName(), span.refusal()));
                 } else {
                     takeUp(family, span, level, held, player);
                 }

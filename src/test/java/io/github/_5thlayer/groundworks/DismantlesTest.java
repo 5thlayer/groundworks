@@ -141,15 +141,18 @@ class DismantlesTest {
         assertEquals(List.of("span"), family.asked);
     }
 
+    /** Named, so a splitter at the end of a belt's span reads as "not a Belt Tile". */
     @Test
-    void theLibrarysOwnRefusalIsToldInItsOwnWords() {
-        Component told = Dismantles.message(new Family(true), Refusal.Dismantle.NOT_SAME_KIND);
-        assertEquals(Component.translatable("message.groundworks.dismantle_not_same_kind"), told);
+    void notTheSameKindNamesTheStartsBlock() {
+        Component start = Component.literal("Belt Tile");
+        Component told = Dismantles.message(new Family(true), start, Refusal.Dismantle.NOT_SAME_KIND);
+        assertEquals(Component.translatable("message.groundworks.dismantle_not_same_kind", start), told);
     }
 
     @Test
     void aFamilysRefusalIsToldInTheFamilysWords() {
-        assertEquals(Component.literal("family's own"), Dismantles.message(new Family(true), FamilyRefusal.OFF_LINE));
+        assertEquals(Component.literal("family's own"),
+                Dismantles.message(new Family(true), Component.literal("Belt Tile"), FamilyRefusal.OFF_LINE));
     }
 
     @Test
