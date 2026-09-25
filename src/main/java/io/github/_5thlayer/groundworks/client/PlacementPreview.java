@@ -143,7 +143,8 @@ final class PlacementPreview {
         }
         Key now = new Key(stack, hit.getBlockPos(), hit.getDirection(), player.getDirection(), player.isShiftKeyDown());
         if (key == null || !key.matches(now)) {
-            key = now;
+            // A copy, so a component set on the held stack itself -- a Rotate's turn -- still turns the cache over.
+            key = new Key(stack.copy(), now.aimed(), now.face(), now.facing(), now.sneaking());
             cached = Placements.planFor(level, player, InteractionHand.MAIN_HAND, stack, hit);
             shown = cached == null ? Map.of() : shownFaces(level, cached);
         }

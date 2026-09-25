@@ -64,6 +64,11 @@ public final class Placements {
         return false;
     }
 
+    /** Whether a Placement Preview is drawn for this item: it plans its own placement, or its block is opted in. */
+    static boolean isDrawn(Item item) {
+        return item instanceof PlansPlacement || item instanceof BlockItem block && isOptedIn(block.getBlock());
+    }
+
     /**
      * What the held stack would do at this hit, or {@code null} if there is nothing to draw.
      *
@@ -74,7 +79,7 @@ public final class Placements {
     public static PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand,
                                         ItemStack stack, BlockHitResult hit) {
         Item item = stack.getItem();
-        if (!(item instanceof PlansPlacement) && !(item instanceof BlockItem block && isOptedIn(block.getBlock()))) {
+        if (!isDrawn(item)) {
             return null;
         }
         return planFor(item, new BlockPlaceContext(level, player, hand, stack, hit));

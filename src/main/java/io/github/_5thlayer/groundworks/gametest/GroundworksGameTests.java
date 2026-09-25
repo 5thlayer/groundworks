@@ -70,6 +70,7 @@ public final class GroundworksGameTests {
         var environment = event.registerEnvironment(id("default"), new TestEnvironmentDefinition.AllOf(List.of()));
         var tests = new Registrar(event, environment);
         VanillaPlanTests.register(tests);
+        RotateTests.register(tests);
     }
 
     private static Identifier id(String path) {

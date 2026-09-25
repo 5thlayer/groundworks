@@ -1,5 +1,8 @@
 {
   "message.groundworks.dismantle_started": "Dismantle started. Click another block of the same kind to take up everything between.",
   "message.groundworks.dismantle_cleared": "Dismantle cleared.",
-  "message.groundworks.dismantle_not_same_kind": "That is not the same kind of block as the dismantle's start, %s."
+  "message.groundworks.dismantle_not_same_kind": "That is not the same kind of block as the dismantle's start, %s.",
+  "key.category.groundworks.groundworks": "Groundworks",
+  "key.groundworks.rotate": "Rotate",
+  "key.groundworks.reverse_rotate": "Reverse Rotate"
 }
