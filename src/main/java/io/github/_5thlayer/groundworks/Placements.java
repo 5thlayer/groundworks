@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
+import io.github._5thlayer.groundworks.mixin.UseOnContextInvoker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -112,12 +113,23 @@ public final class Placements {
      *
      * <p>Where vanilla would refuse before there is even a position -- an unplaceable context, a
      * null state -- there is no plan, so nothing is drawn. Where it refuses <em>at</em> a position,
-     * that position draws red.
+     * that position draws red. A spot moved by the held stack's {@linkplain Raise height} is a
+     * position the player chose, so one that is taken, or outside the world, refuses there rather
+     * than drawing nothing.
      */
     @Nullable
     public static PlacementPlan vanillaPlan(BlockItem item, BlockPlaceContext context) {
-        if (!item.getBlock().isEnabled(context.getLevel().enabledFeatures()) || !context.canPlace()) {
+        if (!item.getBlock().isEnabled(context.getLevel().enabledFeatures())) {
             return null;
+        }
+        if (!context.canPlace()) {
+            if (Raise.heightOf(context).equals(Height.NONE)) {
+                return null;
+            }
+            // The spot may be why a block has no state for it, and the refusal is still drawn there.
+            BlockState state = item.getBlock().getStateForPlacement(context);
+            return PlacementPlan.refused(context.getClickedPos(),
+                    state != null ? state : item.getBlock().defaultBlockState(), Refusal.Vanilla.VANILLA);
         }
         BlockPlaceContext updated = item.updatePlacementContext(context);
         if (updated == null) {
@@ -139,15 +151,13 @@ public final class Placements {
      *
      * <p>{@code BlockPlaceContext} answers {@code getClickedPos} with where the block would
      * <em>go</em> -- the hit position itself when it is replaceable, the neighbour across the hit
-     * face otherwise -- and that is the right answer for placing and the wrong one for a rule about
-     * what is being aimed at, like a column the aim extends. {@code UseOnContext#getHitResult} is
-     * protected, so this undoes the same step it took.
+     * face otherwise, moved by the held stack's {@linkplain Raise height} -- and that is the right
+     * answer for placing and the wrong one for a rule about what is being aimed at, like a column
+     * the aim extends. {@code UseOnContext#getHitResult} is protected, so this reads it through an
+     * invoker.
      */
     public static BlockPos aimedPos(BlockPlaceContext context) {
-        BlockPos clicked = context.getClickedPos();
-        return context.replacingClickedOnBlock()
-                ? clicked
-                : clicked.relative(context.getClickedFace().getOpposite());
+        return ((UseOnContextInvoker) context).groundworks$hitResult().getBlockPos();
     }
 
     /** Vanilla's own two conditions for "this state may stand here". */

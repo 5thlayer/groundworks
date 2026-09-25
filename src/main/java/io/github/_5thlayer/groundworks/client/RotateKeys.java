@@ -6,12 +6,10 @@ package io.github._5thlayer.groundworks.client;
 import java.util.Optional;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.RotatePayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -29,19 +27,15 @@ import org.lwjgl.glfw.GLFW;
  */
 final class RotateKeys {
 
-    private static final KeyMapping.Category CATEGORY =
-            new KeyMapping.Category(Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, Groundworks.MOD_ID));
-
     private static final KeyMapping ROTATE = new KeyMapping("key.groundworks.rotate",
-            KeyConflictContext.IN_GAME, KeyModifier.NONE, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CATEGORY);
+            KeyConflictContext.IN_GAME, KeyModifier.NONE, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, GroundworksClient.KEYS);
     private static final KeyMapping REVERSE_ROTATE = new KeyMapping("key.groundworks.reverse_rotate",
-            KeyConflictContext.IN_GAME, KeyModifier.SHIFT, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, CATEGORY);
+            KeyConflictContext.IN_GAME, KeyModifier.SHIFT, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_R, GroundworksClient.KEYS);
 
     private RotateKeys() {
     }
 
     static void onRegisterKeys(RegisterKeyMappingsEvent event) {
-        event.registerCategory(CATEGORY);
         event.register(ROTATE);
         event.register(REVERSE_ROTATE);
     }

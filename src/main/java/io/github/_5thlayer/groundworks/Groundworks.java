@@ -18,8 +18,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /**
  * The library's common half. The plan and the opt-in are plain types, asked on both sides; the
  * {@linkplain Dismantles Dismantle} keeps its start on the held stack and answers the clicks, and
- * {@link Rotate} keeps its turn there and answers the key's payload. The drawing and the keys
- * are {@code client.GroundworksClient}.
+ * {@link Rotate} keeps its turn there and {@link Raise} its height, each answering its keys'
+ * payload. The drawing and the keys are {@code client.GroundworksClient}.
  */
 @Mod(Groundworks.MOD_ID)
 public final class Groundworks {
@@ -37,9 +37,14 @@ public final class Groundworks {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<QuarterTurn>> QUARTER_TURN =
             COMPONENTS.register("quarter_turn", QuarterTurn::componentType);
 
+    /** The held stack's {@linkplain Raise height}, persistent and synced to the client, which draws it. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Height>> HEIGHT =
+            COMPONENTS.register("height", Height::componentType);
+
     public Groundworks(IEventBus modBus) {
         COMPONENTS.register(modBus);
         modBus.addListener(RotatePayload::register);
+        modBus.addListener(RaisePayload::register);
         GroundworksGameTests.register(modBus);
         // An event rather than an item's own use: the tools that dismantle are no one's in particular.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, PlayerInteractEvent.RightClickBlock.class, event -> {

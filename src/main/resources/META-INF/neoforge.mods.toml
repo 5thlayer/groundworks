@@ -12,7 +12,7 @@ description = '''
 A library for mass placement and Dismantle: it plans what a click would lay or take up, shows the plan before the click, and carries it out, for the mods that plan through it.
 '''
 
-# The look a placement reads, turned by Rotate.
+# The look a placement reads, turned by Rotate, and where it goes, moved by Raise and Lower.
 [[mixins]]
 config = "groundworks.mixins.json"
 

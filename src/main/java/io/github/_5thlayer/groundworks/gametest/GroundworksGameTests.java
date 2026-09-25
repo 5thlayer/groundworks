@@ -92,6 +92,7 @@ public final class GroundworksGameTests {
         VanillaPlanTests.register(tests);
         RotateTests.register(tests);
         RotateInPlaceTests.register(tests);
+        RaiseTests.register(tests);
     }
 
     private static Identifier id(String path) {

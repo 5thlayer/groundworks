@@ -3,8 +3,13 @@
   "package": "io.github._5thlayer.groundworks.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "BlockPlaceContextHeightMixin",
     "BlockPlaceContextMixin",
+    "UseOnContextInvoker",
     "UseOnContextMixin"
+  ],
+  "client": [
+    "GuiAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

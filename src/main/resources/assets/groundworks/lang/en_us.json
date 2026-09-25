@@ -2,7 +2,11 @@
   "message.groundworks.dismantle_started": "Dismantle started. Click another block of the same kind to take up everything between.",
   "message.groundworks.dismantle_cleared": "Dismantle cleared.",
   "message.groundworks.dismantle_not_same_kind": "That is not the same kind of block as the dismantle's start, %s.",
+  "message.groundworks.height": "Height %s",
+  "message.groundworks.height_at_reach": "That is as far as your reach goes.",
   "key.category.groundworks.groundworks": "Groundworks",
   "key.groundworks.rotate": "Rotate",
-  "key.groundworks.reverse_rotate": "Reverse Rotate"
+  "key.groundworks.reverse_rotate": "Reverse Rotate",
+  "key.groundworks.raise": "Raise",
+  "key.groundworks.lower": "Lower"
 }
