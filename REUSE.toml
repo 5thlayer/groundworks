@@ -10,6 +10,7 @@ path = [
     ".gitignore",
     "**/*.mods.toml",
     "**/*.md",
+    "src/main/resources/**/*.json",
     "LICENSE",
 ]
 SPDX-FileCopyrightText = "2026 5thlayer"

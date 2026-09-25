@@ -9,7 +9,7 @@ version = "${version}"
 displayName = "Groundworks"
 authors = "5thlayer"
 description = '''
-A library that shows what a held item would place before the click, for the mods that plan their placements through it.
+A library for mass placement and Dismantle: it plans what a click would lay or take up, shows the plan before the click, and carries it out, for the mods that plan through it.
 '''
 
 [[dependencies.groundworks]]

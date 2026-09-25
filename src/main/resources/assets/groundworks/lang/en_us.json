@@ -1,0 +1,5 @@
+{
+  "message.groundworks.dismantle_started": "Dismantle started. Click another block of the same kind to take up everything between.",
+  "message.groundworks.dismantle_cleared": "Dismantle cleared.",
+  "message.groundworks.dismantle_not_same_kind": "That is not the same kind of block the dismantle started on."
+}

@@ -21,7 +21,7 @@ What a held item would do at an aimed spot: the blocks it would put down (each a
 _Avoid_: ghost, build plan, preview state, placement context (vanilla's own type, one input to a plan)
 
 **Refusal**:
-Why a **Placement Plan** would not go through. Refusals are open: the library names only the **Vanilla** one, and each **Consumer** names its own.
+Why a **Placement Plan**, or a **Dismantle**'s span, would not go through. Refusals are open: the library names only the **Vanilla** one and a span's "not the same kind", and each **Consumer** names its own.
 _Avoid_: error, failure, rejection
 
 **Vanilla Plan**:
@@ -43,7 +43,7 @@ A **Consumer**'s addition drawn with a **Placement Plan**, given the plan and it
 _Avoid_: decoration, extra
 
 **Takeover**:
-A **Consumer**'s preview that replaces the **Placement Preview** for a frame, such as a dismantle's span. The first to draw wins; then no other Takeover draws and no plan is asked for.
+A preview that replaces the **Placement Preview** for a frame, such as a **Dismantle**'s span, which Groundworks draws ahead of any **Consumer**'s. The first to draw wins; then no other Takeover draws and no plan is asked for.
 _Avoid_: frame hook, override
 
 **Marker**:
@@ -51,7 +51,7 @@ A **Consumer**'s drawing that shows whatever the aim, even while a **Takeover** 
 _Avoid_: always hook, indicator
 
 **Outline**:
-A red outline round given block positions, which **Consumers** use to mark what a **Takeover** would take up.
+A red outline round given block positions, which Groundworks and **Consumers** use to mark what a **Takeover** would take up, such as a **Dismantle**'s span.
 _Avoid_: dismantle outline, highlight
 
 ### Rotating
@@ -95,6 +95,10 @@ The way a **Leg** goes round an obstacle at its own height, flat, on the side of
 _Avoid_: pathfinding, reroute, go-around
 
 ### Dismantling
+
+**Dismantle**:
+Taking up a span of one **Dismantle family** from a start to an end, both included, with a tool in `groundworks:dismantles`: a sneak-click on a member stores the start on the held stack, and a click names the end. A sneak-click with a start stored moves it there, and a sneak-use in the air clears it. A start whose block is gone, whose family no longer counts it the same start, or that is in another dimension, is no start. An end outside the start's family is refused as not the same kind. What the span takes goes to the inventory, and what doesn't fit drops at the player's feet; a creative player is handed nothing. While a start is stored the preview outlines the span to the aim, or only the start when the span is refused.
+_Avoid_: deconstruct, mass mine, unstretch
 
 **Dismantle family**:
 A kind of connected block that a **Dismantle** takes up as one span, with its own rule for which blocks a span follows between its two ends and what the span takes. A **Consumer** supplies each one: Beltworks' belt family follows one transport line and takes the tiles' wedges and items with them, and the Pack's pipe family takes the shortest joined path. Groundworks runs the gesture for every family alike, and a span never crosses from one family to another.
