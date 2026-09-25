@@ -25,6 +25,11 @@ final class ListeningPlayer extends FakePlayer {
     ListeningPlayer(GameTestHelper helper, BlockPos at) {
         super(helper.getLevel(), new GameProfile(UUID.randomUUID(), "groundworks_listener"));
         setGameMode(GameType.SURVIVAL);
+        standOn(helper, at);
+    }
+
+    /** Moves the player onto the block at {@code at}. */
+    void standOn(GameTestHelper helper, BlockPos at) {
         Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(at));
         setPos(feet.x, feet.y, feet.z);
     }

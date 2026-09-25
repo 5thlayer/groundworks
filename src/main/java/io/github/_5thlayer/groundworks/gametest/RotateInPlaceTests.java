@@ -205,10 +205,13 @@ final class RotateInPlaceTests {
     private static void outOfReach(GameTestHelper helper) {
         BlockState start = TURNING.getFirst().start();
         helper.setBlock(AIMED, start);
-        ListeningPlayer player = new ListeningPlayer(helper, AIMED.north(10));
+        ListeningPlayer player = new ListeningPlayer(helper, AIMED.north(2));
+        // Past the reach the press checks, the player's range plus one, whatever range the install gives it.
+        int beyond = (int) Math.ceil(player.blockInteractionRange() + 1.0) + 2;
+        player.standOn(helper, AIMED.north(beyond));
         Rotate.press(player, helper.absolutePos(AIMED), false);
         if (!helper.getBlockState(AIMED).equals(start)) {
-            helper.fail("a press from ten blocks away turned " + start + " to " + helper.getBlockState(AIMED), AIMED);
+            helper.fail("a press from " + beyond + " blocks away turned " + start + " to " + helper.getBlockState(AIMED), AIMED);
         }
     }
 
