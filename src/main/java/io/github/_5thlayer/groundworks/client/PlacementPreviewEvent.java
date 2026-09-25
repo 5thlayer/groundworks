@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview.client;
+package io.github._5thlayer.groundworks.client;
 
-import io.github._5thlayer.placementpreview.PlacementPlan;
+import io.github._5thlayer.groundworks.PlacementPlan;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;

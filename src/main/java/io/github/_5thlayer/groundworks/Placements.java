@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview;
+package io.github._5thlayer.groundworks;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

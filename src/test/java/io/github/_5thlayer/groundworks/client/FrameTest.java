@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview.client;
+package io.github._5thlayer.groundworks.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github._5thlayer.placementpreview.PlacementPlan;
-import io.github._5thlayer.placementpreview.PlacementPlan.Placed;
-import io.github._5thlayer.placementpreview.Refusal;
+import io.github._5thlayer.groundworks.PlacementPlan;
+import io.github._5thlayer.groundworks.PlacementPlan.Placed;
+import io.github._5thlayer.groundworks.Refusal;
 
 import net.minecraft.core.BlockPos;
 import net.neoforged.bus.api.BusBuilder;

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview;
+package io.github._5thlayer.groundworks;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,9 +11,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import io.github._5thlayer.placementpreview.PlanHull.Cell;
-import io.github._5thlayer.placementpreview.PlanHull.Face;
-import io.github._5thlayer.placementpreview.PlanHull.Side;
+import io.github._5thlayer.groundworks.PlanHull.Cell;
+import io.github._5thlayer.groundworks.PlanHull.Face;
+import io.github._5thlayer.groundworks.PlanHull.Side;
 
 import org.junit.jupiter.api.Test;
 

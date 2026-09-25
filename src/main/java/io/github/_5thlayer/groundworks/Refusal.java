@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview;
+package io.github._5thlayer.groundworks;
 
 /**
  * Why a {@link PlacementPlan} would not go through.

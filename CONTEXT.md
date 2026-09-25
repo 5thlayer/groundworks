@@ -1,14 +1,14 @@
-# placementpreview
+# Groundworks
 
-A library mod that shows a player what a held item would place before they click: a **Placement Plan**, drawn as a **Placement Preview**. It exists so the mods that share a screen (Beltworks and the PlanetaryFactory Pack) draw placements one way, with one renderer.
+A library mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. It exists so the mods that share a screen (Beltworks and the PlanetaryFactory Pack) place, preview and dismantle one way (ADR 0002).
 
 ## Language
 
 ### Parties
 
-**placementpreview**:
-This library. It owns the plan, the drawing, the hooks and **Rotate**, and nothing about any particular block.
-_Avoid_: preview lib, the renderer
+**Groundworks**:
+This library. It owns the plan, the drawing, the hooks, **Rotate**, the **Stretch** and the **Dismantle**, and nothing about any particular block. Formerly placementpreview, which only drew **Placement Plans** (ADR 0002).
+_Avoid_: placementpreview (its old name), preview lib, the renderer, Groundwork
 
 **Consumer**:
 A mod that plans its items' placements through the library and draws its own additions through its hooks. Beltworks and the Pack are the two today.
@@ -93,3 +93,9 @@ _Avoid_: height gesture (the pair's old working name), elevate, lift
 **Detour**:
 The way a **Leg** goes round an obstacle at its own height, flat, on the side of the leg the player stands on, and never far from the straight line. What is an obstacle is the item's to say; a leg that no detour clears is refused.
 _Avoid_: pathfinding, reroute, go-around
+
+### Dismantling
+
+**Dismantle family**:
+A kind of connected block that a **Dismantle** takes up as one span, with its own rule for which blocks a span follows between its two ends and what the span takes. A **Consumer** supplies each one: Beltworks' belt family follows one transport line and takes the tiles' wedges and items with them, and the Pack's pipe family takes the shortest joined path. Groundworks runs the gesture for every family alike, and a span never crosses from one family to another.
+_Avoid_: dismantle group, connected type

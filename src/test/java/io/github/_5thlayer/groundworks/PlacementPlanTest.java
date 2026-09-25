@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview;
+package io.github._5thlayer.groundworks;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github._5thlayer.placementpreview.PlacementPlan.Placed;
+import io.github._5thlayer.groundworks.PlacementPlan.Placed;
 
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;

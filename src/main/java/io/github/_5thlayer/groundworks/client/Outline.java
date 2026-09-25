@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 5thlayer
 // SPDX-License-Identifier: MIT
 
-package io.github._5thlayer.placementpreview.client;
+package io.github._5thlayer.groundworks.client;
 
 import java.util.Collection;
 
