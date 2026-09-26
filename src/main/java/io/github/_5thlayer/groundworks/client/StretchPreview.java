@@ -25,7 +25,8 @@ import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
  * the Placement Preview's, as the plan a click would lay.
  *
  * <p>Before one is, while the player sneaks, the start a sneak-click would store is drawn the same
- * way at the aim, so the way the stretch will run is seen before it starts.
+ * way at the aim, with the look turned by Rotate, so the way the stretch will run is seen before it
+ * starts.
  */
 final class StretchPreview {
 
@@ -44,12 +45,12 @@ final class StretchPreview {
         SubmitCustomGeometryEvent geometry = event.getGeometry();
         StoredStretch stored = Stretches.storedOn(event.getLevel(), stack);
         if (stored == null) {
-            BlockPos start = event.getHitResult() instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
-                    ? Stretches.startAt(event.getLevel(), event.getPlayer(), stack, hit)
+            StoredStretch started = event.getHitResult() instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                    ? Stretches.startedAt(event.getLevel(), event.getPlayer(), stack, hit)
                     : null;
-            if (start != null) {
-                Outline.draw(geometry, List.of(start), COLOUR);
-                arrow(geometry, start, event.getPlayer().getDirection());
+            if (started != null) {
+                Outline.draw(geometry, List.of(started.start()), COLOUR);
+                arrow(geometry, started.start(), started.look());
             }
             return;
         }

@@ -29,14 +29,16 @@ import org.jspecify.annotations.Nullable;
 /**
  * Rotate and Reverse Rotate (ADR 0003). A press Rotates the Plan of a rotatable held stack: its
  * next placement turns a quarter from the way the player looks, and the turn stays on the stack,
- * as {@link Groundworks#QUARTER_TURN}, until its last item is placed. Otherwise it Rotates in Place
- * the block under the crosshair, if a Consumer has {@linkplain #turnsInPlace stated} it turns it.
+ * as {@link Groundworks#QUARTER_TURN}, until its last item is placed or a {@linkplain Stretches
+ * Stretch}'s start uses it up. Otherwise it Rotates in Place the block under the crosshair, if a
+ * Consumer has {@linkplain #turnsInPlace stated} it turns it.
  *
  * <p>Nothing implements a contract to Rotate the Plan. The look a placement context reports is
  * turned by the stack's turn, so the plan and the click, which both read that context, turn
- * together, and every block whose placement reads the look turns with no code of its own. In
- * place, a block that {@linkplain TurnsInPlace answers for itself} does, and any other takes
- * vanilla's turn.
+ * together, and every block whose placement reads the look turns with no code of its own. A
+ * stretch's start, which stores the look rather than reading a context, turns it by the stack's
+ * turn itself; with a start stored, a press leaves the stretch alone. In place, a block that
+ * {@linkplain TurnsInPlace answers for itself} does, and any other takes vanilla's turn.
  */
 public final class Rotate {
 
@@ -131,7 +133,7 @@ public final class Rotate {
     }
 
     // No turn is no component, so a stack turned back stacks again with one never turned.
-    private static void setTurn(ItemStack stack, QuarterTurn turned) {
+    static void setTurn(ItemStack stack, QuarterTurn turned) {
         if (turned.equals(QuarterTurn.NONE)) {
             stack.remove(Groundworks.QUARTER_TURN.get());
         } else {

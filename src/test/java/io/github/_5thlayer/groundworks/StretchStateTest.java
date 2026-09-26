@@ -17,8 +17,8 @@ import net.minecraft.world.level.Level;
 import org.junit.jupiter.api.Test;
 
 /**
- * A stretch's stored state and its height, through the gestures: which gesture a click is, and
- * what start, anchor, lay and clear make of them.
+ * A stretch's stored state, its height and its turn, through the gestures: which gesture a click
+ * is, and what start, anchor, lay and clear make of them.
  */
 class StretchStateTest {
 
@@ -26,44 +26,71 @@ class StretchStateTest {
             ResourceKey.create(Registries.DIMENSION, Identifier.withDefaultNamespace("overworld"));
     private static final BlockPos SPOT = new BlockPos(1, 64, 2);
 
+    private static final QuarterTurn QUARTER = QuarterTurn.of(1);
+
     private static StoredStretch storedAt(BlockPos start, StoredStretch.Anchor... anchors) {
         return new StoredStretch(OVERWORLD, start, Direction.EAST, List.of(anchors));
     }
 
     @Test
     void theStartTakesTheHeldHeightAndUsesItUp() {
-        StretchState started = new StretchState(null, new Height(3)).started(OVERWORLD, SPOT, Direction.EAST);
-        assertEquals(new StretchState(storedAt(new BlockPos(1, 67, 2)), Height.NONE), started);
+        StretchState started = new StretchState(null, new Height(3), QuarterTurn.NONE)
+                .started(OVERWORLD, SPOT, Direction.EAST);
+        assertEquals(new StretchState(storedAt(new BlockPos(1, 67, 2)), Height.NONE, QuarterTurn.NONE), started);
+    }
+
+    @Test
+    void theStartTakesTheLookTurnedByTheHeldTurnAndUsesItUp() {
+        StretchState started = new StretchState(null, Height.NONE, QUARTER).started(OVERWORLD, SPOT, Direction.EAST);
+        assertEquals(new StretchState(new StoredStretch(OVERWORLD, SPOT, Direction.SOUTH, List.of()), Height.NONE,
+                QuarterTurn.NONE), started);
+    }
+
+    @Test
+    void theStartTakesTheLookReverseTurnedByAReverseRotate() {
+        StretchState started = new StretchState(null, Height.NONE, QuarterTurn.of(-1))
+                .started(OVERWORLD, SPOT, Direction.EAST);
+        assertEquals(Direction.NORTH, started.stored().look());
+    }
+
+    @Test
+    void anAnchorLeavesTheTurnForTheNextStart() {
+        StretchState anchored = new StretchState(storedAt(SPOT), Height.NONE, QUARTER).anchored(new BlockPos(5, 70, 2));
+        assertEquals(QUARTER, anchored.turn());
     }
 
     @Test
     void anAnchorFreezesTheHeightIntoTheLegEndingThereAndUsesItUp() {
-        StretchState anchored = new StretchState(storedAt(SPOT), new Height(2)).anchored(new BlockPos(5, 70, 2));
-        assertEquals(new StretchState(storedAt(SPOT, new StoredStretch.Anchor(5, 2, 2)), Height.NONE), anchored);
+        StretchState anchored = new StretchState(storedAt(SPOT), new Height(2), QuarterTurn.NONE)
+                .anchored(new BlockPos(5, 70, 2));
+        assertEquals(new StretchState(storedAt(SPOT, new StoredStretch.Anchor(5, 2, 2)), Height.NONE, QuarterTurn.NONE),
+                anchored);
     }
 
     @Test
     void anAnchorTakesItsSpotFromAboveOnly() {
-        assertEquals(new StretchState(storedAt(SPOT), Height.NONE).anchored(new BlockPos(5, 70, 2)),
-                new StretchState(storedAt(SPOT), Height.NONE).anchored(new BlockPos(5, 10, 2)));
+        assertEquals(new StretchState(storedAt(SPOT), Height.NONE, QuarterTurn.NONE).anchored(new BlockPos(5, 70, 2)),
+                new StretchState(storedAt(SPOT), Height.NONE, QuarterTurn.NONE).anchored(new BlockPos(5, 10, 2)));
     }
 
     @Test
     void anAnchorAtTheSameSpotAsTheLastIsIgnored() {
-        StretchState state = new StretchState(storedAt(SPOT, new StoredStretch.Anchor(5, 2, 1)), new Height(-1));
+        StretchState state = new StretchState(storedAt(SPOT, new StoredStretch.Anchor(5, 2, 1)), new Height(-1),
+                QuarterTurn.NONE);
         assertSame(state, state.anchored(new BlockPos(5, 40, 2)));
     }
 
     @Test
     void anAnchorAtTheStartIsIgnored() {
-        StretchState state = new StretchState(storedAt(SPOT), new Height(1));
+        StretchState state = new StretchState(storedAt(SPOT), new Height(1), QuarterTurn.NONE);
         assertSame(state, state.anchored(new BlockPos(1, 90, 2)));
     }
 
     @Test
-    void layingOrClearingResetsTheStoredStateAndTheHeight() {
-        StretchState state = new StretchState(storedAt(SPOT, new StoredStretch.Anchor(5, 2, 1)), new Height(2));
-        assertEquals(new StretchState(null, Height.NONE), state.reset());
+    void layingOrClearingResetsTheStoredStateAndTheHeightAndLeavesTheTurnForTheNextStart() {
+        StretchState state = new StretchState(storedAt(SPOT, new StoredStretch.Anchor(5, 2, 1)), new Height(2),
+                QUARTER);
+        assertEquals(new StretchState(null, Height.NONE, QUARTER), state.reset());
     }
 
     @Test

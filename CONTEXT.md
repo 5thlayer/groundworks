@@ -65,7 +65,7 @@ _Avoid_: rotate key, turn, wrench rotate
 _Avoid_: counter-rotate, rotate back
 
 **Rotate the Plan**:
-**Rotate** on the held item: its next placement turns a quarter from the way the player looks, and the **Placement Preview** redraws with it. The turn is relative to the look, not a compass direction, because the player's camera turns. It stays with the held stack until the stack's last item is placed. It applies only where a **Placement Preview** is drawn, so it never turns a placement the player cannot see.
+**Rotate** on the held item: its next placement turns a quarter from the way the player looks, and the **Placement Preview** redraws with it. The turn is relative to the look, not a compass direction, because the player's camera turns. It stays with the held stack until the stack's last item is placed, or until a **Stretch**'s start takes it: the start stores the look turned by it and uses it up, as it uses up the height. With a start stored, it leaves the stretch alone and turns the held stack for the next start or placement. It applies only where a **Placement Preview** is drawn, so it never turns a placement the player cannot see.
 _Avoid_: rotate the preview (the preview only follows the plan), rotate the ghost, held rotate
 
 **Rotate in Place**:

@@ -12,9 +12,12 @@ import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.Height;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.Placements;
+import io.github._5thlayer.groundworks.QuarterTurn;
 import io.github._5thlayer.groundworks.Raise;
 import io.github._5thlayer.groundworks.Refusal;
+import io.github._5thlayer.groundworks.Rotate;
 import io.github._5thlayer.groundworks.StoredStretch;
+import io.github._5thlayer.groundworks.Stretches;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -31,8 +34,9 @@ import org.jspecify.annotations.Nullable;
  * The Stretch on the tests' own stretch-able item, whose legs are a {@linkplain LineOfArrows line
  * of arrows} and whose rise climbs straight up in place. Every click goes through the server
  * player's own {@code useItemOn} and {@code useItem}, so through the events Groundworks answers,
- * and every press through {@link Raise#press}, as the keys' payload does. The preview's markers are
- * checked by hand.
+ * and every press through {@link Raise#press} or {@link Rotate#press}, as the keys' payloads do.
+ * The preview's markers are checked by hand, but for the start a sneak-click would store, whose
+ * look the marker draws.
  *
  * <p>Each stretch starts on the floor at {@link #START}, looking east, and so lays from one block
  * above it, and each end is aimed at the floor's top.
@@ -63,8 +67,64 @@ final class StretchTests {
         tests.test("a_replaced_block_is_returned_to_the_inventory", 20, StretchTests::returned);
         tests.test("no_room_to_return_refuses_the_stretch_whole", 20, StretchTests::noRoomToReturn);
         tests.test("laying_resets_the_stored_stretch_and_the_height", 20, StretchTests::layingResets);
-        tests.test("clearing_resets_the_stored_stretch_and_the_height", 20, StretchTests::clearingResets);
+        tests.test("clearing_resets_the_stored_stretch_and_the_height_and_keeps_the_turn", 20, StretchTests::clearingResets);
         tests.test("with_no_stretch_stored_a_click_places_one_block_as_planned", 20, StretchTests::single);
+        tests.test("rotate_then_a_sneak_click_stores_a_start_looking_a_quarter_clockwise_and_uses_up_the_turn", 20,
+                StretchTests::rotatedStart);
+        tests.test("reverse_rotate_then_a_sneak_click_stores_a_start_looking_a_quarter_back", 20,
+                StretchTests::reverseRotatedStart);
+        tests.test("rotate_with_a_start_stored_leaves_the_stretch_alone_and_turns_the_next_start", 20,
+                StretchTests::rotateWithAStartStored);
+    }
+
+    /** The start drawn before the sneak-click, the start it stores, and the stretch laid, all run south. */
+    private static void rotatedStart(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        Rotate.press(player, null, false);
+        player.setShiftKeyDown(true);
+        StoredStretch drawn = Stretches.startedAt(player.level(), player, player.getMainHandItem(), onTop(helper, START));
+        player.setShiftKeyDown(false);
+        if (drawn == null || drawn.look() != Direction.SOUTH) {
+            helper.fail("the start drawn before the sneak-click was " + drawn + ", not looking south");
+        }
+        start(helper, player);
+        expectStartLooking(helper, player, Direction.SOUTH);
+        expectTurn(helper, player, QuarterTurn.NONE);
+        List<BlockPos> laid = layAsPlanned(helper, player, new BlockPos(1, 0, 5));
+        expectLaid(helper, laid, List.of(new BlockPos(1, 1, 2), new BlockPos(1, 1, 3), new BlockPos(1, 1, 4),
+                new BlockPos(1, 1, 5)));
+        helper.succeed();
+    }
+
+    private static void reverseRotatedStart(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        Rotate.press(player, null, true);
+        click(helper, player, new BlockPos(1, 0, 5), true);
+        expectStartLooking(helper, player, Direction.NORTH);
+        expectTurn(helper, player, QuarterTurn.NONE);
+        helper.succeed();
+    }
+
+    /** A press after the start turns only the held stack: the laid stretch runs east, the next start south. */
+    private static void rotateWithAStartStored(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        start(helper, player);
+        BlockPos end = new BlockPos(5, 0, 2);
+        PlacementPlan before = plan(helper, player, end);
+        Rotate.press(player, null, false);
+        expectStartLooking(helper, player, Direction.EAST);
+        PlacementPlan after = plan(helper, player, end);
+        if (after == null || !after.equals(before)) {
+            helper.fail("the press changed the plan from " + before + " to " + after, end);
+        }
+        expectTurn(helper, player, QuarterTurn.of(1));
+        List<BlockPos> laid = layAsPlanned(helper, player, end);
+        expectLaid(helper, laid, line(1, 5, 1, 2));
+        expectTurn(helper, player, QuarterTurn.of(1));
+        click(helper, player, new BlockPos(7, 0, 2), true);
+        expectStartLooking(helper, player, Direction.SOUTH);
+        expectTurn(helper, player, QuarterTurn.NONE);
+        helper.succeed();
     }
 
     private static void flat(GameTestHelper helper) {
@@ -250,14 +310,17 @@ final class StretchTests {
         helper.succeed();
     }
 
+    /** A turn pressed with the start stored is left for the next start. */
     private static void clearingResets(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, 16);
         start(helper, player);
         press(player, 1);
+        Rotate.press(player, null, false);
         player.setShiftKeyDown(true);
         player.gameMode.useItem(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND);
         player.setShiftKeyDown(false);
         expectReset(helper, player);
+        expectTurn(helper, player, QuarterTurn.of(1));
         if (!player.heard.getLast().equals("message.groundworks.stretch_cleared")) {
             helper.fail("the player was told " + player.heard);
         }
@@ -345,6 +408,20 @@ final class StretchTests {
         int count = player.getMainHandItem().getCount();
         if (count != held) {
             helper.fail("the player holds " + count + ", expected " + held);
+        }
+    }
+
+    private static void expectStartLooking(GameTestHelper helper, ListeningPlayer player, Direction look) {
+        StoredStretch stored = player.getMainHandItem().get(Groundworks.STRETCH.get());
+        if (stored == null || stored.look() != look) {
+            helper.fail("the stretch stored is " + stored + ", not looking " + look);
+        }
+    }
+
+    private static void expectTurn(GameTestHelper helper, ListeningPlayer player, QuarterTurn turn) {
+        QuarterTurn held = Rotate.turnOf(player.getMainHandItem());
+        if (!held.equals(turn)) {
+            helper.fail("the stack is turned " + held + ", expected " + turn);
         }
     }
 

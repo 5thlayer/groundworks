@@ -38,11 +38,12 @@ import org.jspecify.annotations.Nullable;
  * stretch-able item alike.
  *
  * <p>A sneak-click with no start stored stores the start where the aim would place, at the held
- * height, and the look. A sneak-click with a start stored adds an anchor where the stretch would
- * end, freezing the height into the leg ending there; a refused stretch stores nothing, and an
- * anchor at the same spot as the last is ignored. A click lays the stretch. A sneak-use in the air
- * clears it. Laying and clearing reset the height. A click with nothing stored passes on, so the
- * item keeps its own placement. A stretch stored in another dimension is no stretch.
+ * height, and the look turned by the held turn, using both up. A sneak-click with a start stored
+ * adds an anchor where the stretch would end, freezing the height into the leg ending there; a
+ * refused stretch stores nothing, and an anchor at the same spot as the last is ignored. A click
+ * lays the stretch. A sneak-use in the air clears it. Laying and clearing reset the height, and
+ * leave a turn pressed since the start for the next one. A click with nothing stored passes on, so
+ * the item keeps its own placement. A stretch stored in another dimension is no stretch.
  *
  * <p>The aim picks only where an anchor lies seen from above; the stretch's height there is the
  * start's and each leg's rise before it (ADR 0004). The route is {@link StretchRoute}'s, and each
@@ -98,12 +99,26 @@ public final class Stretches {
      * preview draws the start instead, with the look it would store.
      */
     public static @Nullable BlockPos startAt(Level level, Player player, ItemStack stack, BlockHitResult hit) {
+        StoredStretch started = startedAt(level, player, stack, hit);
+        return started == null ? null : started.start();
+    }
+
+    /**
+     * The stretch a sneak-click at this hit would store, its start and its look turned by the held
+     * stack's {@linkplain Rotate#turnOf(ItemStack) turn}, or {@code null} when it wouldn't, as
+     * {@link #startAt} has it.
+     */
+    public static @Nullable StoredStretch startedAt(Level level, Player player, ItemStack stack, BlockHitResult hit) {
         if (!player.isShiftKeyDown() || builderOf(stack.getItem()) == null || storedOn(level, stack) != null) {
             return null;
         }
-        return new StretchState(null, Raise.heightOf(player, stack))
+        return new StretchState(null, Raise.heightOf(player, stack), Rotate.turnOf(stack))
                 .started(level.dimension(), spotOf(level, player, stack, hit), player.getDirection())
-                .stored().start();
+                .stored();
+    }
+
+    private static StretchState stateOf(Level level, Player player, ItemStack stack) {
+        return new StretchState(storedOn(level, stack), Raise.heightOf(player, stack), Rotate.turnOf(stack));
     }
 
     /**
@@ -226,7 +241,7 @@ public final class Stretches {
             return InteractionResult.PASS;
         }
         Level level = player.level();
-        StretchState state = new StretchState(storedOn(level, held), Raise.heightOf(player, held));
+        StretchState state = stateOf(level, player, held);
         Click click = Click.of(player.isShiftKeyDown(), state.stored() != null);
         if (click == Click.PASS) {
             return InteractionResult.PASS;
@@ -264,7 +279,7 @@ public final class Stretches {
         return InteractionResult.SUCCESS;
     }
 
-    /** A use in the air: a sneak clears the stretch being drawn, and its height with it. */
+    /** A use in the air: a sneak clears the stretch being drawn, and its height with it, but not the turn. */
     static InteractionResult use(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         if (hand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown() || builderOf(held.getItem()) == null
@@ -272,7 +287,7 @@ public final class Stretches {
             return InteractionResult.PASS;
         }
         if (!player.level().isClientSide()) {
-            store(held, StretchState.NONE);
+            store(held, stateOf(player.level(), player, held).reset());
             tell(player, Component.translatable(CLEARED));
         }
         return InteractionResult.SUCCESS;
@@ -315,7 +330,7 @@ public final class Stretches {
         level.gameEvent(GameEvent.BLOCK_PLACE, first.pos(), GameEvent.Context.of(player, first.state()));
     }
 
-    // No stretch and no height are no components, so a stack laid or cleared stacks again with one never used.
+    // No stretch, no height and no turn are no components, so a stack laid or cleared stacks again with one never used.
     private static void store(ItemStack stack, StretchState state) {
         if (state.stored() == null) {
             stack.remove(Groundworks.STRETCH.get());
@@ -323,6 +338,7 @@ public final class Stretches {
             stack.set(Groundworks.STRETCH.get(), state.stored());
         }
         Raise.setHeight(stack, state.height());
+        Rotate.setTurn(stack, state.turn());
     }
 
     /**
