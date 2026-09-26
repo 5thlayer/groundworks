@@ -180,6 +180,11 @@ public final class Stretches {
             }
         }
 
+        // Where the player may not build, the stretch is refused whole, whatever else refused it.
+        if (player != null && !mayBuildAll(level, player, blocks.keySet())) {
+            refusal = Refusal.Stretch.MAY_NOT_BUILD;
+        }
+
         int cost = 0;
         List<ItemStack> returned = new ArrayList<>();
         if (player != null && !player.hasInfiniteMaterials()) {
@@ -202,6 +207,18 @@ public final class Stretches {
                 .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
                 .toList();
         return new Laying(new PlacementPlan(placed, List.copyOf(replaces), refusal), cost, returned);
+    }
+
+    private static boolean mayBuildAll(Level level, Player player, Set<BlockPos> positions) {
+        if (!player.mayBuild()) {
+            return false;
+        }
+        for (BlockPos pos : positions) {
+            if (!level.isInWorldBounds(pos) || !level.mayInteract(player, pos)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -302,6 +319,7 @@ public final class Stretches {
             case NOT_ENOUGH_ITEMS -> Component.translatable("message.groundworks.stretch_not_enough_items",
                     held.getHoverName());
             case NO_ROOM_TO_RETURN -> Component.translatable("message.groundworks.stretch_no_room_to_return");
+            case MAY_NOT_BUILD -> Component.translatable("message.groundworks.stretch_may_not_build");
         };
     }
 

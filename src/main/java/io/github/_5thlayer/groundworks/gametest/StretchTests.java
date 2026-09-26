@@ -24,8 +24,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -64,6 +66,9 @@ final class StretchTests {
                 StretchTests::blockedAcrossTheBand);
         tests.test("an_end_behind_the_look_is_refused", 20, StretchTests::behindTheLook);
         tests.test("not_enough_items_refuses_the_stretch_whole", 20, StretchTests::notEnoughItems);
+        tests.test("an_adventure_mode_player_s_stretch_is_refused_whole", 20, StretchTests::adventureMode);
+        tests.test("a_stretch_reaching_a_position_the_player_may_not_interact_with_is_refused_whole", 20,
+                StretchTests::mayNotInteract);
         tests.test("a_replaced_block_is_returned_to_the_inventory", 20, StretchTests::returned);
         tests.test("no_room_to_return_refuses_the_stretch_whole", 20, StretchTests::noRoomToReturn);
         tests.test("laying_resets_the_stored_stretch_and_the_height", 20, StretchTests::layingResets);
@@ -262,6 +267,46 @@ final class StretchTests {
         expectRefused(helper, player, end, Refusal.Stretch.NOT_ENOUGH_ITEMS);
         click(helper, player, end, false);
         expectNothingLaidOrCharged(helper, player, 4, line(1, 5, 1, 2));
+        helper.succeed();
+    }
+
+    private static void adventureMode(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        start(helper, player);
+        player.setGameMode(GameType.ADVENTURE);
+        BlockPos end = new BlockPos(5, 0, 2);
+        expectRefused(helper, player, end, Refusal.Stretch.MAY_NOT_BUILD);
+        click(helper, player, end, false);
+        expectNothingLaidOrCharged(helper, player, 16, line(1, 5, 1, 2));
+        helper.succeed();
+    }
+
+    /**
+     * The world border is drawn in just short of the end, so the stretch's last block lies where the
+     * player may not interact. The border is the whole level's, so it is put back before the test returns.
+     */
+    private static void mayNotInteract(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        start(helper, player);
+        BlockPos end = new BlockPos(5, 0, 2);
+        WorldBorder border = helper.getLevel().getWorldBorder();
+        double centerX = border.getCenterX();
+        double centerZ = border.getCenterZ();
+        double size = border.getSize();
+        BlockPos last = helper.absolutePos(new BlockPos(5, 1, 2));
+        BlockPos before = helper.absolutePos(new BlockPos(4, 1, 2));
+        try {
+            // A border 100 wide whose near edge falls between the last block and the one before it.
+            border.setCenter((last.getX() + before.getX() + 1) / 2.0 + (before.getX() < last.getX() ? -50 : 50),
+                    last.getZ() + 0.5);
+            border.setSize(100);
+            expectRefused(helper, player, end, Refusal.Stretch.MAY_NOT_BUILD);
+            click(helper, player, end, false);
+        } finally {
+            border.setCenter(centerX, centerZ);
+            border.setSize(size);
+        }
+        expectNothingLaidOrCharged(helper, player, 16, line(1, 5, 1, 2));
         helper.succeed();
     }
 

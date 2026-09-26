@@ -45,6 +45,11 @@ public interface Refusal {
         NOT_ENOUGH_ITEMS,
         /** What the stretch replaces would not fit in the player's inventory once it is charged. */
         NO_ROOM_TO_RETURN,
+        /**
+         * The player may not build at some position the stretch lays: they may not build at all, as
+         * in adventure mode, or the position is outside the world or protected, as spawn is.
+         */
+        MAY_NOT_BUILD,
     }
 
     /**

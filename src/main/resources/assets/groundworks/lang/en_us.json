@@ -15,6 +15,7 @@
   "message.groundworks.stretch_behind_the_look": "That is behind the way the stretch runs.",
   "message.groundworks.stretch_not_enough_items": "You don't have enough %s to lay that.",
   "message.groundworks.stretch_no_room_to_return": "There is no room in your inventory for what the stretch replaces.",
+  "message.groundworks.stretch_may_not_build": "You may not build everywhere the stretch lays.",
   "key.category.groundworks.groundworks": "Groundworks",
   "key.groundworks.rotate": "Rotate",
   "key.groundworks.reverse_rotate": "Reverse Rotate",
