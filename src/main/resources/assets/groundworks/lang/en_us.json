@@ -1,5 +1,8 @@
 {
-  "message.groundworks.dismantle_started": "Dismantle started. Click another block of the same kind to take up everything between.",
+  "message.groundworks.dismantle_started": "Dismantle started. Click another block of the same kind to take up everything between, or sneak-click one on the same run to queue that span.",
+  "message.groundworks.dismantle_queued": "Span queued. Sneak-click to start another, or click to take up every queued span.",
+  "message.groundworks.dismantle_queue_full": "A dismantle takes at most %s spans at once. Click to take them up.",
+  "message.groundworks.dismantle_start_gone": "A queued span's start, %s, is gone.",
   "message.groundworks.dismantle_cleared": "Dismantle cleared.",
   "message.groundworks.dismantle_not_same_kind": "That is not the same kind of block as the dismantle's start, %s.",
   "message.groundworks.height": "Height %s",

@@ -33,6 +33,8 @@ public interface Refusal {
     enum Dismantle implements Refusal {
         /** The end isn't a member of the start's family, so no family's rule can join them. */
         NOT_SAME_KIND,
+        /** A queued span's start is gone, or its family no longer counts it the same start. */
+        START_GONE,
     }
 
     /** The library's own reasons for a {@linkplain Stretches Stretch}, which it tells the player itself. */

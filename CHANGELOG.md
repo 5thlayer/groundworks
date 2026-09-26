@@ -4,6 +4,8 @@ Written for Consumers: what a mod building against Groundworks can use, or will 
 
 ## Unreleased
 
+- A **Dismantle** takes up two spans in one pass. A sneak-click with a start stored queues the span to the clicked block, in `Groundworks.DISMANTLE_QUEUE`, instead of moving the start. A click confirms every queued span and the one it ends as one `DismantlePass`, whole or nothing, taking a shared position once and running each family's `beforeTaking` once over all its positions. `Dismantles.MAX_SPANS` is the limit, and `Dismantles.passTo` answers the pass a click would confirm. A queued span whose start is gone refuses as `Refusal.Dismantle.START_GONE`. (#6)
+
 ## 0.4.3
 
 - A **Leg** says where it sits in its **Stretch**. `Leg.arrives()` is the way the stretch arrives at its first anchor, the travel of the leg before it through its last column, or `null` at the stretch's start, which `Leg.startsStretch()` answers. A builder can build the block at an intermediate **Anchor** as the corner it becomes. `Leg.endsStretch()` says whether its last anchor is the stretch's end. A **Detour** keeps both. The three-argument constructor stays, for a leg that is its stretch's only one. (#20)

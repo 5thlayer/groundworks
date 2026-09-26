@@ -3,6 +3,8 @@
 
 package io.github._5thlayer.groundworks;
 
+import java.util.List;
+
 import io.github._5thlayer.groundworks.gametest.GroundworksGameTests;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -33,6 +35,10 @@ public final class Groundworks {
     /** The held stack's stored Dismantle start, persistent and synced to the client, which previews it. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<DismantleStart>> DISMANTLE_START =
             COMPONENTS.register("dismantle_start", DismantleStart::componentType);
+
+    /** The held stack's queued Dismantle spans, oldest first, persistent and synced to the client, which previews them. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<List<QueuedSpan>>> DISMANTLE_QUEUE =
+            COMPONENTS.register("dismantle_queue", QueuedSpan::componentType);
 
     /** The held stack's {@linkplain Rotate turn}, persistent and synced to the client, which draws it. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<QuarterTurn>> QUARTER_TURN =

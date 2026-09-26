@@ -156,26 +156,51 @@ class DismantlesTest {
     }
 
     @Test
-    void aSneakClickOnAMemberStoresAStartWhetherOrNotOneIsStored() {
-        assertEquals(Click.STORE, Click.of(true, true, false));
-        assertEquals(Click.STORE, Click.of(true, true, true));
+    void aSneakClickOnAMemberWithNoLiveStartStoresOne() {
+        assertEquals(Click.STORE, Click.of(true, true, false, false));
+        assertEquals(Click.STORE, Click.of(true, true, false, true));
     }
 
     @Test
-    void aSneakClickOnAnythingElsePassesOn() {
-        assertEquals(Click.PASS, Click.of(true, false, false));
-        assertEquals(Click.PASS, Click.of(true, false, true));
+    void aSneakClickWithALiveStartQueuesTheSpanWhateverItAims() {
+        assertEquals(Click.QUEUE, Click.of(true, true, true, false));
+        assertEquals(Click.QUEUE, Click.of(true, false, true, true));
     }
 
     @Test
-    void aClickWithALiveStartTakesUpWhateverItAims() {
-        assertEquals(Click.TAKE_UP, Click.of(false, true, true));
-        assertEquals(Click.TAKE_UP, Click.of(false, false, true));
+    void aSneakClickOnAnythingElseWithNoLiveStartPassesOn() {
+        assertEquals(Click.PASS, Click.of(true, false, false, false));
+        assertEquals(Click.PASS, Click.of(true, false, false, true));
     }
 
     @Test
-    void aClickWithNoLiveStartPassesOn() {
-        assertEquals(Click.PASS, Click.of(false, true, false));
-        assertEquals(Click.PASS, Click.of(false, false, false));
+    void aClickWithALiveStartConfirmsWhateverItAims() {
+        assertEquals(Click.CONFIRM, Click.of(false, true, true, false));
+        assertEquals(Click.CONFIRM, Click.of(false, false, true, true));
+    }
+
+    @Test
+    void aClickWithSpansQueuedConfirmsWhateverItAims() {
+        assertEquals(Click.CONFIRM, Click.of(false, false, false, true));
+        assertEquals(Click.CONFIRM, Click.of(false, true, false, true));
+    }
+
+    @Test
+    void aClickWithNothingStoredPassesOn() {
+        assertEquals(Click.PASS, Click.of(false, true, false, false));
+        assertEquals(Click.PASS, Click.of(false, false, false, false));
+    }
+
+    @Test
+    void aPassTakesAtMostTwoSpans() {
+        assertEquals(2, Dismantles.MAX_SPANS);
+    }
+
+    /** The start in progress counts, since a click ends it into the pass. */
+    @Test
+    void aStartOrAQueuedSpanHasRoomWhileThePassHasRoomForItsSpan() {
+        assertTrue(Dismantles.hasRoom(0));
+        assertTrue(Dismantles.hasRoom(Dismantles.MAX_SPANS - 1));
+        assertFalse(Dismantles.hasRoom(Dismantles.MAX_SPANS));
     }
 }

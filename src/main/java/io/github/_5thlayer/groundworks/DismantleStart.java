@@ -3,11 +3,13 @@
 
 package io.github._5thlayer.groundworks;
 
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceKey;
@@ -30,16 +32,24 @@ public record DismantleStart(ResourceKey<Level> dimension, BlockPos pos, BlockSt
     // block registry, and the rules about a start are tested with no booted game.
     static DataComponentType<DismantleStart> componentType() {
         return DataComponentType.<DismantleStart>builder()
-                .persistent(RecordCodecBuilder.create(instance -> instance.group(
-                        Level.RESOURCE_KEY_CODEC.fieldOf("dimension").forGetter(DismantleStart::dimension),
-                        BlockPos.CODEC.fieldOf("pos").forGetter(DismantleStart::pos),
-                        BlockState.CODEC.fieldOf("state").forGetter(DismantleStart::state)
-                ).apply(instance, DismantleStart::new)))
-                .networkSynchronized(StreamCodec.composite(
-                        ResourceKey.streamCodec(Registries.DIMENSION), DismantleStart::dimension,
-                        BlockPos.STREAM_CODEC, DismantleStart::pos,
-                        ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY), DismantleStart::state,
-                        DismantleStart::new))
+                .persistent(codec())
+                .networkSynchronized(streamCodec())
                 .build();
+    }
+
+    static Codec<DismantleStart> codec() {
+        return RecordCodecBuilder.create(instance -> instance.group(
+                Level.RESOURCE_KEY_CODEC.fieldOf("dimension").forGetter(DismantleStart::dimension),
+                BlockPos.CODEC.fieldOf("pos").forGetter(DismantleStart::pos),
+                BlockState.CODEC.fieldOf("state").forGetter(DismantleStart::state)
+        ).apply(instance, DismantleStart::new));
+    }
+
+    static StreamCodec<RegistryFriendlyByteBuf, DismantleStart> streamCodec() {
+        return StreamCodec.composite(
+                ResourceKey.streamCodec(Registries.DIMENSION), DismantleStart::dimension,
+                BlockPos.STREAM_CODEC, DismantleStart::pos,
+                ByteBufCodecs.idMapper(Block.BLOCK_STATE_REGISTRY), DismantleStart::state,
+                DismantleStart::new);
     }
 }

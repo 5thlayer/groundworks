@@ -4,7 +4,6 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
@@ -32,22 +31,35 @@ import org.jspecify.annotations.Nullable;
  * in {@link #TOOLS}. The families are registered here, and Groundworks runs the gesture for all of
  * them alike.
  *
- * <p>A sneak-click on a member stores the start on the held stack, and moves it when one is
- * stored. A click with a live start names the end and takes up the span to it, or tells the player
- * why not. A click with nothing stored passes on, so the tool keeps its own use. A sneak-use in the
- * air clears the start. A start is dead, and so no start, when its block is gone or its family no
- * longer counts it the same start, or when it is in another dimension.
+ * <p>A sneak-click on a member stores the start on the held stack. A sneak-click with a live start
+ * queues the span from it to the clicked block and clears the start, or tells the player why not and
+ * leaves the start where it is. A click with a live start or queued spans confirms the pass: the
+ * queued spans and the span the click ends at the start, if there is one, all planned again and
+ * taken up together as one {@link DismantlePass}, or none of them with the first one's reason. A
+ * click with nothing stored passes on, so the tool keeps its own use. A sneak-use in the air clears
+ * the start and the queue. A start is dead, and so no start, when its block is gone or its family no
+ * longer counts it the same start, or when it is in another dimension; a queued span whose start is
+ * dead refuses the pass.
  *
- * <p>Taking up a span clears the start, runs the family's {@linkplain DismantleFamily#beforeTaking
- * hook}, collects each taken block's drops with the held tool and removes it with no drops in the
- * world, then hands everything to the inventory, dropping what doesn't fit at the player's feet. A
- * creative player is handed nothing.
+ * <p>A pass takes at most {@link #MAX_SPANS} spans, counting the one the start in progress ends.
+ *
+ * <p>Taking up a pass clears the start and the queue, runs each family's {@linkplain
+ * DismantleFamily#beforeTaking hook} once over its positions, then collects each taken block's drops
+ * with the held tool and removes it with no drops in the world, then hands everything to the
+ * inventory, dropping what doesn't fit at the player's feet. A creative player is handed nothing.
  */
 public final class Dismantles {
 
     /** The tools a Dismantle answers. It ships empty: each Consumer adds its own, and a pack trims them. */
     public static final TagKey<Item> TOOLS = TagKey.create(Registries.ITEM,
             Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "dismantles"));
+
+    /**
+     * The most spans a pass takes, counting the one a click ends. It is two until a confirm of many
+     * long spans is profiled: the preview plans every stored span again each frame, and a confirm
+     * rebuilds each span's line in one tick.
+     */
+    public static final int MAX_SPANS = 2;
 
     private static final List<DismantleFamily> FAMILIES = new CopyOnWriteArrayList<>();
 
@@ -82,6 +94,57 @@ public final class Dismantles {
             return null;
         }
         return isLive(start, familyOf(start.state()), level.dimension(), level::getBlockState) ? start : null;
+    }
+
+    /** The held stack's queued spans, oldest first, live or not. */
+    public static List<QueuedSpan> queued(ItemStack held) {
+        return held.getOrDefault(Groundworks.DISMANTLE_QUEUE.get(), List.of());
+    }
+
+    /** Whether the held stack stores anything a click would confirm or a sneak-use clear. */
+    public static boolean hasStored(ItemStack held) {
+        return held.has(Groundworks.DISMANTLE_START.get()) || !queued(held).isEmpty();
+    }
+
+    /** Whether one more span, queued or ended by a click, fits in a pass beside {@code queued} spans. */
+    static boolean hasRoom(int queued) {
+        return queued < MAX_SPANS;
+    }
+
+    /**
+     * The pass a click aimed at {@code aimed} would confirm: every queued span, then the span from
+     * the live start to the aim, if there is a live start and an aim, all planned now. With no aim
+     * the start is left out, as the preview draws it alone. It is {@code null} when
+     * {@code held} is no dismantling tool or stores nothing to confirm.
+     */
+    public static @Nullable DismantlePass passTo(Level level, ItemStack held, @Nullable BlockPos aimed) {
+        if (!isTool(held)) {
+            return null;
+        }
+        DismantleStart start = liveStart(level, held);
+        List<QueuedSpan> queued = queued(held);
+        if (start == null && queued.isEmpty()) {
+            return null;
+        }
+        List<DismantlePass.Planned> spans = new ArrayList<>();
+        for (QueuedSpan span : queued) {
+            spans.add(plan(level, span));
+        }
+        if (start != null && aimed != null) {
+            spans.add(new DismantlePass.Planned(familyOf(start.state()), start, spanFrom(level, start, aimed)));
+        }
+        return DismantlePass.of(spans);
+    }
+
+    // A queued span is planned again from its stored ends; its end is the one named when it was queued.
+    private static DismantlePass.Planned plan(Level level, QueuedSpan queued) {
+        DismantleStart start = queued.start();
+        DismantleFamily family = familyOf(start.state());
+        if (!isLive(start, family, level.dimension(), level::getBlockState)) {
+            return new DismantlePass.Planned(family, start, DismantleSpan.refused(Refusal.Dismantle.START_GONE));
+        }
+        return new DismantlePass.Planned(family, start,
+                span(family, level, start.pos(), queued.end(), level.getBlockState(queued.end())));
     }
 
     /**
@@ -127,24 +190,38 @@ public final class Dismantles {
         return family.span(level, start, end);
     }
 
-    /** Not the same kind names the start's block, the kind the end would have had to be. */
-    static Component message(DismantleFamily family, Component startName, Refusal refusal) {
-        return refusal == Refusal.Dismantle.NOT_SAME_KIND
-                ? Component.translatable("message.groundworks.dismantle_not_same_kind", startName)
-                : family.message(refusal);
+    /**
+     * Not the same kind names the start's block, the kind the end would have had to be. A gone
+     * start may have no family left to ask, so the library tells it.
+     */
+    static Component message(@Nullable DismantleFamily family, Component startName, Refusal refusal) {
+        if (refusal == Refusal.Dismantle.NOT_SAME_KIND) {
+            return Component.translatable("message.groundworks.dismantle_not_same_kind", startName);
+        }
+        if (refusal == Refusal.Dismantle.START_GONE) {
+            return Component.translatable("message.groundworks.dismantle_start_gone", startName);
+        }
+        return family.message(refusal);
     }
 
-    /** What a click on a block does, by whether it sneaks, aims at a member, and has a live start. */
+    /**
+     * What a click on a block does, by whether it sneaks, aims at a member, has a live start, and
+     * has spans queued.
+     */
     enum Click {
         STORE,
-        TAKE_UP,
+        QUEUE,
+        CONFIRM,
         PASS;
 
-        static Click of(boolean sneaking, boolean aimsAtMember, boolean liveStart) {
+        static Click of(boolean sneaking, boolean aimsAtMember, boolean liveStart, boolean queued) {
             if (sneaking) {
+                if (liveStart) {
+                    return QUEUE;
+                }
                 return aimsAtMember ? STORE : PASS;
             }
-            return liveStart ? TAKE_UP : PASS;
+            return liveStart || queued ? CONFIRM : PASS;
         }
     }
 
@@ -165,8 +242,8 @@ public final class Dismantles {
 
     /**
      * A click on a block, or PASS where the Dismantle has nothing to say and the click goes on as
-     * it would. With a live start every click on a block is the Dismantle's, as the preview shows
-     * the Dismantle whatever the aim.
+     * it would. With a live start or a queued span every click on a block is the Dismantle's, as the
+     * preview shows the Dismantle whatever the aim.
      */
     static InteractionResult useOn(Player player, InteractionHand hand, BlockPos pos) {
         ItemStack held = player.getItemInHand(hand);
@@ -176,24 +253,35 @@ public final class Dismantles {
         Level level = player.level();
         Member member = memberAt(level, pos);
         DismantleStart start = liveStart(level, held);
-        switch (Click.of(player.isShiftKeyDown(), member != null, start != null)) {
+        List<QueuedSpan> queued = queued(held);
+        switch (Click.of(player.isShiftKeyDown(), member != null, start != null, !queued.isEmpty())) {
             case STORE -> {
                 if (!level.isClientSide()) {
-                    held.set(Groundworks.DISMANTLE_START.get(), new DismantleStart(level.dimension(), member.pos(), member.state()));
-                    tell(player, Component.translatable("message.groundworks.dismantle_started"));
+                    if (!hasRoom(queued.size())) {
+                        tell(player, Component.translatable("message.groundworks.dismantle_queue_full", MAX_SPANS));
+                    } else {
+                        held.set(Groundworks.DISMANTLE_START.get(), new DismantleStart(level.dimension(), member.pos(), member.state()));
+                        tell(player, Component.translatable("message.groundworks.dismantle_started"));
+                    }
                 }
                 return InteractionResult.SUCCESS;
             }
-            case TAKE_UP -> {
-                if (level.isClientSide()) {
-                    return InteractionResult.SUCCESS;
+            case QUEUE -> {
+                if (!level.isClientSide()) {
+                    queue(player, level, held, start, queued, pos);
                 }
-                DismantleFamily family = familyOf(start.state());
-                DismantleSpan span = spanFrom(level, start, pos);
-                if (span.isRefused()) {
-                    tell(player, message(family, start.state().getBlock().getName(), span.refusal()));
-                } else {
-                    takeUp(family, span, level, held, player);
+                return InteractionResult.SUCCESS;
+            }
+            case CONFIRM -> {
+                if (!level.isClientSide()) {
+                    // A plain click with only queued spans confirms them wherever it aims.
+                    DismantlePass pass = passTo(level, held, start == null ? null : pos);
+                    if (pass.isRefused()) {
+                        DismantlePass.Planned refused = pass.refused();
+                        tell(player, message(refused.family(), refused.start().state().getBlock().getName(), refused.span().refusal()));
+                    } else {
+                        takeUp(pass, level, held, player);
+                    }
                 }
                 return InteractionResult.SUCCESS;
             }
@@ -203,35 +291,64 @@ public final class Dismantles {
         }
     }
 
-    /** A use in the air: a sneak clears the stored start. */
+    // A refused span, or one past the limit, leaves the start where it is.
+    private static void queue(Player player, Level level, ItemStack held, DismantleStart start,
+                              List<QueuedSpan> queued, BlockPos clicked) {
+        DismantleFamily family = familyOf(start.state());
+        BlockPos end = family.names(level, clicked);
+        DismantleSpan span = span(family, level, start.pos(), end, level.getBlockState(end));
+        if (span.isRefused()) {
+            tell(player, message(family, start.state().getBlock().getName(), span.refusal()));
+            return;
+        }
+        if (!hasRoom(queued.size())) {
+            tell(player, Component.translatable("message.groundworks.dismantle_queue_full", MAX_SPANS));
+            return;
+        }
+        List<QueuedSpan> longer = new ArrayList<>(queued);
+        longer.add(new QueuedSpan(start, end));
+        held.set(Groundworks.DISMANTLE_QUEUE.get(), List.copyOf(longer));
+        held.remove(Groundworks.DISMANTLE_START.get());
+        tell(player, Component.translatable("message.groundworks.dismantle_queued"));
+    }
+
+    /** A use in the air: a sneak clears the stored start and every queued span. */
     static InteractionResult use(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
-        if (!player.isShiftKeyDown() || !isTool(held) || !held.has(Groundworks.DISMANTLE_START.get())) {
+        if (!player.isShiftKeyDown() || !isTool(held) || !hasStored(held)) {
             return InteractionResult.PASS;
         }
         if (!player.level().isClientSide()) {
-            held.remove(Groundworks.DISMANTLE_START.get());
+            clear(held);
             tell(player, Component.translatable("message.groundworks.dismantle_cleared"));
         }
         return InteractionResult.SUCCESS;
     }
 
-    // The hook runs before any removal, so a removal's side effects -- a belt line rebuilding -- can't
-    // hand a taken block's share to one outside the span. Each block's drops are collected just before
-    // it goes, from the state it is in then.
-    private static void takeUp(DismantleFamily family, DismantleSpan span, Level level, ItemStack held, Player player) {
+    private static void clear(ItemStack held) {
         held.remove(Groundworks.DISMANTLE_START.get());
-        List<ItemStack> handed = new ArrayList<>(family.beforeTaking(level, span.takes()));
+        held.remove(Groundworks.DISMANTLE_QUEUE.get());
+    }
+
+    // Every family's hook runs before any removal, so a removal's side effects -- a belt line
+    // rebuilding -- can't hand a taken block's share to one outside the pass. Each block's drops are
+    // collected just before it goes, from the state it is in then.
+    private static void takeUp(DismantlePass pass, Level level, ItemStack held, Player player) {
+        clear(held);
+        List<ItemStack> handed = new ArrayList<>();
+        pass.takes().forEach((family, taken) -> handed.addAll(family.beforeTaking(level, taken)));
         boolean handsOver = !player.hasInfiniteMaterials();
-        for (BlockPos pos : new LinkedHashSet<>(span.takes())) {
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir()) {
-                continue;
+        for (List<BlockPos> taken : pass.takes().values()) {
+            for (BlockPos pos : taken) {
+                BlockState state = level.getBlockState(pos);
+                if (state.isAir()) {
+                    continue;
+                }
+                if (handsOver && level instanceof ServerLevel server) {
+                    handed.addAll(Block.getDrops(state, server, pos, level.getBlockEntity(pos), player, held));
+                }
+                level.destroyBlock(pos, false, player);
             }
-            if (handsOver && level instanceof ServerLevel server) {
-                handed.addAll(Block.getDrops(state, server, pos, level.getBlockEntity(pos), player, held));
-            }
-            level.destroyBlock(pos, false, player);
         }
         if (!handsOver) {
             return;
