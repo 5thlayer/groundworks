@@ -4,7 +4,7 @@ Written for Consumers: what a mod building against Groundworks can use, or will 
 
 ## Unreleased
 
-- A **Leg** says whether it starts or ends its **Stretch**: `Leg.startsStretch()` is true when its first anchor is the stretch's start, `Leg.endsStretch()` when its last is the stretch's end, rather than an intermediate **Anchor**. A **Detour** keeps both. The three-argument constructor stays, for a leg that is its stretch's only one. (#20)
+- A **Leg** says where it sits in its **Stretch**. `Leg.arrives()` is the way the stretch arrives at its first anchor, the travel of the leg before it through its last column, or `null` at the stretch's start, which `Leg.startsStretch()` answers. A builder can build the block at an intermediate **Anchor** as the corner it becomes. `Leg.endsStretch()` says whether its last anchor is the stretch's end. A **Detour** keeps both. The three-argument constructor stays, for a leg that is its stretch's only one. (#20)
 
 ## 0.4.2
 

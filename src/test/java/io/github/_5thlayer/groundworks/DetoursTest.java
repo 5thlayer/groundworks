@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -215,17 +216,17 @@ class DetoursTest {
     }
 
     @Test
-    void aDetourKeepsWhetherTheLegStartsOrEndsItsStretch() {
+    void aDetourKeepsTheWayItsStretchArrivesAndWhetherTheLegEndsIt() {
         Item item = new Item(at(2, 0));
-        for (boolean starts : new boolean[] {true, false}) {
+        for (Direction arrives : Arrays.asList(null, Direction.NORTH)) {
             for (boolean ends : new boolean[] {true, false}) {
                 List<Leg> legs = new ArrayList<>();
-                Detours.plan(new Leg(FROM, 0, east(4).route(), starts, ends), new BlockPos(0, 64, 2), leg -> {
+                Detours.plan(new Leg(FROM, 0, east(4).route(), arrives, ends), new BlockPos(0, 64, 2), leg -> {
                     legs.add(leg);
                     return item.build(leg);
                 });
                 assertEquals(2, legs.size());
-                assertEquals(List.of(starts, ends), List.of(legs.getLast().startsStretch(), legs.getLast().endsStretch()));
+                assertEquals(Arrays.asList(arrives, ends), Arrays.asList(legs.getLast().arrives(), legs.getLast().endsStretch()));
             }
         }
     }
