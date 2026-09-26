@@ -146,10 +146,12 @@ public final class Stretches {
         ends.add(spotOf(level, player, stack, hit));
         rises.add(player == null ? 0 : Raise.heightOf(player, stack).blocks());
         Refusal refusal = null;
+        boolean reachesEnd = true;
         List<List<Leg.Column>> route = StretchRoute.legs(stored.start(), stored.look(), ends);
         if (route == null) {
             // Behind the look, the stretch is drawn refused up to its last anchor, or at its start alone.
             refusal = Refusal.Stretch.BEHIND_THE_LOOK;
+            reachesEnd = false;
             ends.removeLast();
             rises.removeLast();
             route = ends.isEmpty() ? null : StretchRoute.legs(stored.start(), stored.look(), ends);
@@ -162,10 +164,7 @@ public final class Stretches {
         // A later leg's block at a position an earlier one takes, its first anchor, is the later leg's.
         Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
         Set<BlockPos> replaces = new LinkedHashSet<>();
-        BlockPos from = stored.start();
-        for (int i = 0; i < route.size(); i++) {
-            Leg.Column first = route.get(i).getFirst();
-            Leg leg = new Leg(new BlockPos(first.x(), from.getY(), first.z()), rises.get(i), route.get(i));
+        for (Leg leg : Leg.ofStretch(stored.start(), route, rises, reachesEnd)) {
             PlacementPlan built = Detours.plan(leg, player == null ? null : player.blockPosition(),
                     detour -> builder.build(level, item, detour));
             for (PlacementPlan.Placed placed : built.blocks()) {
@@ -179,7 +178,6 @@ public final class Stretches {
             if (refusal == null) {
                 refusal = built.refusal();
             }
-            from = leg.to();
         }
 
         int cost = 0;

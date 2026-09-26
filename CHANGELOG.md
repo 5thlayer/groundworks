@@ -4,6 +4,8 @@ Written for Consumers: what a mod building against Groundworks can use, or will 
 
 ## Unreleased
 
+- A **Leg** says whether it starts or ends its **Stretch**: `Leg.startsStretch()` is true when its first anchor is the stretch's start, `Leg.endsStretch()` when its last is the stretch's end, rather than an intermediate **Anchor**. A **Detour** keeps both. The three-argument constructor stays, for a leg that is its stretch's only one. (#20)
+
 ## 0.4.2
 
 - A **Stretch**'s start takes **Rotate the Plan**: a sneak-click stores the look turned by the held stack's turn, and the start marker draws it so before the click. Storing the start uses the turn up, as it uses up the height. A press with a start stored leaves the stretch alone and turns the next start or placement. `Stretches.startedAt` answers the stretch a sneak-click would store, start and look. (#19)

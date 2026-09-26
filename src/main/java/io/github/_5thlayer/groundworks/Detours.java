@@ -61,7 +61,7 @@ final class Detours {
             if (route == null) {
                 break;
             }
-            PlacementPlan detour = build.apply(new Leg(leg.from(), leg.rise(), route));
+            PlacementPlan detour = build.apply(leg.withRoute(route));
             if (!detour.isRefused()) {
                 return detour;
             }

@@ -215,6 +215,22 @@ class DetoursTest {
     }
 
     @Test
+    void aDetourKeepsWhetherTheLegStartsOrEndsItsStretch() {
+        Item item = new Item(at(2, 0));
+        for (boolean starts : new boolean[] {true, false}) {
+            for (boolean ends : new boolean[] {true, false}) {
+                List<Leg> legs = new ArrayList<>();
+                Detours.plan(new Leg(FROM, 0, east(4).route(), starts, ends), new BlockPos(0, 64, 2), leg -> {
+                    legs.add(leg);
+                    return item.build(leg);
+                });
+                assertEquals(2, legs.size());
+                assertEquals(List.of(starts, ends), List.of(legs.getLast().startsStretch(), legs.getLast().endsStretch()));
+            }
+        }
+    }
+
+    @Test
     void anLsTurnIsCutInsideWhenThePlayerStandsThere() {
         // East two, then south two; its turn (2, 0) is blocked, and the player stands inside it.
         Leg leg = new Leg(FROM, 0, route(0, 0, 1, 0, 2, 0, 2, 1, 2, 2));
