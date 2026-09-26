@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import com.mojang.serialization.MapCodec;
+import io.github._5thlayer.groundworks.Dismantles;
 import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.Placements;
 import io.github._5thlayer.groundworks.Rotate;
@@ -46,9 +47,10 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * server has. A dev client, which enables game tests too, draws these blocks.
  *
  * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, and the one item,
- * {@link #STRETCHES_ARROWS}, whose legs {@link LineOfArrows} builds, are registered only when game
- * tests are enabled, for the same reason. The builder is registered at mod construction, as a
- * Consumer's is, so a dev client draws the item's stretches too.
+ * {@link #STRETCHES_ARROWS}, whose legs {@link LineOfArrows} builds, and the dismantling tool
+ * {@link #DISMANTLES}, are registered only when game tests are enabled, for the same reason. The
+ * builder and the {@link RowOfTerracotta} family are registered at mod construction, as a
+ * Consumer's are, so a dev client stretches and dismantles with them too.
  */
 public final class GroundworksGameTests {
 
@@ -80,6 +82,12 @@ public final class GroundworksGameTests {
                 }
             });
 
+    /**
+     * The tests' dismantling tool, in {@code groundworks:dismantles} as an optional entry, which
+     * takes up a {@linkplain RowOfTerracotta row of cyan terracotta}.
+     */
+    static final DeferredItem<Item> DISMANTLES = ITEMS.registerSimpleItem("gametest_dismantles");
+
     /** The vanilla blocks the tests opt in. */
     private static final Set<Block> TEST_BLOCKS = ConcurrentHashMap.newKeySet();
 
@@ -98,6 +106,7 @@ public final class GroundworksGameTests {
             BLOCKS.register(modBus);
             ITEMS.register(modBus);
             Stretches.register(new LineOfArrows());
+            Dismantles.register(new RowOfTerracotta());
         }
         // Posted only when game tests are enabled, so a production server never registers the tests.
         modBus.addListener(GroundworksGameTests::registerTests);
@@ -117,6 +126,7 @@ public final class GroundworksGameTests {
         RotateInPlaceTests.register(tests);
         RaiseTests.register(tests);
         StretchTests.register(tests);
+        DismantleTests.register(tests);
     }
 
     private static Identifier id(String path) {

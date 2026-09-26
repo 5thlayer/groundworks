@@ -4,6 +4,8 @@ Written for Consumers: what a mod building against Groundworks can use, or will 
 
 ## Unreleased
 
+- `groundworks:dismantles` ships one optional entry, `groundworks:gametest_dismantles`, a tool that exists only when game tests are enabled, as in a dev client. With it, and the cyan terracotta row family registered alongside, Groundworks' own dev client and game tests run the **Dismantle** with no Consumer. A production game has neither.
+
 ## 0.4.4
 
 - A **Dismantle** takes up two spans in one pass. A sneak-click with a start stored queues the span to the clicked block, in `Groundworks.DISMANTLE_QUEUE`, instead of moving the start. A click confirms every queued span and the one it ends as one `DismantlePass`, whole or nothing, taking a shared position once and running each family's `beforeTaking` once over all its positions. `Dismantles.MAX_SPANS` is the limit, and `Dismantles.passTo` answers the pass a click would confirm. A queued span whose start is gone refuses as `Refusal.Dismantle.START_GONE`. (#6)
