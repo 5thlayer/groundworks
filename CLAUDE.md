@@ -1,3 +1,9 @@
+## Purpose
+
+Groundworks is a mod a player installs on its own, in a vanilla game: mass placement, its preview, Rotate, Raise and Lower, the Stretch and the Dismantle, for vanilla blocks. It is not a library that waits for other mods. Vanilla is a Consumer like any other. Adding more Consumers, such as Beltworks, is a pack developer's choice, not something Groundworks depends on to be useful. Read `CONTEXT.md` before judging what Groundworks is for, what it should ship, or where it is published.
+
+The code doesn't fully match this yet. Most features still wait for a Consumer's statement made in code (Opt-in, Rotate in Place, a Stretch's builder, a Dismantle family), as ADR 0001 decided. Say so when it matters. Don't treat that gap as the purpose.
+
 ## Releases
 
 A change a Consumer can use or will notice adds its line under `## Unreleased` in `CHANGELOG.md` as it lands. Before bumping `mod_version`, publishing to `~/.m2` or tagging a release, read `docs/agents/releases.md`: releases go through `scripts/release.sh`, and a published version never changes.

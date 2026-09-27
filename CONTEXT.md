@@ -1,6 +1,6 @@
 # Groundworks
 
-A library mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. It exists so the mods that share a screen (Beltworks and the PlanetaryFactory Pack) place, preview and dismantle one way (ADR 0002).
+A mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. A player can install it alone, in a vanilla game, and vanilla is a **Consumer** like any other. Mods such as Beltworks, and packs such as PlanetaryFactory, add **Consumers** of their own, so that everything on one screen places, previews and dismantles one way (ADR 0002). Adding them is the pack developer's choice. Groundworks doesn't depend on them to be useful.
 
 ## Language
 
@@ -11,7 +11,7 @@ This library. It owns the plan, the drawing, the hooks, **Rotate**, the **Stretc
 _Avoid_: placementpreview (its old name), preview lib, the renderer, Groundwork
 
 **Consumer**:
-A mod that plans its items' placements through the library and draws its own additions through its hooks. Beltworks and the Pack are the two today.
+Whatever plans its items' placements through Groundworks and draws its own additions through its hooks. Vanilla is one, served by Groundworks itself. Beltworks and the Pack are others, added by whoever builds the pack.
 _Avoid_: client (collides with the game's client side), dependent, integration
 
 ### Plans
