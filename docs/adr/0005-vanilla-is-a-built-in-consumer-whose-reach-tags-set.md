@@ -17,6 +17,6 @@ This replaces ADR 0001's rejection of opt-in by data ("Opt-in by namespace strin
 
 ## Consequences
 
-- The default lists name vanilla's own tags, and single ids only where vanilla has no tag. They are data, not code, so Groundworks still keeps no block in code.
+- The default lists name vanilla's own tags, then NeoForge's `c:` convention tags as optional entries, and single ids only where neither has a tag. A `c:` tag reaches other mods' blocks of the same kind too, which is intended: Groundworks is a NeoForge mod. The lists are data, not code, so Groundworks still keeps no block in code.
 - A Leg has no vertical form, so a ladder does not stretch until one exists (5thlayer/groundworks#27).
 - Groundworks can have a standalone page on CurseForge and Modrinth, as a mod and not only as a library.
