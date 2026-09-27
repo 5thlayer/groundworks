@@ -1,31 +1,33 @@
 modLoader = "javafml"
 loaderVersion = "[4,)"
-issueTrackerURL = "https://github.com/5thlayer/groundworks/issues"
+issueTrackerURL = "https://github.com/5thlayer/${mod_id}/issues"
 license = "MIT"
 
+# processResources fills each dollar-brace value from gradle.properties, so this file names
+# nothing of the Library's own.
 [[mods]]
-modId = "groundworks"
+modId = "${mod_id}"
 version = "${version}"
-displayName = "Groundworks"
+displayName = "${mod_name}"
 authors = "5thlayer"
 description = '''
-A library for mass placement and Dismantle: it plans what a click would lay or take up, shows the plan before the click, and carries it out, for the mods that plan through it.
+${mod_description}
 '''
 
 # The look a placement reads, turned by Rotate, and where it goes, moved by Raise and Lower.
 [[mixins]]
 config = "groundworks.mixins.json"
 
-[[dependencies.groundworks]]
+[[dependencies.${mod_id}]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.1.2.77,)"
+versionRange = "[${neoforge_version},)"
 ordering = "NONE"
 side = "BOTH"
 
-[[dependencies.groundworks]]
+[[dependencies.${mod_id}]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.1.2]"
+versionRange = "[${minecraft_version}]"
 ordering = "NONE"
 side = "BOTH"

@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.github._5thlayer.groundworks.Groundworks;
 import net.minecraft.core.Holder;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInstance;
@@ -19,7 +20,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 
 /**
- * A game test whose body is a method in the library. 26.1's test functions are registered during
+ * A game test whose body is a method in the Library. 26.1's test functions are registered during
  * bootstrap, before any mod loads, so a mod registers test instances of its own type instead.
  * The codec, which the datapack registry requires, stores the body's id and looks it up again.
  */
@@ -65,6 +66,6 @@ final class CodeGameTest extends GameTestInstance {
 
     @Override
     protected MutableComponent typeDescription() {
-        return Component.literal("groundworks code");
+        return Component.literal(Groundworks.MOD_ID + " code");
     }
 }
