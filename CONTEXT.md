@@ -1,6 +1,6 @@
 # Groundworks
 
-A mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. It works in a vanilla game with no other mod: vanilla is a **Consumer** like any other, and a pack developer switches Groundworks on for the vanilla blocks and items they choose, through data (ADR 0005). Mods such as Beltworks, and packs such as PlanetaryFactory, add **Consumers** of their own, so that everything on one screen places, previews and dismantles one way (ADR 0002). Adding them is the pack developer's choice. Groundworks doesn't depend on them to be useful.
+A mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. It works in a vanilla game with no other mod: vanilla is a **Consumer** like any other, built into Groundworks, and tags a pack developer can change set which vanilla blocks and items it reaches (ADR 0005). Mods such as Beltworks, and packs such as PlanetaryFactory, add **Consumers** of their own, so that everything on one screen places, previews and dismantles one way (ADR 0002). Adding them is the pack developer's choice. Groundworks doesn't depend on them to be useful.
 
 ## Language
 
@@ -11,7 +11,7 @@ This library. It owns the plan, the drawing, the hooks, **Rotate**, the **Stretc
 _Avoid_: placementpreview (its old name), preview lib, the renderer, Groundwork
 
 **Consumer**:
-Whatever plans its items' placements through Groundworks and draws its own additions through its hooks. Vanilla is one, served by Groundworks itself. Beltworks and the Pack are others, added by whoever builds the pack.
+Whatever plans its items' placements through Groundworks and draws its own additions through its hooks. Vanilla is one, built into Groundworks: what its blocks do is vanilla's own, and tags set which blocks and items it reaches. Beltworks and the Pack are others, added by whoever builds the pack.
 _Avoid_: client (collides with the game's client side), dependent, integration
 
 ### Plans
