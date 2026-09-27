@@ -39,12 +39,17 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * {@code gametest/platform} structure, a stone floor that {@code scripts/build-gametest-structures.py}
  * writes, and places what it needs itself, so the setup is in the diff.
  *
- * <p>The tests use vanilla blocks, which no Consumer is here to opt in or state, so they opt in and
- * state their own. That {@linkplain Placements#optIn Opt-in} and {@linkplain Rotate#turnsInPlace
- * Rotate in Place statement} are made while the tests are registered, which happens only when game
- * tests are enabled, so a production server never has them. They are the ones not made at mod
- * construction as ADR 0001 has it, and they hold on the server alone, which is all a game-test
- * server has. A dev client, which enables game tests too, draws these blocks.
+ * <p>The tests use vanilla blocks. The {@linkplain io.github._5thlayer.groundworks.VanillaConsumer
+ * vanilla Consumer} opts in those its shipped tag holds; the tests opt in the few others they need,
+ * such as cobblestone, a block with no orientation, and state their own Rotate in Place. That
+ * {@linkplain Placements#optIn Opt-in} and {@linkplain Rotate#turnsInPlace Rotate in Place
+ * statement} are made while the tests are registered, which happens only when game tests are
+ * enabled, so a production server never has them. They are the ones not made at mod construction
+ * as ADR 0001 has it, and they hold on the server alone, which is all a game-test server has. A dev
+ * client, which enables game tests too, draws these blocks.
+ *
+ * <p>A test that needs a pack developer's datapack runs in a batch of its own {@linkplain
+ * WithTestPack with that pack switched on}.
  *
  * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, and the one item,
  * {@link #STRETCHES_ARROWS}, whose legs {@link LineOfArrows} builds, and the dismantling tool
@@ -59,8 +64,12 @@ public final class GroundworksGameTests {
     private static final DeferredRegister<MapCodec<? extends GameTestInstance>> TEST_TYPES =
             DeferredRegister.create(Registries.TEST_INSTANCE_TYPE, Groundworks.MOD_ID);
 
+    private static final DeferredRegister<MapCodec<? extends TestEnvironmentDefinition<?>>> ENVIRONMENT_TYPES =
+            DeferredRegister.create(Registries.TEST_ENVIRONMENT_DEFINITION_TYPE, Groundworks.MOD_ID);
+
     static {
         TEST_TYPES.register("code", () -> CodeGameTest.CODEC);
+        ENVIRONMENT_TYPES.register("with_test_pack", () -> WithTestPack.CODEC);
     }
 
     private static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Groundworks.MOD_ID);
@@ -102,7 +111,9 @@ public final class GroundworksGameTests {
 
     public static void register(IEventBus modBus) {
         TEST_TYPES.register(modBus);
+        ENVIRONMENT_TYPES.register(modBus);
         if (GameTestHooks.isGametestEnabled()) {
+            modBus.addListener(WithTestPack::addPackFinders);
             BLOCKS.register(modBus);
             ITEMS.register(modBus);
             Stretches.register(new LineOfArrows());
@@ -120,8 +131,9 @@ public final class GroundworksGameTests {
         }
         // Registered rather than borrowed, since the event hands out no lookup for vanilla's.
         var environment = event.registerEnvironment(id("default"), new TestEnvironmentDefinition.AllOf(List.of()));
-        var tests = new Registrar(event, environment);
+        var tests = new Registrar(event, environment, new ConcurrentHashMap<>());
         VanillaPlanTests.register(tests);
+        PlanOptInTests.register(tests);
         RotateTests.register(tests);
         RotateInPlaceTests.register(tests);
         RaiseTests.register(tests);
@@ -134,7 +146,8 @@ public final class GroundworksGameTests {
     }
 
     /** What a test class is handed: the blocks it opts in and states, and a name, a tick budget and a body per test. */
-    record Registrar(RegisterGameTestsEvent event, Holder<TestEnvironmentDefinition<?>> environment) {
+    record Registrar(RegisterGameTestsEvent event, Holder<TestEnvironmentDefinition<?>> environment,
+                     Map<String, Holder<TestEnvironmentDefinition<?>>> packEnvironments) {
 
         void optIn(Block... blocks) {
             TEST_BLOCKS.addAll(List.of(blocks));
@@ -142,6 +155,15 @@ public final class GroundworksGameTests {
 
         void turnsInPlace(Block... blocks) {
             TURNED_IN_PLACE.addAll(List.of(blocks));
+        }
+
+        /**
+         * The same, for tests that run in a batch of their own with one of the tests' datapacks
+         * switched on. The tests of every class that asks for one pack share its batch.
+         */
+        Registrar withPack(String pack) {
+            return new Registrar(event, packEnvironments.computeIfAbsent(pack,
+                    name -> event.registerEnvironment(id("with_" + name), new WithTestPack(name))), packEnvironments);
         }
 
         void test(String name, int maxTicks, Consumer<GameTestHelper> body) {

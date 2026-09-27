@@ -11,7 +11,9 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -22,7 +24,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * {@linkplain Dismantles Dismantle} keeps its start on the held stack and answers the clicks, and
  * {@link Rotate} keeps its turn there and {@link Raise} its height, each answering its keys'
  * payload; the {@linkplain Stretches Stretch} keeps the stretch being drawn there and answers the
- * clicks too. The drawing and the keys are {@code client.GroundworksClient}.
+ * clicks too. The {@linkplain VanillaConsumer vanilla Consumer} makes its statements here, read from
+ * a tag and the {@linkplain GroundworksConfig server config}. The drawing and the keys are {@code
+ * client.GroundworksClient}.
  */
 @Mod(Groundworks.MOD_ID)
 public final class Groundworks {
@@ -52,8 +56,10 @@ public final class Groundworks {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<StoredStretch>> STRETCH =
             COMPONENTS.register("stretch", StoredStretch::componentType);
 
-    public Groundworks(IEventBus modBus) {
+    public Groundworks(IEventBus modBus, ModContainer container) {
         COMPONENTS.register(modBus);
+        container.registerConfig(ModConfig.Type.SERVER, GroundworksConfig.SPEC);
+        VanillaConsumer.register();
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
         GroundworksGameTests.register(modBus);

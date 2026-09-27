@@ -36,7 +36,7 @@ final class VanillaPlanTests {
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
-        tests.optIn(Blocks.FURNACE, Blocks.OAK_STAIRS, Blocks.POPPY);
+        tests.optIn(Blocks.POPPY);
         for (Direction look : Direction.Plane.HORIZONTAL) {
             String looking = look.getSerializedName();
             tests.test("a_furnace_looking_" + looking + "_is_placed_as_planned", 20,

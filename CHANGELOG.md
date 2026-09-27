@@ -4,6 +4,8 @@ Written for Consumers: what a mod building against Groundworks can use, or will 
 
 ## Unreleased
 
+- Groundworks opts vanilla blocks in for a **Vanilla Plan** by itself, through data, as the first part of its built-in vanilla Consumer (ADR 0005). The block tag `groundworks:plan_opt_in` ships holding every vanilla block whose placed state depends on how it is placed: stairs, slabs, fences, walls, panes, logs, doors, rails, furnaces, chests and the like. A pack changes it with a datapack, `remove` included. The server config's `planOptInNamespaces` opts in every block of the namespaces it lists. `VanillaConsumer.PLAN_OPT_IN` names the tag, and `GroundworksConfig.PLAN_OPT_IN_NAMESPACES` the list. Both add up with `Placements.optIn`, so a Consumer's own Opt-in in code works as before. A Consumer will notice that vanilla's oriented blocks are now drawn, and turned by **Rotate the Plan**, with no Opt-in of its own. (#23)
+
 ## 0.4.6
 
 - The jar carries its licence, `LICENSE` and `LICENSES/MIT.txt`, at its root, so a Consumer that nests it hands the licence on with it. The build fails if either is missing. (5thlayer/beltworks#61)

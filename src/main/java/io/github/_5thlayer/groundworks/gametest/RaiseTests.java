@@ -42,7 +42,7 @@ final class RaiseTests {
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
-        tests.optIn(Blocks.COBBLESTONE, Blocks.FURNACE, Blocks.OAK_STAIRS);
+        tests.optIn(Blocks.COBBLESTONE);
         for (int height : List.of(0, 1, 2, -1)) {
             tests.test("a_block_" + (height < 0 ? "lowered_" + -height : "raised_" + height)
                             + "_against_a_wall_is_placed_at_the_moved_spot", 20,
@@ -144,17 +144,17 @@ final class RaiseTests {
 
     /** Both presses leave the stack as it was, and the block places where it would go. */
     private static void notRaised(GameTestHelper helper) {
-        Player player = holding(helper, Blocks.BLAST_FURNACE, Direction.EAST);
+        Player player = holding(helper, Blocks.STONE, Direction.EAST);
         ItemStack before = player.getMainHandItem().copy();
         press(player, 1);
         press(player, -1);
         if (!ItemStack.matches(player.getMainHandItem(), before)) {
-            helper.fail("a press changed a stack of blast furnaces to " + player.getMainHandItem().getComponentsPatch());
+            helper.fail("a press changed a stack of stone to " + player.getMainHandItem().getComponentsPatch());
         }
         BlockPos floor = new BlockPos(4, 0, 4);
         helper.useBlock(floor, player, onFace(helper, floor, Direction.UP));
-        if (!helper.getBlockState(floor.above()).is(Blocks.BLAST_FURNACE)) {
-            helper.fail("a blast furnace placed " + helper.getBlockState(floor.above()), floor.above());
+        if (!helper.getBlockState(floor.above()).is(Blocks.STONE)) {
+            helper.fail("a stone block placed " + helper.getBlockState(floor.above()), floor.above());
         }
         helper.succeed();
     }

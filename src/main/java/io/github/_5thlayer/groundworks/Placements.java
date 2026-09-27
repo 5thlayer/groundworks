@@ -32,7 +32,8 @@ import org.jspecify.annotations.Nullable;
  * {@link BlockItem} is drawn only when a Consumer has {@linkplain #optIn opted its block in}, and
  * the library keeps no list of mods: each Consumer states its own rule, such as "every block in my
  * namespace", which makes a new block previewable with no code at all. Other mods' placement
- * refusals are theirs, and owning them is unbounded.
+ * refusals are theirs, and owning them is unbounded. Vanilla's blocks are opted in by the
+ * {@linkplain VanillaConsumer vanilla Consumer}, through a tag a pack can change.
  *
  * <p>The gate is the <em>block</em>, not the item, because what a preview is about is the block the
  * item puts down.

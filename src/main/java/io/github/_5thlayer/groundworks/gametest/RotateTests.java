@@ -54,7 +54,7 @@ final class RotateTests {
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
-        tests.optIn(Blocks.FURNACE, Blocks.OBSERVER, Blocks.SKELETON_SKULL, Blocks.COBBLESTONE);
+        tests.optIn(Blocks.COBBLESTONE);
         for (Direction look : List.of(Direction.EAST, Direction.SOUTH)) {
             for (boolean sneaking : List.of(false, true)) {
                 for (boolean reverse : List.of(false, true)) {
@@ -68,11 +68,12 @@ final class RotateTests {
         tests.test("a_turn_stays_on_the_rest_of_a_stack_and_goes_with_its_last_item", 20,
                 RotateTests::turnGoesWithTheLastItem);
         tests.test("a_turned_stack_in_the_off_hand_places_unturned", 20, RotateTests::offHandUnturned);
-        // Not opted in, so no Placement Preview is drawn for it, and Rotate never turns what isn't drawn.
-        tests.test("rotate_leaves_an_oriented_block_that_is_not_opted_in_unturned", 20,
-                helper -> notTurned(helper, Blocks.BLAST_FURNACE));
         tests.test("rotate_leaves_an_opted_in_block_with_no_orientation_unturned", 20,
                 helper -> notTurned(helper, Blocks.COBBLESTONE));
+        // Stairs with a datapack taking them out of plan_opt_in, as the shipped tag opts in every
+        // oriented block: no Placement Preview is drawn for them, and Rotate never turns what isn't drawn.
+        tests.withPack(PlanOptInTests.REMOVES_STAIRS).test("rotate_leaves_an_oriented_block_that_is_not_opted_in_unturned",
+                20, helper -> notTurned(helper, Blocks.OAK_STAIRS));
     }
 
     /** For 0 to 3 presses, each oriented block places the look turned that many quarters, as planned. */
@@ -160,8 +161,9 @@ final class RotateTests {
         BlockPos floor = new BlockPos(4, 0, 4);
         helper.useBlock(floor, player, onTop(helper, floor));
         BlockState placed = helper.getBlockState(floor.above());
+        // Stairs face the way the player looks.
         BlockState unturned = placed.hasProperty(BlockStateProperties.HORIZONTAL_FACING)
-                ? placed.setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.WEST)
+                ? placed.setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST)
                 : block.defaultBlockState();
         if (!placed.equals(unturned)) {
             helper.fail(name(block) + " placed " + placed + ", expected " + unturned, floor.above());
