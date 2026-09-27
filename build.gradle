@@ -84,6 +84,23 @@ dependencies {
 }
 
 // The JUnit tests test the rules that read no game state, and the game tests test the rest.
+// The jar carries its licence, so a copy nested in another mod's jar can be handed on to players.
+// LICENSES/ holds only MIT.txt that the jar needs; Apache-2.0.txt is the Gradle wrapper's.
+def licenceFiles = ['LICENSE', 'LICENSES/MIT.txt']
+tasks.named('jar') {
+    from(rootDir) { include licenceFiles }
+}
+def checkJarLicence = tasks.register('checkJarLicence') {
+    def jar = tasks.named('jar').flatMap { it.archiveFile }
+    inputs.file jar
+    doLast {
+        def names = new java.util.zip.ZipFile(jar.get().asFile).withCloseable { zip -> zip.entries().collect { it.name } }
+        def missing = licenceFiles - names
+        if (missing) throw new GradleException("the jar carries no ${missing.join(', ')}")
+    }
+}
+tasks.named('check') { dependsOn checkJarLicence }
+
 test {
     useJUnitPlatform()
 }

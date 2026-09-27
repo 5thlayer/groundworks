@@ -4,6 +4,8 @@ Written for Consumers: what a mod building against Groundworks can use, or will 
 
 ## Unreleased
 
+- The jar carries its licence, `LICENSE` and `LICENSES/MIT.txt`, at its root, so a Consumer that nests it hands the licence on with it. The build fails if either is missing. (5thlayer/beltworks#61)
+
 ## 0.4.5
 
 - A **Stretch** is refused whole, as `Refusal.Stretch.MAY_NOT_BUILD`, when the player may not build at some position it lays: in adventure mode, outside the world's bounds, or where `Level.mayInteract` says no, as under spawn protection. The preview draws it refused, and a click lays and charges nothing. (#16)
