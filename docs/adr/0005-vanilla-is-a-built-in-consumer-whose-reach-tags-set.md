@@ -18,5 +18,5 @@ This replaces ADR 0001's rejection of opt-in by data ("Opt-in by namespace strin
 ## Consequences
 
 - The default lists name vanilla's own tags, and single ids only where vanilla has no tag. They are data, not code, so Groundworks still keeps no block in code.
-- A Leg has no vertical form, so a ladder does not stretch until one exists.
+- A Leg has no vertical form, so a ladder does not stretch until one exists (5thlayer/groundworks#27).
 - Groundworks can have a standalone page on CurseForge and Modrinth, as a mod and not only as a library.
