@@ -28,14 +28,16 @@ import org.jspecify.annotations.Nullable;
  * in code.
  *
  * <p>Two of the tests run with {@link #REMOVES_STAIRS}, a datapack that takes {@code
- * #minecraft:stairs} out of the tag, as a pack developer would. It is switched on for their batch
- * alone, so the rest of the tests see the shipped tag. The Rotate tests that need an oriented block
- * that is not opted in share it.
+ * #minecraft:stairs} out of the tag, as a pack developer would. It takes them out of {@code
+ * groundworks:stretches} too, since an item that stretches is drawn whatever its block's Opt-in. It
+ * is switched on for their batch alone, so the rest of the tests see the shipped tags. The Rotate
+ * tests that need an oriented block that is not drawn, and the Stretch test of a datapack taking an
+ * item out of the tag, share it.
  */
 final class PlanOptInTests {
 
-    /** The pack under {@code gametest_packs/} whose tag file removes {@code #minecraft:stairs}. */
-    static final String REMOVES_STAIRS = "removes_stairs_from_plan_opt_in";
+    /** The pack under {@code gametest_packs/} whose tag files remove {@code #minecraft:stairs}. */
+    static final String REMOVES_STAIRS = "removes_stairs";
 
     private static final BlockPos FLOOR = new BlockPos(4, 0, 4);
 

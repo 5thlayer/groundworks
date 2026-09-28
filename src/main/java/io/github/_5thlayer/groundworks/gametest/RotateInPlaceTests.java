@@ -70,8 +70,8 @@ final class RotateInPlaceTests {
             tests.test("rotate_in_place_turns_" + BuiltInRegistries.BLOCK.getKey(turning.start().getBlock()).getPath()
                     + "_a_quarter_each_press_both_ways", 20, helper -> turnsEachPress(helper, turning));
         }
-        // Stairs with a datapack taking them out of plan_opt_in, as the shipped tag opts in every
-        // oriented block: no Placement Preview is drawn for them and they are not rotatable.
+        // Stairs with a datapack taking them out of plan_opt_in and stretches, as the shipped tags
+        // opt in every oriented block: no Placement Preview is drawn for them and they are not rotatable.
         tests.withPack(PlanOptInTests.REMOVES_STAIRS).test("rotate_with_an_undrawn_oriented_block_held_turns_the_aimed_block",
                 20, helper -> succeeds(helper, () -> assertHeldFallsThrough(helper, Blocks.OAK_STAIRS)));
         tests.test("rotate_with_a_block_with_no_orientation_held_turns_the_aimed_block", 20,

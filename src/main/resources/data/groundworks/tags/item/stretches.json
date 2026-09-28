@@ -1,0 +1,22 @@
+{
+  "values": [
+    "#minecraft:stairs",
+    "#minecraft:slabs",
+    "#minecraft:fences",
+    "#minecraft:walls",
+    "#minecraft:logs",
+    "#minecraft:rails",
+    {
+      "id": "#c:glass_panes",
+      "required": false
+    },
+    {
+      "id": "#c:stripped_logs",
+      "required": false
+    },
+    {
+      "id": "#c:stripped_woods",
+      "required": false
+    }
+  ]
+}

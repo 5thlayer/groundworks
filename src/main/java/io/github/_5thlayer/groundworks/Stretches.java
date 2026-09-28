@@ -70,7 +70,8 @@ public final class Stretches {
      *
      * <p>Called at mod construction, on both sides, since the preview asks on the client and the
      * click on the server. Mods are constructed in parallel, so this may be called from several
-     * threads at once.
+     * threads at once. The {@linkplain VanillaConsumer vanilla Consumer}'s builder alone is
+     * registered after every mod is constructed, so it is asked after every Consumer mod's.
      */
     public static void register(LegBuilder builder) {
         BUILDERS.add(builder);

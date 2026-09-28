@@ -59,7 +59,7 @@ public final class Groundworks {
     public Groundworks(IEventBus modBus, ModContainer container) {
         COMPONENTS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, GroundworksConfig.SPEC);
-        VanillaConsumer.register();
+        VanillaConsumer.register(modBus);
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
         GroundworksGameTests.register(modBus);

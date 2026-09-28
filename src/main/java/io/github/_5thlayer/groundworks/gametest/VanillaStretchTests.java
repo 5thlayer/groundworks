@@ -1,0 +1,242 @@
+// SPDX-FileCopyrightText: 2026 5thlayer
+// SPDX-License-Identifier: MIT
+
+package io.github._5thlayer.groundworks.gametest;
+
+import java.util.List;
+import java.util.Map;
+
+import io.github._5thlayer.groundworks.Groundworks;
+import io.github._5thlayer.groundworks.PlacementPlan;
+import io.github._5thlayer.groundworks.Placements;
+import io.github._5thlayer.groundworks.Raise;
+import io.github._5thlayer.groundworks.Refusal;
+import io.github._5thlayer.groundworks.Stretches;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.RailBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.RailShape;
+import net.minecraft.world.level.block.state.properties.StairsShape;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * The vanilla Consumer's Stretch: an item in {@code groundworks:stretches} is laid at each position
+ * of the route through vanilla placement, a rise included. Stairs and rails are the fixtures, since
+ * the shipped tag holds them through {@code #minecraft:stairs} and {@code #minecraft:rails}; no
+ * test states their builder in code.
+ *
+ * <p>Each stretch starts on the floor at {@link #START}, looking east, and so lays from one block
+ * above it. Every click goes through the server player's own {@code useItemOn}, and every press
+ * through {@link Raise#press}, as in {@link StretchTests}.
+ */
+final class VanillaStretchTests {
+
+    private static final BlockPos START = new BlockPos(1, 0, 2);
+
+    private VanillaStretchTests() {
+    }
+
+    static void register(GroundworksGameTests.Registrar tests) {
+        tests.test("stairs_stretched_over_flat_ground_lay_a_line_joined_as_vanilla_joins_it", 20,
+                VanillaStretchTests::flatStairs);
+        tests.test("stairs_stretched_over_a_rise_lay_a_staircase_facing_up_the_leg", 20,
+                VanillaStretchTests::risingStairs);
+        tests.test("stairs_stretched_down_a_fall_lay_a_staircase_facing_back_up_the_leg", 20,
+                VanillaStretchTests::fallingStairs);
+        tests.test("rails_stretched_over_a_rise_slope_up_it", 20, VanillaStretchTests::risingRails);
+        tests.test("rails_stretched_over_a_rise_with_nothing_under_it_are_refused_where_vanilla_refuses", 20,
+                VanillaStretchTests::railsInMidAir);
+        tests.test("a_stone_block_does_not_stretch", 20, helper -> {
+            if (Stretches.builderOf(Blocks.STONE.asItem()) != null) {
+                helper.fail("stone stretches, though the shipped tag doesn't hold it");
+            }
+            helper.succeed();
+        });
+        tests.withPack(PlanOptInTests.REMOVES_STAIRS).test("a_datapack_taking_stairs_out_of_the_tag_stops_them_stretching",
+                20, VanillaStretchTests::takenOutOfTheTag);
+    }
+
+    /** East four, then south round a corner: every stair faces the way it runs, and the one before the corner turns. */
+    private static void flatStairs(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.OAK_STAIRS, 16);
+        start(helper, player);
+        BlockPos end = new BlockPos(5, 0, 4);
+        List<BlockPos> planned = plannedPositions(helper, player, end);
+        click(helper, player, end, false);
+        Map<BlockPos, Direction> expected = Map.of(
+                new BlockPos(1, 1, 2), Direction.EAST, new BlockPos(2, 1, 2), Direction.EAST,
+                new BlockPos(3, 1, 2), Direction.EAST, new BlockPos(4, 1, 2), Direction.EAST,
+                new BlockPos(5, 1, 2), Direction.SOUTH, new BlockPos(5, 1, 3), Direction.SOUTH,
+                new BlockPos(5, 1, 4), Direction.SOUTH);
+        expectPlannedWhereLaid(helper, planned, expected.keySet().stream().toList());
+        expected.forEach((pos, facing) -> expectStair(helper, pos, facing));
+        if (helper.getBlockState(new BlockPos(4, 1, 2)).getValue(StairBlock.SHAPE) == StairsShape.STRAIGHT) {
+            helper.fail("the stair before the corner stayed straight, not joined to the corner",
+                    new BlockPos(4, 1, 2));
+        }
+        expectHeld(helper, player, 16 - expected.size());
+        helper.succeed();
+    }
+
+    private static void risingStairs(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.OAK_STAIRS, 16);
+        start(helper, player);
+        press(player, 2);
+        click(helper, player, new BlockPos(5, 0, 2), false);
+        for (BlockPos pos : List.of(new BlockPos(1, 1, 2), new BlockPos(2, 2, 2), new BlockPos(3, 3, 2),
+                new BlockPos(4, 3, 2), new BlockPos(5, 3, 2))) {
+            expectStair(helper, pos, Direction.EAST);
+        }
+        helper.succeed();
+    }
+
+    /** Started 2 up, then lowered 2: the fall's stairs face west, back up it, and the level run after it east. */
+    private static void fallingStairs(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.OAK_STAIRS, 16);
+        press(player, 2);
+        start(helper, player);
+        press(player, -2);
+        click(helper, player, new BlockPos(5, 0, 2), false);
+        expectStair(helper, new BlockPos(1, 3, 2), Direction.WEST);
+        expectStair(helper, new BlockPos(2, 2, 2), Direction.WEST);
+        expectStair(helper, new BlockPos(3, 1, 2), Direction.WEST);
+        expectStair(helper, new BlockPos(4, 1, 2), Direction.EAST);
+        expectStair(helper, new BlockPos(5, 1, 2), Direction.EAST);
+        helper.succeed();
+    }
+
+    /** A step of stone one up from x 2 on: the rail at its foot slopes up to it, and those on it lie flat. */
+    private static void risingRails(GameTestHelper helper) {
+        for (int x = 2; x <= 5; x++) {
+            helper.setBlock(new BlockPos(x, 1, 2), Blocks.STONE);
+        }
+        ListeningPlayer player = holding(helper, Blocks.RAIL, 16);
+        start(helper, player);
+        press(player, 1);
+        click(helper, player, new BlockPos(5, 1, 2), false);
+        expectRail(helper, new BlockPos(1, 1, 2), RailShape.ASCENDING_EAST);
+        for (int x = 2; x <= 5; x++) {
+            expectRail(helper, new BlockPos(x, 2, 2), RailShape.EAST_WEST);
+        }
+        helper.succeed();
+    }
+
+    private static void railsInMidAir(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.RAIL, 16);
+        start(helper, player);
+        press(player, 1);
+        BlockPos end = new BlockPos(5, 0, 2);
+        PlacementPlan plan = plan(helper, player, end);
+        if (plan == null || !(plan.refusal() instanceof Refusal.At at) || at.reason() != Refusal.Vanilla.VANILLA) {
+            helper.fail("the plan was " + plan + ", not refused where vanilla refuses a rail", end);
+        }
+        click(helper, player, end, false);
+        for (int x = 1; x <= 5; x++) {
+            for (int y = 1; y <= 2; y++) {
+                if (helper.getBlockState(new BlockPos(x, y, 2)).is(Blocks.RAIL)) {
+                    helper.fail("a refused stretch laid a rail", new BlockPos(x, y, 2));
+                }
+            }
+        }
+        expectHeld(helper, player, 16);
+        helper.succeed();
+    }
+
+    /** With stairs out of the tag, a sneak-click stores no start and places a stair as vanilla does. */
+    private static void takenOutOfTheTag(GameTestHelper helper) {
+        if (Stretches.builderOf(Blocks.OAK_STAIRS.asItem()) != null) {
+            helper.fail("stairs still stretch with #minecraft:stairs taken out of the tag");
+        }
+        ListeningPlayer player = holding(helper, Blocks.OAK_STAIRS, 16);
+        start(helper, player);
+        if (player.getMainHandItem().has(Groundworks.STRETCH.get())) {
+            helper.fail("a sneak-click stored a stretch's start");
+        }
+        expectStair(helper, START.above(), Direction.EAST);
+        helper.succeed();
+    }
+
+    private static void expectStair(GameTestHelper helper, BlockPos pos, Direction facing) {
+        BlockState there = helper.getBlockState(pos);
+        if (!there.is(Blocks.OAK_STAIRS) || there.getValue(StairBlock.FACING) != facing
+                || there.getValue(StairBlock.HALF) != Blocks.OAK_STAIRS.defaultBlockState().getValue(StairBlock.HALF)) {
+            helper.fail("laid " + there + ", not a bottom stair facing " + facing, pos);
+        }
+        BlockPos absolute = helper.absolutePos(pos);
+        if (!Block.updateFromNeighbourShapes(there, helper.getLevel(), absolute).equals(there)) {
+            helper.fail("laid " + there + ", not joined to its neighbours as vanilla joins stairs", pos);
+        }
+    }
+
+    private static void expectRail(GameTestHelper helper, BlockPos pos, RailShape shape) {
+        BlockState there = helper.getBlockState(pos);
+        if (!there.is(Blocks.RAIL) || there.getValue(RailBlock.SHAPE) != shape) {
+            helper.fail("laid " + there + ", not a rail " + shape, pos);
+        }
+    }
+
+    private static void expectPlannedWhereLaid(GameTestHelper helper, List<BlockPos> planned, List<BlockPos> laid) {
+        if (!planned.stream().sorted().toList().equals(laid.stream().map(helper::absolutePos).sorted().toList())) {
+            helper.fail("the plan put blocks at " + planned + ", expected " + laid);
+        }
+    }
+
+    private static void expectHeld(GameTestHelper helper, ListeningPlayer player, int held) {
+        int count = player.getMainHandItem().getCount();
+        if (count != held) {
+            helper.fail("the player holds " + count + ", expected " + held);
+        }
+    }
+
+    private static List<BlockPos> plannedPositions(GameTestHelper helper, ListeningPlayer player, BlockPos floor) {
+        PlacementPlan plan = plan(helper, player, floor);
+        if (plan == null || plan.isRefused()) {
+            helper.fail("the plan was " + plan, floor);
+        }
+        return plan.blocks().stream().map(PlacementPlan.Placed::pos).toList();
+    }
+
+    private static void start(GameTestHelper helper, ListeningPlayer player) {
+        click(helper, player, START, true);
+    }
+
+    private static @Nullable PlacementPlan plan(GameTestHelper helper, ListeningPlayer player, BlockPos pos) {
+        return Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(), onTop(helper, pos));
+    }
+
+    private static void click(GameTestHelper helper, ListeningPlayer player, BlockPos pos, boolean sneaking) {
+        player.setShiftKeyDown(sneaking);
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
+                onTop(helper, pos));
+        player.setShiftKeyDown(false);
+    }
+
+    /** Presses Raise {@code height} times, or Lower as many times if it is negative. */
+    private static void press(ListeningPlayer player, int height) {
+        for (int press = 0; press < Math.abs(height); press++) {
+            Raise.press(player, height < 0);
+        }
+    }
+
+    private static ListeningPlayer holding(GameTestHelper helper, Block block, int count) {
+        ListeningPlayer player = new ListeningPlayer(helper, new BlockPos(0, 1, 0));
+        player.setYRot(Direction.EAST.toYRot());
+        player.setYHeadRot(Direction.EAST.toYRot());
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(block, count));
+        return player;
+    }
+
+    private static BlockHitResult onTop(GameTestHelper helper, BlockPos pos) {
+        BlockPos absolute = helper.absolutePos(pos);
+        return new BlockHitResult(Vec3.atCenterOf(absolute).relative(Direction.UP, 0.5), Direction.UP, absolute, false);
+    }
+}

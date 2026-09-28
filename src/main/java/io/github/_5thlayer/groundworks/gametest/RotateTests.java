@@ -70,8 +70,9 @@ final class RotateTests {
         tests.test("a_turned_stack_in_the_off_hand_places_unturned", 20, RotateTests::offHandUnturned);
         tests.test("rotate_leaves_an_opted_in_block_with_no_orientation_unturned", 20,
                 helper -> notTurned(helper, Blocks.COBBLESTONE));
-        // Stairs with a datapack taking them out of plan_opt_in, as the shipped tag opts in every
-        // oriented block: no Placement Preview is drawn for them, and Rotate never turns what isn't drawn.
+        // Stairs with a datapack taking them out of plan_opt_in and stretches, as the shipped tags
+        // opt in every oriented block: no Placement Preview is drawn for them, and Rotate never turns
+        // what isn't drawn.
         tests.withPack(PlanOptInTests.REMOVES_STAIRS).test("rotate_leaves_an_oriented_block_that_is_not_opted_in_unturned",
                 20, helper -> notTurned(helper, Blocks.OAK_STAIRS));
     }
