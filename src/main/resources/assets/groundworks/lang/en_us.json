@@ -27,5 +27,6 @@
   "key.groundworks.reverse_rotate": "Reverse Rotate",
   "key.groundworks.raise": "Raise",
   "key.groundworks.lower": "Lower",
-  "groundworks.configuration.planOptInNamespaces": "Namespaces opted in for a Vanilla Plan"
+  "groundworks.configuration.planOptInNamespaces": "Namespaces opted in for a Vanilla Plan",
+  "message.groundworks.stretch_no_anchor_in_a_column": "A column has no anchors: click to lay it."
 }

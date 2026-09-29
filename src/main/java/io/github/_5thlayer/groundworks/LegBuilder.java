@@ -42,6 +42,24 @@ public interface LegBuilder {
         return false;
     }
 
+    /**
+     * Whether this builder builds the {@linkplain Column Columns} of this item, a stretch straight
+     * up or down (ADR 0006). An item it claims only this way always stretches as a Column; one it
+     * also {@linkplain #claims claims} does when the end is aimed on the start's own column. False
+     * unless the builder says so.
+     */
+    default boolean claimsColumn(Item item) {
+        return false;
+    }
+
+    /**
+     * The blocks that build {@code column} of a stretch of {@code item}, as {@link #build} answers
+     * for a leg. Asked only for an item this builder {@linkplain #claimsColumn claims as a column}.
+     */
+    default PlacementPlan buildColumn(Level level, Item item, Column column) {
+        throw new UnsupportedOperationException("claims no column of " + item);
+    }
+
     /** What the player is told when a leg is refused with one of the builder's own refusals, never an {@link Refusal.At}. */
     Component message(Refusal refusal);
 }

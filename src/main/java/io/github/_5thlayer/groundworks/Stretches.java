@@ -48,7 +48,9 @@ import org.jspecify.annotations.Nullable;
  * height, and the look turned by the held turn, using both up. A sneak-click with a start stored
  * adds an anchor where the stretch would end, freezing the height into the leg ending there; a
  * refused stretch stores nothing, and an anchor at the same spot as the last is ignored. A click
- * lays the stretch. A sneak-use in the air clears it. Laying and clearing reset the height, and
+ * lays the stretch. An item that stretches as a {@link Column} draws one instead of legs, as
+ * {@link Column#drawn} has it, its length the height held since the start, and a sneak-click while
+ * one is drawn is refused. A sneak-use in the air clears it. Laying and clearing reset the height, and
  * leave a turn pressed since the start for the next one. A click with nothing stored passes on, so
  * the item keeps its own placement. A stretch stored in another dimension is no stretch.
  *
@@ -84,10 +86,13 @@ public final class Stretches {
         BUILDERS.add(builder);
     }
 
-    /** The builder of this item's legs, or {@code null} if none claims it, and so it doesn't stretch. */
+    /**
+     * The builder of this item's legs or {@linkplain Column Columns}, or {@code null} if none claims
+     * it, and so it doesn't stretch.
+     */
     public static @Nullable LegBuilder builderOf(Item item) {
         for (LegBuilder builder : BUILDERS) {
-            if (builder.claims(item)) {
+            if (builder.claims(item) || builder.claimsColumn(item)) {
                 return builder;
             }
         }
@@ -198,6 +203,10 @@ public final class Stretches {
         if (builder == null || stored == null) {
             return null;
         }
+        Column column = columnOf(level, player, stack, builder, stored, hit);
+        if (column != null) {
+            return charged(level, player, item, builder.buildColumn(level, item, column));
+        }
         List<BlockPos> ends = new ArrayList<>(stored.anchorPositions());
         List<Integer> rises = new ArrayList<>(stored.anchors().stream().map(StoredStretch.Anchor::rise).toList());
         ends.add(spotOf(level, player, stack, hit));
@@ -237,15 +246,40 @@ public final class Stretches {
             }
         }
 
+        List<PlacementPlan.Placed> placed = blocks.entrySet().stream()
+                .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
+                .toList();
+        return charged(level, player, item, new PlacementPlan(placed, List.copyOf(replaces), refusal));
+    }
+
+    /**
+     * The Column a click at this hit would lay, or {@code null} when the stretch draws legs: its
+     * start, the held height as its length, and the start's look (ADR 0006).
+     */
+    private static @Nullable Column columnOf(Level level, @Nullable Player player, ItemStack stack,
+            LegBuilder builder, StoredStretch stored, BlockHitResult hit) {
+        if (!builder.claimsColumn(stack.getItem()) || !Column.drawn(builder.claims(stack.getItem()),
+                stored.anchors().isEmpty(), stored.start(), spotOf(level, player, stack, hit))) {
+            return null;
+        }
+        return new Column(stored.start(), player == null ? 0 : Raise.heightOf(player, stack).blocks(), stored.look());
+    }
+
+    /** The stretch's plan refused where the player may not build or can't pay, with its charge and what it hands back. */
+    private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan plan) {
+        Refusal refusal = plan.refusal();
+        Set<BlockPos> positions = new LinkedHashSet<>();
+        plan.blocks().forEach(placed -> positions.add(placed.pos()));
+        List<BlockPos> replaces = plan.replaces();
         // Where the player may not build, the stretch is refused whole, whatever else refused it.
-        if (player != null && !mayBuildAll(level, player, blocks.keySet())) {
+        if (player != null && !mayBuildAll(level, player, positions)) {
             refusal = Refusal.Stretch.MAY_NOT_BUILD;
         }
 
         int cost = 0;
         List<ItemStack> returned = new ArrayList<>();
         if (player != null && !player.hasInfiniteMaterials()) {
-            cost = blocks.size();
+            cost = positions.size();
             for (BlockPos pos : replaces) {
                 Item back = level.getBlockState(pos).getBlock().asItem();
                 if (back != Items.AIR) {
@@ -260,10 +294,7 @@ public final class Stretches {
                 }
             }
         }
-        List<PlacementPlan.Placed> placed = blocks.entrySet().stream()
-                .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
-                .toList();
-        return new Laying(new PlacementPlan(placed, List.copyOf(replaces), refusal), cost, returned);
+        return new Laying(new PlacementPlan(plan.blocks(), replaces, refusal), cost, returned);
     }
 
     private static boolean mayBuildAll(Level level, Player player, Set<BlockPos> positions) {
@@ -327,6 +358,10 @@ public final class Stretches {
                 tell(player, Component.translatable(STARTED));
             }
             case ANCHOR -> {
+                if (columnOf(level, player, held, builderOf(held.getItem()), state.stored(), hit) != null) {
+                    tell(player, message(held, Refusal.Stretch.NO_ANCHOR_IN_A_COLUMN));
+                    break;
+                }
                 StretchState anchored = state.anchored(spotOf(level, player, held, hit));
                 if (anchored == state) {
                     break;
@@ -377,6 +412,7 @@ public final class Stretches {
                     held.getHoverName());
             case NO_ROOM_TO_RETURN -> Component.translatable("message.groundworks.stretch_no_room_to_return");
             case MAY_NOT_BUILD -> Component.translatable("message.groundworks.stretch_may_not_build");
+            case NO_ANCHOR_IN_A_COLUMN -> Component.translatable("message.groundworks.stretch_no_anchor_in_a_column");
         };
     }
 

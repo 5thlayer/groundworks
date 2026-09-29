@@ -52,6 +52,8 @@ public interface Refusal {
          * in adventure mode, or the position is outside the world or protected, as spawn is.
          */
         MAY_NOT_BUILD,
+        /** A sneak-click while a Column is drawn: a Column has no anchors between its ends (ADR 0006). */
+        NO_ANCHOR_IN_A_COLUMN,
     }
 
     /**

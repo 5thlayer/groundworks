@@ -21,7 +21,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * What the {@linkplain VanillaConsumer vanilla Consumer}'s stretches are built of: the held item,
  * laid at each position of the leg as vanilla places it, a player looking along the leg (ADR 0005).
- * It claims the block items in {@link VanillaConsumer#STRETCHES}.
+ * It claims the block items in {@link VanillaConsumer#STRETCHES}, and those in {@link
+ * VanillaConsumer#STRETCHES_VERTICALLY} as a {@link Column}, each block clicked on the one before.
  *
  * <p>A rise of k climbs one block per column right after the leg's first anchor, along its first
  * direction, so its top is k columns on, and the leg runs level after it. A player laying it looks
@@ -53,23 +54,46 @@ final class VanillaLegs implements LegBuilder {
     }
 
     @Override
+    public boolean claimsColumn(Item item) {
+        return item instanceof BlockItem
+                && BuiltInRegistries.ITEM.wrapAsHolder(item).is(VanillaConsumer.STRETCHES_VERTICALLY);
+    }
+
+    @Override
     public PlacementPlan build(Level level, Item item, Leg leg) {
-        BlockItem blockItem = (BlockItem) item;
         ItemStack stack = new ItemStack(item);
-        List<PlacementPlan.Placed> blocks = new ArrayList<>();
-        Refusal refusal = riseFits(leg) ? null : Refused.RISE_DOES_NOT_FIT;
+        List<Laying> contexts = new ArrayList<>();
         for (Spot spot : spots(leg)) {
-            Laying context = new Laying(level, spot, stack);
+            contexts.add(new Laying(level, spot.pos(), spot.facing(), spot.facing().getOpposite(), stack));
+        }
+        return laid((BlockItem) item, contexts, riseFits(leg) ? null : Refused.RISE_DOES_NOT_FIT);
+    }
+
+    @Override
+    public PlacementPlan buildColumn(Level level, Item item, Column column) {
+        ItemStack stack = new ItemStack(item);
+        List<Laying> contexts = new ArrayList<>();
+        for (BlockPos pos : column.positions()) {
+            contexts.add(new Laying(level, pos, column.look(), column.face(), stack));
+        }
+        return laid((BlockItem) item, contexts, null);
+    }
+
+    // Each block as vanilla places it alone, against the world as it stands.
+    private static PlacementPlan laid(BlockItem blockItem, List<Laying> contexts, @Nullable Refusal refused) {
+        List<PlacementPlan.Placed> blocks = new ArrayList<>();
+        Refusal refusal = refused;
+        for (Laying context : contexts) {
             PlacementPlan alone = Placements.vanillaPlan(blockItem, context);
             if (alone == null) {
                 // Vanilla has no plan where the spot is taken, and it is still drawn there.
                 BlockState state = blockItem.getBlock().getStateForPlacement(context);
-                blocks.add(new PlacementPlan.Placed(spot.pos(), state != null ? state : blockItem.getBlock().defaultBlockState()));
+                blocks.add(new PlacementPlan.Placed(context.getClickedPos(), state != null ? state : blockItem.getBlock().defaultBlockState()));
             } else {
                 blocks.addAll(alone.blocks());
             }
             if (refusal == null && (alone == null || alone.isRefused())) {
-                refusal = new Refusal.At(Refusal.Vanilla.VANILLA, spot.pos());
+                refusal = new Refusal.At(Refusal.Vanilla.VANILLA, context.getClickedPos());
             }
         }
         return new PlacementPlan(blocks, List.of(), refusal);
@@ -126,9 +150,9 @@ final class VanillaLegs implements LegBuilder {
 
         private final Direction facing;
 
-        Laying(Level level, Spot spot, ItemStack stack) {
-            super(level, spot.pos(), spot.facing(), stack, spot.facing().getOpposite());
-            this.facing = spot.facing();
+        Laying(Level level, BlockPos pos, Direction facing, Direction clicked, ItemStack stack) {
+            super(level, pos, facing, stack, clicked);
+            this.facing = facing;
         }
 
         @Override

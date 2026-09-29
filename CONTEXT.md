@@ -87,7 +87,7 @@ The part of a **Stretch** from one **Anchor** to the next. It rises or falls by 
 _Avoid_: segment, section
 
 **Column**:
-A **Stretch** that goes only straight up or down from its start, with no **Leg**: a ladder up a wall, a chain down a shaft. It is drawn by clicking the start's own column seen from above; the aim sets nothing else. Its length is the height **Raise** and **Lower** set after the start is stored, capped by the player's reach like any height. Every block is placed as the start was: the same aimed face and the same look turned by **Rotate**. It has no anchors between its ends, so a sneak-click is refused, and it never joins level legs. Items in `groundworks:stretches_vertically` stretch as a column; an item also in `groundworks:stretches` draws legs when the end is aimed off the start's column.
+A **Stretch** that goes only straight up or down from its start, with no **Leg**: a ladder up a wall, a chain down a shaft. It is drawn by clicking the start's own column seen from above, or anywhere for an item that stretches only as a column; the aim sets nothing else. Its length is the height **Raise** and **Lower** set after the start is stored, capped by the player's reach like any height. Every block is placed with the look stored with the start, turned by **Rotate**, as if clicked on the block before it, so a chain stands upright and a ladder faces off the wall. It has no anchors between its ends, so a sneak-click is refused, and it never joins level legs. Items in `groundworks:stretches_vertically` stretch as a column; an item also in `groundworks:stretches` draws legs when the end is aimed off the start's column.
 _Avoid_: vertical leg, climb (what a pipe's rise is built of), shaft
 
 **Raise** / **Lower**:

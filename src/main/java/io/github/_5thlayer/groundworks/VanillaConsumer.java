@@ -30,7 +30,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  *
  * <p>Its {@linkplain Stretches Stretch} builder claims the block items in the item tag {@link
  * #STRETCHES}, shipped holding stairs, slabs, fences, walls, panes, logs and wood, and rails, and
- * {@linkplain VanillaLegs lays each through vanilla placement}.
+ * {@linkplain VanillaLegs lays each through vanilla placement}. The block items in {@link
+ * #STRETCHES_VERTICALLY}, shipped holding ladders and chains, it lays as a {@linkplain Column}.
  *
  * <p>Its {@linkplain VanillaFamilies Dismantle families} are the block tags under {@code
  * groundworks:dismantle_family/}, shipped as fences, walls, bars and rails, each taken up with the
@@ -49,6 +50,10 @@ public final class VanillaConsumer {
     /** The block items whose stretches the vanilla Consumer lays. */
     public static final TagKey<Item> STRETCHES =
             TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "stretches"));
+
+    /** The block items whose stretches the vanilla Consumer lays as a Column, straight up or down. */
+    public static final TagKey<Item> STRETCHES_VERTICALLY =
+            TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "stretches_vertically"));
 
     private VanillaConsumer() {
     }

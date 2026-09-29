@@ -19,6 +19,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChainBlock;
+import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.RailBlock;
 import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -59,6 +61,12 @@ final class VanillaStretchTests {
         tests.test("rails_stretched_over_a_rise_slope_up_it", 20, VanillaStretchTests::risingRails);
         tests.test("rails_stretched_over_a_rise_with_nothing_under_it_are_refused_where_vanilla_refuses", 20,
                 VanillaStretchTests::railsInMidAir);
+        tests.test("ladders_stretched_as_a_column_climb_the_wall_by_the_raised_height", 20,
+                VanillaStretchTests::ladderColumn);
+        tests.test("a_ladder_column_with_a_gap_in_its_wall_is_refused_whole", 20,
+                VanillaStretchTests::ladderColumnWithAGap);
+        tests.test("chains_stretched_as_a_column_hang_on_their_upright_axis", 20,
+                VanillaStretchTests::chainColumn);
         tests.test("a_stone_block_does_not_stretch", 20, helper -> {
             if (Stretches.builderOf(Blocks.STONE.asItem()) != null) {
                 helper.fail("stone stretches, though the shipped tag doesn't hold it");
@@ -120,6 +128,60 @@ final class VanillaStretchTests {
         if (helper.getBlockState(standing).equals(before)) {
             helper.fail("the stretch's end didn't join the block already standing", standing);
         }
+        helper.succeed();
+    }
+
+    /** A wall east of the start's column, three presses of Raise, and a click back on the start: four ladders. */
+    private static void ladderColumn(GameTestHelper helper) {
+        for (int y = 1; y <= 4; y++) {
+            helper.setBlock(new BlockPos(2, y, 2), Blocks.STONE);
+        }
+        ListeningPlayer player = holding(helper, Blocks.LADDER, 16);
+        start(helper, player);
+        press(player, 3);
+        click(helper, player, new BlockPos(3, 0, 5), true);
+        if (Stretches.storedOn(player.level(), player.getMainHandItem()).anchors().size() != 0) {
+            helper.fail("a sneak-click added an anchor to a column");
+        }
+        click(helper, player, START, false);
+        for (int y = 1; y <= 4; y++) {
+            BlockState laid = helper.getBlockState(new BlockPos(1, y, 2));
+            if (!laid.is(Blocks.LADDER) || laid.getValue(LadderBlock.FACING) != Direction.WEST) {
+                helper.fail("expected a ladder facing west, found " + laid, new BlockPos(1, y, 2));
+            }
+        }
+        expectHeld(helper, player, 12);
+        helper.succeed();
+    }
+
+    private static void ladderColumnWithAGap(GameTestHelper helper) {
+        helper.setBlock(new BlockPos(2, 1, 2), Blocks.STONE);
+        helper.setBlock(new BlockPos(2, 3, 2), Blocks.STONE);
+        ListeningPlayer player = holding(helper, Blocks.LADDER, 16);
+        start(helper, player);
+        press(player, 2);
+        PlacementPlan plan = plan(helper, player, START);
+        if (plan == null || !(plan.refusal() instanceof Refusal.At at) || !at.pos().equals(helper.absolutePos(new BlockPos(1, 2, 2)))) {
+            helper.fail("expected the column refused at the gap, the plan was " + plan);
+        }
+        click(helper, player, START, false);
+        helper.assertBlockNotPresent(Blocks.LADDER, new BlockPos(1, 1, 2));
+        expectHeld(helper, player, 16);
+        helper.succeed();
+    }
+
+    private static void chainColumn(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.IRON_CHAIN, 16);
+        start(helper, player);
+        press(player, 2);
+        click(helper, player, START, false);
+        for (int y = 1; y <= 3; y++) {
+            BlockState laid = helper.getBlockState(new BlockPos(1, y, 2));
+            if (!laid.is(Blocks.IRON_CHAIN) || laid.getValue(ChainBlock.AXIS) != Direction.Axis.Y) {
+                helper.fail("expected an upright chain, found " + laid, new BlockPos(1, y, 2));
+            }
+        }
+        expectHeld(helper, player, 13);
         helper.succeed();
     }
 
