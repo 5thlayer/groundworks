@@ -6,6 +6,7 @@ package io.github._5thlayer.groundworks.client;
 import java.util.List;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import io.github._5thlayer.groundworks.Raise;
 import io.github._5thlayer.groundworks.StoredStretch;
 import io.github._5thlayer.groundworks.Stretches;
 
@@ -27,6 +28,10 @@ import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
  * <p>Before one is, while the player sneaks, the start a sneak-click would store is drawn the same
  * way at the aim, with the look turned by Rotate, so the way the stretch will run is seen before it
  * starts.
+ *
+ * <p>For an item that stretches only as a Column, the arrow stands on the start's face toward the
+ * player instead, pointing up, or down once the height held is lowered, since the column grows that
+ * way and not along the look.
  */
 final class StretchPreview {
 
@@ -50,13 +55,46 @@ final class StretchPreview {
                     : null;
             if (started != null) {
                 Outline.draw(geometry, List.of(started.start()), COLOUR);
-                arrow(geometry, started.start(), started.look());
+                arrow(geometry, started.start(), started.look(), stack, false);
             }
             return;
         }
         Outline.draw(geometry, stored.anchorPositions(), COLOUR);
         Outline.draw(geometry, List.of(stored.start()), COLOUR);
-        arrow(geometry, stored.start(), stored.look());
+        arrow(geometry, stored.start(), stored.look(), stack, Raise.heightOf(event.getPlayer(), stack).blocks() < 0);
+    }
+
+    private static void arrow(SubmitCustomGeometryEvent geometry, BlockPos at, Direction look, ItemStack stack,
+            boolean lowered) {
+        if (Stretches.stretchesOnlyAsColumn(stack.getItem())) {
+            upright(geometry, at, look, lowered);
+        } else {
+            arrow(geometry, at, look);
+        }
+    }
+
+    /** An arrow on the start's face toward the player, up the column, or down it when lowered. */
+    private static void upright(SubmitCustomGeometryEvent geometry, BlockPos at, Direction look, boolean lowered) {
+        Vec3 camera = geometry.getLevelRenderState().cameraRenderState.pos;
+        PoseStack poseStack = geometry.getPoseStack();
+        poseStack.pushPose();
+        poseStack.translate(at.getX() - camera.x(), at.getY() - camera.y(), at.getZ() - camera.z());
+        geometry.getSubmitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.lines(), (pose, buffer) -> {
+            Direction toward = look.getOpposite();
+            Direction side = look.getClockWise();
+            // Just off the face toward the player, as the flat arrow sits just over the top.
+            double faceX = 0.5 + (ARROW_HEIGHT - 0.5) * toward.getStepX();
+            double faceZ = 0.5 + (ARROW_HEIGHT - 0.5) * toward.getStepZ();
+            double tip = lowered ? 0.15 : 0.85;
+            double tail = lowered ? 0.85 : 0.15;
+            double back = lowered ? 0.2 : -0.2;
+            Outline.line(buffer, pose, COLOUR, faceX, tail, faceZ, faceX, tip, faceZ);
+            for (int s : new int[] {1, -1}) {
+                Outline.line(buffer, pose, COLOUR, faceX, tip, faceZ,
+                        faceX + s * 0.2 * side.getStepX(), tip + back, faceZ + s * 0.2 * side.getStepZ());
+            }
+        });
+        poseStack.popPose();
     }
 
     private static void arrow(SubmitCustomGeometryEvent geometry, BlockPos at, Direction look) {

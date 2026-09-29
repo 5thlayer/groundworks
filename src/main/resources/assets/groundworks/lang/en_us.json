@@ -14,6 +14,7 @@
   "message.groundworks.height": "Height %s",
   "message.groundworks.height_at_reach": "That is as far as your reach goes.",
   "message.groundworks.stretch_started": "Stretch started. Sneak-click to add an anchor, click to lay it, or sneak-use in the air to clear it.",
+  "message.groundworks.column_started": "Column started. Raise or Lower to set its height, click to lay it, or sneak-use in the air to clear it.",
   "message.groundworks.stretch_anchored": "Anchor added.",
   "message.groundworks.stretch_cleared": "Stretch cleared.",
   "message.groundworks.stretch_behind_the_look": "That is behind the way the stretch runs.",
@@ -28,5 +29,5 @@
   "key.groundworks.raise": "Raise",
   "key.groundworks.lower": "Lower",
   "groundworks.configuration.planOptInNamespaces": "Namespaces opted in for a Vanilla Plan",
-  "message.groundworks.stretch_no_anchor_in_a_column": "A column has no anchors: click to lay it."
+  "message.groundworks.stretch_no_anchor_in_a_column": "A column has no anchors. Click without sneaking to lay it."
 }

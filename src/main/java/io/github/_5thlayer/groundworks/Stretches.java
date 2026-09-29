@@ -66,6 +66,7 @@ import org.jspecify.annotations.Nullable;
 public final class Stretches {
 
     static final String STARTED = "message.groundworks.stretch_started";
+    static final String COLUMN_STARTED = "message.groundworks.column_started";
     static final String ANCHORED = "message.groundworks.stretch_anchored";
     static final String CLEARED = "message.groundworks.stretch_cleared";
 
@@ -97,6 +98,12 @@ public final class Stretches {
             }
         }
         return null;
+    }
+
+    /** Whether this item stretches only as a {@link Column}, never in legs, so its start heads up or down. */
+    public static boolean stretchesOnlyAsColumn(Item item) {
+        LegBuilder builder = builderOf(item);
+        return builder != null && builder.claimsColumn(item) && !builder.claims(item);
     }
 
     /** The stretch being drawn with the held stack, or {@code null} when none is, or it is in another dimension. */
@@ -355,7 +362,7 @@ public final class Stretches {
         switch (click) {
             case START -> {
                 store(held, state.started(level.dimension(), spotOf(level, player, held, hit), player.getDirection()));
-                tell(player, Component.translatable(STARTED));
+                tell(player, Component.translatable(stretchesOnlyAsColumn(held.getItem()) ? COLUMN_STARTED : STARTED));
             }
             case ANCHOR -> {
                 if (columnOf(level, player, held, builderOf(held.getItem()), state.stored(), hit) != null) {
