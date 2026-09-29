@@ -4,9 +4,25 @@ Groundworks is a mod that works in a vanilla game with no other mod: mass placem
 
 The vanilla Consumer (`VanillaConsumer`) makes all four statements through data: its Opt-in through the `groundworks:plan_opt_in` block tag with a namespace config, Rotate in Place through the `groundworks:rotates_in_place` block tag, its Stretch builder through the `groundworks:stretches` item tag and its Columns through `groundworks:stretches_vertically`, and its Dismantle families through the block tags under `groundworks:dismantle_family/` (5thlayer/groundworks#22).
 
+## Workflow
+
+Commit on the current branch; open a feature branch only when the user asks for one. Nothing is pushed without the user's word.
+
+Anything that changes Groundworks' behaviour gets a `/code-review`. Doc and plumbing changes skip it: that covers `CLAUDE.md`, `CONTEXT.md`, ADRs, `docs/`, `.claude/`, and tooling or CI config.
+
+## Commits
+
+Conventional commits: `<type>(<optional scope>): <summary>`, with the summary in the imperative and lower case. The types in use are `feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci` and `chore`. A breaking change marks its type with `!` (`feat!: ...`), and its release bumps the minor (ADR 0001). A commit that closes an issue ends its body with `Closes #<n>`.
+
+## Testing
+
+`sh ./gradlew build` runs the JUnit tests, on a plain JVM with no Minecraft. `sh ./gradlew runGameTestServer` runs the game tests headless, a real player on a real server, and names each one it ran; it fails if it ran none. `python3 -m unittest discover scripts/tests` tests the upload step against a stand-in server on localhost. A new game test class is registered by a line in `GroundworksGameTests.registerTests`, and its tests stand on the `gametest/platform` structure that `scripts/build-gametest-structures.py` writes. CI (`.github/workflows/ci.yml`) runs all three on every push and never publishes.
+
+The `skillworks:quicklaunch` skill opens the dev client into the most recent save in `run/saves`, one client per checkout.
+
 ## Releases
 
-A change a Consumer can use or will notice adds its line under `## Unreleased` in `CHANGELOG.md` as it lands. Before bumping `mod_version`, publishing to `~/.m2` or tagging a release, read `docs/agents/releases.md`: releases go through `scripts/release.sh`, and a published version never changes.
+A change adds its line under `## Unreleased` in `CHANGELOG.md` as it lands, under Players, Consumers, or both (ADR 0007). Before bumping `mod_version`, publishing to `~/.m2`, tagging a release or uploading to Modrinth or CurseForge, read `docs/agents/releases.md`: releases go through `scripts/release.sh`, which uploads last with `scripts/upload.py`, and a published version never changes, in `~/.m2` or on either site. ADR 0001, inherited from 5thlayer/libworks, sets the version bumps.
 
 A release that must reach Beltworks or the Pack follows the `release-train` skill: one owning session per checkout, releases in order Groundworks → Beltworks → Pack, and pushes only on the user's word.
 
