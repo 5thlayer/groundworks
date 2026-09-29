@@ -140,6 +140,7 @@ public final class GroundworksGameTests {
         StretchTests.register(tests);
         VanillaStretchTests.register(tests);
         DismantleTests.register(tests);
+        VanillaDismantleTests.register(tests);
     }
 
     private static Identifier id(String path) {

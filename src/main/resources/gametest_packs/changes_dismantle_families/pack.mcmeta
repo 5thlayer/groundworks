@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Groundworks game tests: adds a Dismantle family of logs and takes rails out of theirs",
+    "min_format": [101, 1],
+    "max_format": [101, 1]
+  }
+}

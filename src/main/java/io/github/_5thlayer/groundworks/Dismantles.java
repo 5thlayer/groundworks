@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -28,7 +29,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The Dismantle: taking up a span of one {@link DismantleFamily} from a start to an end, with a tool
- * in {@link #TOOLS}. The families are registered here, and Groundworks runs the gesture for all of
+ * the family {@linkplain DismantleFamily#acceptsTool accepts} for every block the span takes, by
+ * default one in {@link #TOOLS}. A click with a tool no family accepts at the clicked block, and
+ * nothing stored, passes on to the tool's own use. The families are registered here, and Groundworks runs the gesture for all of
  * them alike.
  *
  * <p>A sneak-click on a member stores the start on the held stack. A sneak-click with a live start
@@ -50,7 +53,10 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Dismantles {
 
-    /** The tools a Dismantle answers. It ships empty: each Consumer adds its own, and a pack trims them. */
+    /**
+     * The tools a family {@linkplain DismantleFamily#acceptsTool accepts} by default. It ships empty:
+     * each Consumer adds its own, and a pack trims them. Vanilla's families take vanilla's tools.
+     */
     public static final TagKey<Item> TOOLS = TagKey.create(Registries.ITEM,
             Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "dismantles"));
 
@@ -83,10 +89,6 @@ public final class Dismantles {
         return familyOf(FAMILIES, state);
     }
 
-    public static boolean isTool(ItemStack stack) {
-        return stack.is(TOOLS);
-    }
-
     /** The held stack's stored start, or {@code null} when none is stored or it is dead. */
     public static @Nullable DismantleStart liveStart(Level level, ItemStack held) {
         DismantleStart start = held.get(Groundworks.DISMANTLE_START.get());
@@ -115,12 +117,9 @@ public final class Dismantles {
      * The pass a click aimed at {@code aimed} would confirm: every queued span, then the span from
      * the live start to the aim, if there is a live start and an aim, all planned now. With no aim
      * the start is left out, as the preview draws it alone. It is {@code null} when
-     * {@code held} is no dismantling tool or stores nothing to confirm.
+     * {@code held} stores nothing to confirm.
      */
     public static @Nullable DismantlePass passTo(Level level, ItemStack held, @Nullable BlockPos aimed) {
-        if (!isTool(held)) {
-            return null;
-        }
         DismantleStart start = liveStart(level, held);
         List<QueuedSpan> queued = queued(held);
         if (start == null && queued.isEmpty()) {
@@ -128,42 +127,44 @@ public final class Dismantles {
         }
         List<DismantlePass.Planned> spans = new ArrayList<>();
         for (QueuedSpan span : queued) {
-            spans.add(plan(level, span));
+            spans.add(plan(level, held, span));
         }
         if (start != null && aimed != null) {
-            spans.add(new DismantlePass.Planned(familyOf(start.state()), start, spanFrom(level, start, aimed)));
+            spans.add(new DismantlePass.Planned(familyOf(start.state()), start, spanFrom(level, held, start, aimed)));
         }
         return DismantlePass.of(spans);
     }
 
     // A queued span is planned again from its stored ends; its end is the one named when it was queued.
-    private static DismantlePass.Planned plan(Level level, QueuedSpan queued) {
+    private static DismantlePass.Planned plan(Level level, ItemStack held, QueuedSpan queued) {
         DismantleStart start = queued.start();
         DismantleFamily family = familyOf(start.state());
         if (!isLive(start, family, level.dimension(), level::getBlockState)) {
             return new DismantlePass.Planned(family, start, DismantleSpan.refused(Refusal.Dismantle.START_GONE));
         }
         return new DismantlePass.Planned(family, start,
-                span(family, level, start.pos(), queued.end(), level.getBlockState(queued.end())));
+                span(family, level, start.pos(), queued.end(), level.getBlockState(queued.end()), accepts(family, level, held)));
     }
 
     /**
-     * What a click aimed at {@code aimed} would take up, or {@code null} when {@code held} is no
-     * dismantling tool or has no live start. The end is the block the start's family names there.
+     * What a click aimed at {@code aimed} would take up, or {@code null} when {@code held} has no
+     * live start. The end is the block the start's family names there.
      */
     public static @Nullable DismantleSpan spanTo(Level level, ItemStack held, BlockPos aimed) {
-        if (!isTool(held)) {
-            return null;
-        }
         DismantleStart start = liveStart(level, held);
-        return start == null ? null : spanFrom(level, start, aimed);
+        return start == null ? null : spanFrom(level, held, start, aimed);
     }
 
     // A live start's family is there, or it would not be live.
-    private static DismantleSpan spanFrom(Level level, DismantleStart start, BlockPos aimed) {
+    private static DismantleSpan spanFrom(Level level, ItemStack held, DismantleStart start, BlockPos aimed) {
         DismantleFamily family = familyOf(start.state());
         BlockPos end = family.names(level, aimed);
-        return span(family, level, start.pos(), end, level.getBlockState(end));
+        return span(family, level, start.pos(), end, level.getBlockState(end), accepts(family, level, held));
+    }
+
+    /** Whether the family accepts the held tool for the block at a position, as it stands now. */
+    private static Predicate<BlockPos> accepts(DismantleFamily family, Level level, ItemStack held) {
+        return pos -> family.acceptsTool(held, level.getBlockState(pos));
     }
 
     static @Nullable DismantleFamily familyOf(List<? extends DismantleFamily> families, BlockState state) {
@@ -183,11 +184,20 @@ public final class Dismantles {
                 && family.isSameStart(start.state(), world.apply(start.pos()));
     }
 
-    static DismantleSpan span(DismantleFamily family, Level level, BlockPos start, BlockPos end, BlockState endState) {
+    /**
+     * The family's span, refused as not the same kind before the family is asked, and for the tool
+     * when {@code accepts} refuses any position it takes.
+     */
+    static DismantleSpan span(DismantleFamily family, Level level, BlockPos start, BlockPos end, BlockState endState,
+                              Predicate<BlockPos> accepts) {
         if (!family.claims(endState)) {
             return DismantleSpan.refused(Refusal.Dismantle.NOT_SAME_KIND);
         }
-        return family.span(level, start, end);
+        DismantleSpan span = family.span(level, start, end);
+        if (!span.takes().stream().allMatch(accepts)) {
+            return DismantleSpan.refused(Refusal.Dismantle.WRONG_TOOL);
+        }
+        return span;
     }
 
     /**
@@ -197,6 +207,9 @@ public final class Dismantles {
     static Component message(@Nullable DismantleFamily family, Component startName, Refusal refusal) {
         if (refusal == Refusal.Dismantle.NOT_SAME_KIND) {
             return Component.translatable("message.groundworks.dismantle_not_same_kind", startName);
+        }
+        if (refusal == Refusal.Dismantle.WRONG_TOOL) {
+            return Component.translatable("message.groundworks.dismantle_wrong_tool");
         }
         if (refusal == Refusal.Dismantle.START_GONE) {
             return Component.translatable("message.groundworks.dismantle_start_gone", startName);
@@ -229,12 +242,13 @@ public final class Dismantles {
     private record Member(DismantleFamily family, BlockPos pos, BlockState state) {
     }
 
-    private static @Nullable Member memberAt(Level level, BlockPos clicked) {
+    /** The member a click names, if its family accepts the held tool for it. */
+    private static @Nullable Member memberAt(Level level, BlockPos clicked, ItemStack held) {
         for (DismantleFamily family : FAMILIES) {
             BlockPos named = family.names(level, clicked);
             BlockState state = level.getBlockState(named);
             if (family.claims(state)) {
-                return new Member(family, named.immutable(), state);
+                return family.acceptsTool(held, state) ? new Member(family, named.immutable(), state) : null;
             }
         }
         return null;
@@ -243,15 +257,13 @@ public final class Dismantles {
     /**
      * A click on a block, or PASS where the Dismantle has nothing to say and the click goes on as
      * it would. With a live start or a queued span every click on a block is the Dismantle's, as the
-     * preview shows the Dismantle whatever the aim.
+     * preview shows the Dismantle whatever the aim. Only a tool a family has accepted stores
+     * anything, so with nothing stored a click on a block no family accepts the tool for passes.
      */
     static InteractionResult useOn(Player player, InteractionHand hand, BlockPos pos) {
         ItemStack held = player.getItemInHand(hand);
-        if (!isTool(held)) {
-            return InteractionResult.PASS;
-        }
         Level level = player.level();
-        Member member = memberAt(level, pos);
+        Member member = memberAt(level, pos, held);
         DismantleStart start = liveStart(level, held);
         List<QueuedSpan> queued = queued(held);
         switch (Click.of(player.isShiftKeyDown(), member != null, start != null, !queued.isEmpty())) {
@@ -296,7 +308,7 @@ public final class Dismantles {
                               List<QueuedSpan> queued, BlockPos clicked) {
         DismantleFamily family = familyOf(start.state());
         BlockPos end = family.names(level, clicked);
-        DismantleSpan span = span(family, level, start.pos(), end, level.getBlockState(end));
+        DismantleSpan span = span(family, level, start.pos(), end, level.getBlockState(end), accepts(family, level, held));
         if (span.isRefused()) {
             tell(player, message(family, start.state().getBlock().getName(), span.refusal()));
             return;
@@ -315,7 +327,7 @@ public final class Dismantles {
     /** A use in the air: a sneak clears the stored start and every queued span. */
     static InteractionResult use(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
-        if (!player.isShiftKeyDown() || !isTool(held) || !hasStored(held)) {
+        if (!player.isShiftKeyDown() || !hasStored(held)) {
             return InteractionResult.PASS;
         }
         if (!player.level().isClientSide()) {

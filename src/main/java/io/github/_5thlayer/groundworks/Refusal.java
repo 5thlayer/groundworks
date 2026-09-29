@@ -35,6 +35,8 @@ public interface Refusal {
         NOT_SAME_KIND,
         /** A queued span's start is gone, or its family no longer counts it the same start. */
         START_GONE,
+        /** The span takes a block its family doesn't accept the held tool for. */
+        WRONG_TOOL,
     }
 
     /** The library's own reasons for a {@linkplain Stretches Stretch}, which it tells the player itself. */

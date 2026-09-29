@@ -31,6 +31,10 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * <p>Its {@linkplain Stretches Stretch} builder claims the block items in the item tag {@link
  * #STRETCHES}, shipped holding stairs, slabs, fences, walls, panes, logs and wood, and rails, and
  * {@linkplain VanillaLegs lays each through vanilla placement}.
+ *
+ * <p>Its {@linkplain VanillaFamilies Dismantle families} are the block tags under {@code
+ * groundworks:dismantle_family/}, shipped as fences, walls, bars and rails, each taken up with the
+ * tool vanilla breaks its blocks with.
  */
 public final class VanillaConsumer {
 
@@ -51,14 +55,18 @@ public final class VanillaConsumer {
 
     /**
      * Makes the statements, at mod construction as a Consumer mod does, but for its Stretch
-     * builder. That one is registered once every mod is constructed, so it is the last asked, and
-     * a Consumer mod's own builder for an item in the tag builds that item's legs.
+     * builder and Dismantle families. Those are registered once every mod is constructed, so they
+     * are the last asked: a Consumer mod's own builder for an item in the tag builds that item's
+     * legs, and its own family claims its blocks.
      */
     static void register(IEventBus modBus) {
         Placements.optIn(VanillaConsumer::optsIn);
         // Read as the tag is now, so a datapack reload reaches the next press.
         Rotate.turnsInPlace(block -> block.defaultBlockState().is(ROTATES_IN_PLACE));
-        modBus.addListener(FMLCommonSetupEvent.class, event -> Stretches.register(new VanillaLegs()));
+        modBus.addListener(FMLCommonSetupEvent.class, event -> {
+            Stretches.register(new VanillaLegs());
+            Dismantles.register(new VanillaFamilies());
+        });
     }
 
     /**

@@ -128,7 +128,7 @@ class DismantlesTest {
     @Test
     void anEndOutsideTheStartsFamilyIsNotTheSameKindAndTheFamilyIsNotAsked() {
         Family family = new Family(false);
-        DismantleSpan span = Dismantles.span(family, null, START, END, null);
+        DismantleSpan span = Dismantles.span(family, null, START, END, null, pos -> true);
         assertSame(Refusal.Dismantle.NOT_SAME_KIND, span.refusal());
         assertTrue(family.asked.isEmpty());
     }
@@ -137,8 +137,34 @@ class DismantlesTest {
     void anEndInTheStartsFamilyGetsTheFamilysSpan() {
         DismantleSpan refused = DismantleSpan.refused(FamilyRefusal.OFF_LINE);
         Family family = new Family(true, true, refused);
-        assertSame(refused, Dismantles.span(family, null, START, END, null));
+        assertSame(refused, Dismantles.span(family, null, START, END, null, pos -> true));
         assertEquals(List.of("span"), family.asked);
+    }
+
+    @Test
+    void aSpanTakingABlockTheToolIsNotAcceptedForIsRefusedForTheTool() {
+        Family family = new Family(true);
+        DismantleSpan span = Dismantles.span(family, null, START, END, null, pos -> !pos.equals(END));
+        assertSame(Refusal.Dismantle.WRONG_TOOL, span.refusal());
+    }
+
+    @Test
+    void aSpanTheToolIsAcceptedForAtEveryBlockGoesThrough() {
+        Family family = new Family(true);
+        assertEquals(List.of(START, END), Dismantles.span(family, null, START, END, null, pos -> true).takes());
+    }
+
+    /** The family's own refusal is kept: there is nothing taken to ask the tool about. */
+    @Test
+    void aSpanTheFamilyRefusesKeepsItsRefusalWhateverTheTool() {
+        DismantleSpan refused = DismantleSpan.refused(FamilyRefusal.OFF_LINE);
+        assertSame(refused, Dismantles.span(new Family(true, true, refused), null, START, END, null, pos -> false));
+    }
+
+    @Test
+    void theWrongToolIsToldByTheLibrary() {
+        assertEquals(Component.translatable("message.groundworks.dismantle_wrong_tool"),
+                Dismantles.message(new Family(true), Component.literal("Oak Fence"), Refusal.Dismantle.WRONG_TOOL));
     }
 
     /** Named, so a splitter at the end of a belt's span reads as "not a Belt Tile". */

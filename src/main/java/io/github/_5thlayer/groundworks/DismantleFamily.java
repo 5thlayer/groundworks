@@ -27,6 +27,16 @@ public interface DismantleFamily {
     boolean claims(BlockState state);
 
     /**
+     * Whether {@code tool} dismantles this member: a sneak-click with it stores a start there, and a
+     * span takes a block only if its family accepts the tool for that block. A tool no family
+     * accepts at a block passes on to its own use there. By default a tool in {@link
+     * Dismantles#TOOLS}.
+     */
+    default boolean acceptsTool(ItemStack tool, BlockState state) {
+        return tool.is(Dismantles.TOOLS);
+    }
+
+    /**
      * The block a click on {@code clicked} names, such as the tile a wedge stands under. It is the
      * clicked block itself by default. Whether it is a member is still asked of {@link #claims}.
      */
