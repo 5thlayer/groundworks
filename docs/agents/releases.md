@@ -6,7 +6,7 @@ Nothing publishes anywhere else. CI builds and tests on every push but never pub
 
 ## The changelog
 
-Each change a Consumer can use or will notice adds its line under `## Unreleased` in `CHANGELOG.md` when it lands, written for a Consumer's author in the glossary's terms, with its issue number. A release ships what Unreleased lists, so the changelog is written as the work is done and never reconstructed from commits.
+Each change adds its line under `## Unreleased` in `CHANGELOG.md` when it lands, with its issue number: under `### Players` what a player or pack developer sees, in plain words, and under `### Consumers` what a mod building against Groundworks can use or will notice, in the glossary's terms. A change may need a line in both (ADR 0007). A release ships what Unreleased lists, so the changelog is written as the work is done and never reconstructed from commits.
 
 ## Cutting a release
 

@@ -1,10 +1,24 @@
 # Changelog
 
-Written for Consumers: what a mod building against Groundworks can use, or will see change.
+From 0.5.0 each version has two sections: Players, what a player or pack developer sees, and Consumers, what a mod building against Groundworks can use or will see change (ADR 0007).
 
 ## Unreleased
 
 ## 0.5.0
+
+### Players
+
+First release on Modrinth and CurseForge. Groundworks now works on its own in a vanilla game, with no other mod.
+
+- **Placement preview.** Holding stairs, slabs, logs, doors, rails and other blocks that depend on how you place them shows a translucent preview of what a click would put down: blue where it replaces a block, red where it would be refused.
+- **Rotate.** `R` turns the next placement a quarter turn, `Shift`+`R` turns it back. With nothing in hand that places, `R` turns the block you aim at in place.
+- **Raise and Lower.** `G` and `B` move the next placement one block up or down, so you can place in mid-air.
+- **Stretch.** Sneak-click stairs, slabs, fences, walls, panes, logs or rails to start a line, sneak-click to add a corner, click to lay it. Stairs climb as a staircase, rails slope, fences connect, and the preview shows each block joined as it will stand.
+- **Columns.** Ladders and chains stretch straight up or down: sneak-click to start, `G` or `B` to set the height, click to lay. Your reach doesn't limit the height.
+- **Dismantle.** Sneak-click a fence, wall, iron bar or rail with the tool that breaks it, then click another of the same kind: everything joined between them comes up into your inventory.
+- **Pack developers:** every feature's reach is a tag you can change with a datapack: `groundworks:plan_opt_in`, `groundworks:rotates_in_place`, `groundworks:stretches`, `groundworks:stretches_vertically` and `groundworks:dismantle_family/*`.
+
+### Consumers
 
 - Groundworks opts vanilla blocks in for a **Vanilla Plan** by itself, through data, as the first part of its built-in vanilla Consumer (ADR 0005). The block tag `groundworks:plan_opt_in` ships holding every vanilla block whose placed state depends on how it is placed: stairs, slabs, fences, walls, panes, logs, doors, rails, furnaces, chests and the like. A pack changes it with a datapack, `remove` included. The server config's `planOptInNamespaces` opts in every block of the namespaces it lists. `VanillaConsumer.PLAN_OPT_IN` names the tag, and `GroundworksConfig.PLAN_OPT_IN_NAMESPACES` the list. Both add up with `Placements.optIn`, so a Consumer's own Opt-in in code works as before. A Consumer will notice that vanilla's oriented blocks are now drawn, and turned by **Rotate the Plan**, with no Opt-in of its own. (#23)
 
