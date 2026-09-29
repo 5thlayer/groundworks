@@ -86,6 +86,10 @@ _Avoid_: corner (a block's shape, not a point of a route), waypoint, node
 The part of a **Stretch** from one **Anchor** to the next. It rises or falls by the height the player set right after its first anchor, along its first direction, then runs level to the next anchor. Seen from above it is one straight line or two joined by one turn. What a rise is built of is the item's: slopes for a belt, a straight climb for a pipe.
 _Avoid_: segment, section
 
+**Column**:
+A **Stretch** that goes only straight up or down from its start, with no **Leg**: a ladder up a wall, a chain down a shaft. It is drawn by clicking the start's own column seen from above; the aim sets nothing else. Its length is the height **Raise** and **Lower** set after the start is stored, capped by the player's reach like any height. Every block is placed as the start was: the same aimed face and the same look turned by **Rotate**. It has no anchors between its ends, so a sneak-click is refused, and it never joins level legs. Items in `groundworks:stretches_vertically` stretch as a column; an item also in `groundworks:stretches` draws legs when the end is aimed off the start's column.
+_Avoid_: vertical leg, climb (what a pipe's rise is built of), shaft
+
 **Raise** / **Lower**:
 The two actions (`G` and `B` by default) that move the held item's next placement one block up or down, wherever a **Placement Preview** is drawn. The height is capped by the player's reach, in whole blocks. On a single placement it moves the block straight up or down from where it would go, and it stays with the held stack until the stack's last item is placed. Storing a **Stretch**'s start uses it up as the start's height. From then on they set the rise of the **Leg** being drawn, one net height per leg, which the next stored anchor freezes into it.
 _Avoid_: height gesture (the pair's old working name), elevate, lift
