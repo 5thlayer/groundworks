@@ -1,0 +1,1 @@
+Lay whole lines of blocks in one drag, previewed before you click
