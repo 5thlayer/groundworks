@@ -75,7 +75,7 @@ _Avoid_: placed rotate, wrench rotate
 ### Stretching
 
 **Stretch**:
-The blocks one drag of a held item lays, planned, charged, laid and refused whole. Its route passes through every **Anchor**, one **Leg** after another. It never changes height by itself: only **Raise** and **Lower** do.
+The blocks one drag of a held item lays, planned, charged, laid and refused whole. Its route passes through every **Anchor**, one **Leg** after another. It never changes height by itself: only **Raise** and **Lower** do. Its **Placement Preview** draws each block as it will stand once the whole stretch is laid, joined to its planned neighbours and to the world beside it.
 _Avoid_: run, zoop, drag (the gesture, not what it lays)
 
 **Anchor**:
