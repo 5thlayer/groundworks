@@ -32,8 +32,8 @@ import org.jspecify.annotations.Nullable;
  * against the world as it stands: a spot vanilla refuses, taken or unable to hold the block, is
  * refused there, so Groundworks goes round it. Groundworks sets no block state itself. What a block
  * becomes beside the rest of the stretch -- stairs joining at a corner, a rail sloping up to the
- * next, a fence reaching its neighbour -- vanilla does as the stretch is laid, so the preview draws
- * each block as it would be placed alone.
+ * next, a fence reaching its neighbour -- vanilla does as the stretch is laid, and the preview draws
+ * each block reshaped against the rest of the stretch the same way, so it shows what laying gives.
  */
 final class VanillaLegs implements LegBuilder {
 
@@ -73,6 +73,11 @@ final class VanillaLegs implements LegBuilder {
             }
         }
         return new PlacementPlan(blocks, List.of(), refusal);
+    }
+
+    @Override
+    public boolean reshapesAgainstNeighbours() {
+        return true;
     }
 
     @Override

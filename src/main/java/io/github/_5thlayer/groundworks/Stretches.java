@@ -13,6 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -25,11 +26,17 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.ticks.BlackholeTickAccess;
+import net.minecraft.world.ticks.LevelTickAccess;
+import net.minecraft.world.ticks.ScheduledTick;
+import net.minecraft.world.ticks.TickPriority;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -128,8 +135,57 @@ public final class Stretches {
      */
     static @Nullable PlacementPlan planFor(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
         Laying laying = laying(level, player, stack, hit);
-        return laying == null ? null : laying.plan();
+        if (laying == null) {
+            return null;
+        }
+        return builderOf(stack.getItem()).reshapesAgainstNeighbours() ? reshaped(level, laying.plan()) : laying.plan();
     }
+
+    /**
+     * The plan with each block reshaped against its neighbours, as the game reshapes a block when
+     * one goes down beside it: the planned block where the stretch lays one, the world elsewhere.
+     * Neighbours are read as planned, not as reshaped, as each is when the next goes down.
+     */
+    private static PlacementPlan reshaped(Level level, PlacementPlan plan) {
+        Map<BlockPos, BlockState> planned = new LinkedHashMap<>();
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            planned.put(placed.pos(), placed.state());
+        }
+        List<PlacementPlan.Placed> blocks = new ArrayList<>();
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            BlockState state = placed.state();
+            for (Direction direction : Direction.values()) {
+                BlockPos beside = placed.pos().relative(direction);
+                BlockState neighbour = planned.getOrDefault(beside, level.getBlockState(beside));
+                state = state.updateShape(level, NO_TICKS, placed.pos(), direction, beside, neighbour, level.getRandom());
+            }
+            blocks.add(new PlacementPlan.Placed(placed.pos(), state));
+        }
+        return new PlacementPlan(blocks, plan.replaces(), plan.refusal());
+    }
+
+    /** Where a reshape in the preview schedules its ticks: nowhere, since the preview changes nothing. */
+    private static final ScheduledTickAccess NO_TICKS = new ScheduledTickAccess() {
+        @Override
+        public <T> ScheduledTick<T> createTick(BlockPos pos, T type, int delay, TickPriority priority) {
+            return new ScheduledTick<>(type, pos, 0, priority, 0);
+        }
+
+        @Override
+        public <T> ScheduledTick<T> createTick(BlockPos pos, T type, int delay) {
+            return new ScheduledTick<>(type, pos, 0, 0);
+        }
+
+        @Override
+        public LevelTickAccess<Block> getBlockTicks() {
+            return BlackholeTickAccess.emptyLevelList();
+        }
+
+        @Override
+        public LevelTickAccess<Fluid> getFluidTicks() {
+            return BlackholeTickAccess.emptyLevelList();
+        }
+    };
 
     /** A stretch's plan, what laying it charges, and what it hands back. */
     private record Laying(PlacementPlan plan, int cost, List<ItemStack> returned) {

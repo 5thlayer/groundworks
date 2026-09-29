@@ -52,6 +52,10 @@ final class VanillaStretchTests {
                 VanillaStretchTests::risingStairs);
         tests.test("stairs_stretched_down_a_fall_lay_a_staircase_facing_back_up_the_leg", 20,
                 VanillaStretchTests::fallingStairs);
+        tests.test("fences_stretched_round_a_corner_to_a_standing_fence_are_planned_joined_as_they_are_laid", 20,
+                helper -> plannedAsLaid(helper, Blocks.OAK_FENCE));
+        tests.test("walls_stretched_round_a_corner_to_a_standing_wall_are_planned_joined_as_they_are_laid", 20,
+                helper -> plannedAsLaid(helper, Blocks.COBBLESTONE_WALL));
         tests.test("rails_stretched_over_a_rise_slope_up_it", 20, VanillaStretchTests::risingRails);
         tests.test("rails_stretched_over_a_rise_with_nothing_under_it_are_refused_where_vanilla_refuses", 20,
                 VanillaStretchTests::railsInMidAir);
@@ -84,6 +88,38 @@ final class VanillaStretchTests {
                     new BlockPos(4, 1, 2));
         }
         expectHeld(helper, player, 16 - expected.size());
+        helper.succeed();
+    }
+
+    /**
+     * East four, then south round a corner, to one already standing beyond the end: each planned
+     * block is drawn as it stands once the stretch is laid, joined to the next and to the standing
+     * one, which the plan leaves alone.
+     */
+    private static void plannedAsLaid(GameTestHelper helper, Block block) {
+        BlockPos standing = new BlockPos(5, 1, 5);
+        helper.setBlock(standing, block);
+        BlockState before = helper.getBlockState(standing);
+        ListeningPlayer player = holding(helper, block, 16);
+        start(helper, player);
+        BlockPos end = new BlockPos(5, 0, 4);
+        PlacementPlan plan = plan(helper, player, end);
+        if (plan == null || plan.isRefused()) {
+            helper.fail("the plan was " + plan, end);
+        }
+        if (plan.blocks().stream().anyMatch(placed -> placed.pos().equals(helper.absolutePos(standing)))) {
+            helper.fail("the plan redrew the block already standing", standing);
+        }
+        click(helper, player, end, false);
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            BlockState laid = helper.getLevel().getBlockState(placed.pos());
+            if (!laid.equals(placed.state())) {
+                helper.fail("planned " + placed.state() + ", laid " + laid, helper.relativePos(placed.pos()));
+            }
+        }
+        if (helper.getBlockState(standing).equals(before)) {
+            helper.fail("the stretch's end didn't join the block already standing", standing);
+        }
         helper.succeed();
     }
 

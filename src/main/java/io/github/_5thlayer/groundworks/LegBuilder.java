@@ -32,6 +32,16 @@ public interface LegBuilder {
      */
     PlacementPlan build(Level level, Item item, Leg leg);
 
+    /**
+     * Whether the preview draws this builder's blocks reshaped against their neighbours, as the
+     * game reshapes a block when the next one goes down beside it: each planned block against the
+     * planned blocks beside it and the world elsewhere, once over the whole Stretch, its corners
+     * included. Only the preview: the plan laid is {@link #build}'s. False unless the builder says so.
+     */
+    default boolean reshapesAgainstNeighbours() {
+        return false;
+    }
+
     /** What the player is told when a leg is refused with one of the builder's own refusals, never an {@link Refusal.At}. */
     Component message(Refusal refusal);
 }
