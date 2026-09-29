@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -65,7 +66,7 @@ final class VanillaStretchTests {
                 VanillaStretchTests::ladderColumn);
         tests.test("a_ladder_column_with_a_gap_in_its_wall_is_refused_whole", 20,
                 VanillaStretchTests::ladderColumnWithAGap);
-        tests.test("chains_stretched_as_a_column_hang_on_their_upright_axis", 20,
+        tests.test("chains_stretched_as_a_column_stand_upright_past_the_players_reach", 20,
                 VanillaStretchTests::chainColumn);
         tests.test("a_stone_block_does_not_stretch", 20, helper -> {
             if (Stretches.builderOf(Blocks.STONE.asItem()) != null) {
@@ -131,7 +132,7 @@ final class VanillaStretchTests {
         helper.succeed();
     }
 
-    /** A wall east of the start's column, three presses of Raise, and a click back on the start: four ladders. */
+    /** A wall east of the start's column, three presses of Raise, and a click: four ladders. */
     private static void ladderColumn(GameTestHelper helper) {
         for (int y = 1; y <= 4; y++) {
             helper.setBlock(new BlockPos(2, y, 2), Blocks.STONE);
@@ -170,18 +171,20 @@ final class VanillaStretchTests {
         helper.succeed();
     }
 
+    /** A reach of two, and three presses of Raise past it, which caps no column's length: four upright chains. */
     private static void chainColumn(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, Blocks.IRON_CHAIN, 16);
+        player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE).setBaseValue(2.0);
         start(helper, player);
-        press(player, 2);
+        press(player, 3);
         click(helper, player, START, false);
-        for (int y = 1; y <= 3; y++) {
+        for (int y = 1; y <= 4; y++) {
             BlockState laid = helper.getBlockState(new BlockPos(1, y, 2));
             if (!laid.is(Blocks.IRON_CHAIN) || laid.getValue(ChainBlock.AXIS) != Direction.Axis.Y) {
                 helper.fail("expected an upright chain, found " + laid, new BlockPos(1, y, 2));
             }
         }
-        expectHeld(helper, player, 13);
+        expectHeld(helper, player, 12);
         helper.succeed();
     }
 

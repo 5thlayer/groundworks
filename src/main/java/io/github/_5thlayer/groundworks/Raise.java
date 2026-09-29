@@ -33,13 +33,25 @@ public final class Raise {
     }
 
     /**
-     * The held stack's height as this player may use it, clamped to their reach. A stack no
+     * How far this player may raise or lower the held stack: their reach, but for the length of a
+     * {@link Column} being drawn, which only the world's build height caps (ADR 0006), since a
+     * stretch is meant to reach past the player's arm.
+     */
+    static int capOf(Player player, ItemStack stack) {
+        return Stretches.stretchesOnlyAsColumn(stack.getItem()) && Stretches.storedOn(player.level(), stack) != null
+                ? player.level().getHeight()
+                : capOf(player);
+    }
+
+    /**
+     * The held stack's height as this player may use it, clamped to their reach, or to the build
+     * height for a Column's length. A stack no
      * Placement Preview is drawn for has none, whatever it carries, so a height is never one the
      * player cannot see.
      */
     public static Height heightOf(Player player, ItemStack stack) {
         return Placements.isDrawn(stack.getItem())
-                ? stack.getOrDefault(Groundworks.HEIGHT.get(), Height.NONE).clampedTo(capOf(player))
+                ? stack.getOrDefault(Groundworks.HEIGHT.get(), Height.NONE).clampedTo(capOf(player, stack))
                 : Height.NONE;
     }
 
@@ -69,7 +81,7 @@ public final class Raise {
             return;
         }
         Height stored = held.getOrDefault(Groundworks.HEIGHT.get(), Height.NONE);
-        Height stepped = stored.step(lower, capOf(player));
+        Height stepped = stored.step(lower, capOf(player, held));
         if (stepped == null) {
             player.sendOverlayMessage(Component.translatable(AT_REACH));
         } else {
