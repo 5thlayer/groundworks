@@ -23,6 +23,11 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * developer changes either with no code. What an opted-in block does is vanilla's own: its
  * {@linkplain Placements#vanillaPlan Vanilla Plan} asks the game.
  *
+ * <p>Its {@linkplain Rotate#turnsInPlace statement for Rotate in Place} is the block tag {@link
+ * #ROTATES_IN_PLACE}, shipped holding what {@link #PLAN_OPT_IN} holds and the wall forms of those
+ * blocks, which place as blocks of their own. A tagged block takes vanilla's turn, {@code
+ * BlockState.rotate}, unless it answers for itself.
+ *
  * <p>Its {@linkplain Stretches Stretch} builder claims the block items in the item tag {@link
  * #STRETCHES}, shipped holding stairs, slabs, fences, walls, panes, logs and wood, and rails, and
  * {@linkplain VanillaLegs lays each through vanilla placement}.
@@ -32,6 +37,10 @@ public final class VanillaConsumer {
     /** The blocks that get a Vanilla Plan, and so a preview. */
     public static final TagKey<Block> PLAN_OPT_IN =
             TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "plan_opt_in"));
+
+    /** The placed blocks Rotate in Place turns. */
+    public static final TagKey<Block> ROTATES_IN_PLACE =
+            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "rotates_in_place"));
 
     /** The block items whose stretches the vanilla Consumer lays. */
     public static final TagKey<Item> STRETCHES =
@@ -47,6 +56,8 @@ public final class VanillaConsumer {
      */
     static void register(IEventBus modBus) {
         Placements.optIn(VanillaConsumer::optsIn);
+        // Read as the tag is now, so a datapack reload reaches the next press.
+        Rotate.turnsInPlace(block -> block.defaultBlockState().is(ROTATES_IN_PLACE));
         modBus.addListener(FMLCommonSetupEvent.class, event -> Stretches.register(new VanillaLegs()));
     }
 

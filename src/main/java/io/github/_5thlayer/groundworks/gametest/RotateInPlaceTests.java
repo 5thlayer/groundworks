@@ -46,12 +46,15 @@ final class RotateInPlaceTests {
     private static final Set<BlockPos> CLAIMED = ConcurrentHashMap.newKeySet();
 
     /**
-     * A stated block for each way a block orients, and the state a quarter turn clockwise gives
-     * from one: a carved pumpkin faces a heading, a log lies along an axis, and a skull on the
-     * floor faces one of sixteen ways.
+     * A block the shipped tag {@code groundworks:rotates_in_place} holds for each way a block
+     * orients, and the state a quarter turn clockwise gives from one: a carved pumpkin and stairs
+     * face a heading, a log lies along an axis, and a skull on the floor faces one of sixteen ways.
      */
     private static final List<Turning> TURNING = List.of(
             new Turning(Blocks.CARVED_PUMPKIN.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST),
+                    (state, quarters) -> state.setValue(BlockStateProperties.HORIZONTAL_FACING,
+                            QuarterTurn.of(quarters).turn(state.getValue(BlockStateProperties.HORIZONTAL_FACING)))),
+            new Turning(Blocks.OAK_STAIRS.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST),
                     (state, quarters) -> state.setValue(BlockStateProperties.HORIZONTAL_FACING,
                             QuarterTurn.of(quarters).turn(state.getValue(BlockStateProperties.HORIZONTAL_FACING)))),
             new Turning(Blocks.OAK_LOG.defaultBlockState().setValue(BlockStateProperties.AXIS, Direction.Axis.X),
@@ -64,21 +67,23 @@ final class RotateInPlaceTests {
 
     static void register(GroundworksGameTests.Registrar tests) {
         tests.optIn(Blocks.COBBLESTONE);
-        tests.turnsInPlace(Blocks.CARVED_PUMPKIN, Blocks.OAK_LOG, Blocks.SKELETON_SKULL, Blocks.STONE, Blocks.OAK_DOOR,
-                Blocks.RED_BED, Blocks.WALL_TORCH, GroundworksGameTests.REFUSES_TO_TURN.get());
+        // The rest are in the shipped tag.
+        tests.turnsInPlace(Blocks.STONE, GroundworksGameTests.REFUSES_TO_TURN.get());
         for (Turning turning : TURNING) {
             tests.test("rotate_in_place_turns_" + BuiltInRegistries.BLOCK.getKey(turning.start().getBlock()).getPath()
                     + "_a_quarter_each_press_both_ways", 20, helper -> turnsEachPress(helper, turning));
         }
-        // Stairs with a datapack taking them out of plan_opt_in and stretches, as the shipped tags
-        // opt in every oriented block: no Placement Preview is drawn for them and they are not rotatable.
-        tests.withPack(PlanOptInTests.REMOVES_STAIRS).test("rotate_with_an_undrawn_oriented_block_held_turns_the_aimed_block",
+        // Stairs with a datapack taking them out of every tag, as the shipped tags hold every
+        // oriented block: no Placement Preview is drawn for them, they are not rotatable, and Rotate
+        // in Place leaves them alone.
+        var removed = tests.withPack(PlanOptInTests.REMOVES_STAIRS);
+        removed.test("rotate_with_an_undrawn_oriented_block_held_turns_the_aimed_block",
                 20, helper -> succeeds(helper, () -> assertHeldFallsThrough(helper, Blocks.OAK_STAIRS)));
         tests.test("rotate_with_a_block_with_no_orientation_held_turns_the_aimed_block", 20,
                 helper -> succeeds(helper, () -> assertHeldFallsThrough(helper, Blocks.COBBLESTONE)));
-        // Oriented, and vanilla would turn it, but no statement covers it.
-        tests.test("rotate_leaves_a_block_no_statement_covers_alone", 20, helper -> succeeds(helper,
-                () -> assertLeftAlone(helper, Map.of(AIMED, Blocks.JACK_O_LANTERN.defaultBlockState()), AIMED)));
+        // Stairs: oriented, and vanilla would turn them, but no statement covers them.
+        removed.test("rotate_leaves_a_block_no_statement_covers_alone", 20, helper -> succeeds(helper,
+                () -> assertLeftAlone(helper, Map.of(AIMED, TURNING.get(1).start()), AIMED)));
         // A log standing upright turns into itself, and stone has nothing to turn.
         tests.test("rotate_leaves_a_block_whose_turn_changes_nothing_alone_and_says_nothing", 20, helper -> succeeds(helper, () -> {
             assertLeftAlone(helper, Map.of(AIMED, Blocks.OAK_LOG.defaultBlockState()), AIMED);

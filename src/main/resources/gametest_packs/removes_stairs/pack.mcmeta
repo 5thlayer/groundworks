@@ -1,6 +1,6 @@
 {
   "pack": {
-    "description": "Groundworks game tests: takes #minecraft:stairs out of groundworks:plan_opt_in and groundworks:stretches",
+    "description": "Groundworks game tests: takes #minecraft:stairs out of groundworks:plan_opt_in, groundworks:rotates_in_place and groundworks:stretches",
     "min_format": [101, 1],
     "max_format": [101, 1]
   }
