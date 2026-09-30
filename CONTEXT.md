@@ -7,7 +7,7 @@ A mod for mass placement and **Dismantle**: it plans what a click would lay or t
 ### Parties
 
 **Groundworks**:
-This library. It owns the plan, the drawing, the hooks, **Rotate**, the **Stretch** and the **Dismantle**, and nothing about any particular block. Formerly placementpreview, which only drew **Placement Plans** (ADR 0002).
+This library. It owns the plan, the drawing, the hooks, **Rotate**, **Fast Replace**, the **Stretch** and the **Dismantle**, and nothing about any particular block. Formerly placementpreview, which only drew **Placement Plans** (ADR 0002).
 _Avoid_: placementpreview (its old name), preview lib, the renderer, Groundwork
 
 **Consumer**:
@@ -71,6 +71,16 @@ _Avoid_: rotate the preview (the preview only follows the plan), rotate the ghos
 **Rotate in Place**:
 **Rotate** on a placed block: the block under the crosshair turns, and what turning means is the block's own -- a belt tile turns, a machine keeps its contents. A block that cannot take the turn is refused with its reason and nothing changes; there is no preview of it. It turns only blocks a **Consumer** has stated it turns, a statement separate from **Opt-in**: Beltworks states its own blocks, the Pack states every block.
 _Avoid_: placed rotate, wrench rotate
+
+### Replacing
+
+**Fast Replace**:
+A plain click with a block item on a placed block of a **Replace group** puts the held block in its place: one held item is charged however many blocks the replace spans, and the block it replaces is handed back into the slot the charge freed, or the click is refused with its reason when there is no room. A sneak-click places beside instead, and takes any height **Raise** or **Lower** holds: a replace ignores the height and leaves it on the stack. A turn **Rotate** holds re-orients the replace; without one the new block keeps the replaced block's orientation. The **Placement Plan** names what it replaces and the **Placement Preview** draws that in the replace tint, and the click carries out the plan the preview showed. What becomes of the replaced block's contents is the block's own. A creative player is neither charged nor handed anything.
+_Avoid_: upgrade, swap, replace click
+
+**Replace group**:
+A kind of block that a **Fast Replace** swaps for another block of the same kind, such as one tier of belt tile for another. A **Consumer** states each group, as it states its **Opt-in** and what it **Rotates in Place**; a block belongs to at most one, and a block is never replaced by itself. A replace may span several blocks, a splitter's two halves or a machine's footprint, and the **Consumer** says which, and what the new blocks are and what comes back. Vanilla ships no group of its own.
+_Avoid_: replace list, upgrade path
 
 ### Stretching
 
