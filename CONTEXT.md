@@ -79,7 +79,7 @@ A plain click with a block item on a placed block of a **Replace group** puts th
 _Avoid_: upgrade, swap, replace click
 
 **Replace group**:
-A kind of block that a **Fast Replace** swaps for another block of the same kind, such as one tier of belt tile for another. A **Consumer** states each group, as it states its **Opt-in** and what it **Rotates in Place**; a block belongs to at most one, and a block is never replaced by itself. A replace may span several blocks, a splitter's two halves or a machine's footprint, and the **Consumer** says which, and what the new blocks are and what comes back. Vanilla ships no group of its own.
+A kind of block that a **Fast Replace** swaps for another block of the same kind, such as one tier of belt tile for another. A **Consumer** states each group, as it states its **Opt-in** and what it **Rotates in Place**; a block belongs to at most one, and a block is never replaced by itself. A replace may span several blocks, a splitter's two halves or a machine's footprint, and the **Consumer** says which, and what the new blocks are and what comes back. Vanilla's groups are block tags under `groundworks:replace_group/`, one group per tag, which a pack developer fills; Groundworks ships none.
 _Avoid_: replace list, upgrade path
 
 ### Stretching
