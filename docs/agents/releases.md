@@ -1,6 +1,6 @@
 # Releases
 
-A release reaches Consumers through the local maven repository (`~/.m2`) at a version of its own. Consumers read the Library from there by version, and the Pack (adamico/planetary-factory) pins the jar's sha256. That only works if the jar published at a version is the one jar that version ever names.
+A release reaches Consumers through the local maven repository (`~/.m2`) at a version of its own. Consumers read the Library from there by version, and the Pack (5thlayer/factoryworks) pins the jar's sha256. That only works if the jar published at a version is the one jar that version ever names.
 
 Groundworks names its Modrinth and CurseForge projects in `gradle.properties`, so a released version is also uploaded there, from the maintainer's machine (below; ADR 0007). CI builds and tests on every push but never publishes.
 

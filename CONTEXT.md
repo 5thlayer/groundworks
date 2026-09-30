@@ -1,6 +1,6 @@
 # Groundworks
 
-A mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. It works in a vanilla game with no other mod: vanilla is a **Consumer** like any other, built into Groundworks, and tags a pack developer can change set which vanilla blocks and items it reaches (ADR 0005). Mods such as Beltworks, and packs such as PlanetaryFactory, add **Consumers** of their own, so that everything on one screen places, previews and dismantles one way (ADR 0002). Adding them is the pack developer's choice. Groundworks doesn't depend on them to be useful.
+A mod for mass placement and **Dismantle**: it plans what a click would lay or take up, shows the plan before the click, and carries it out. It works in a vanilla game with no other mod: vanilla is a **Consumer** like any other, built into Groundworks, and tags a pack developer can change set which vanilla blocks and items it reaches (ADR 0005). Mods such as Beltworks, and packs such as FactoryWorks, add **Consumers** of their own, so that everything on one screen places, previews and dismantles one way (ADR 0002). Adding them is the pack developer's choice. Groundworks doesn't depend on them to be useful.
 
 ## Language
 

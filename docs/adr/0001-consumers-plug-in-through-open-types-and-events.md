@@ -1,6 +1,6 @@
 # Consumers plug in through open types and events
 
-Beltworks' ADR 0010 made placementpreview one library that Beltworks and the PlanetaryFactory Pack both draw through, and it keeps nothing about any particular block. Three choices set how a **Consumer** plugs in, and they are hard to change once two Consumers compile against them:
+Beltworks' ADR 0010 made placementpreview one library that Beltworks and the PlanetaryFactory Pack (now FactoryWorks) both draw through, and it keeps nothing about any particular block. Three choices set how a **Consumer** plugs in, and they are hard to change once two Consumers compile against them:
 
 - **A Refusal is an interface with no methods.** The library ships only its **Vanilla** refusal, and each Consumer's own enum implements it. The renderer only asks whether a plan is refused. A Consumer's checks keep comparing its own enum values, and its reasons stay checked by the compiler.
 - **Opt-in is a predicate over blocks,** registered at mod construction and read on both sides. A Consumer states its rule (the Pack's is "my namespace") and the library keeps no list of mods.
