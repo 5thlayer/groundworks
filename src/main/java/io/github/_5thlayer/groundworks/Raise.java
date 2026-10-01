@@ -60,11 +60,12 @@ public final class Raise {
      * is the hand the Placement Preview draws, and only with a player, whose reach caps it. The
      * context's position is already moved by it, so a plan reads this only to know it was, and one
      * that works out a spot of its own from the moved position names it with
-     * {@link BlockPlaceContext#at}, which is not moved again.
+     * {@link BlockPlaceContext#at}, which is not moved again. A {@linkplain FastReplace Fast
+     * Replace}'s context names the aimed block, so it has no height (ADR 0008).
      */
     public static Height heightOf(BlockPlaceContext context) {
         Player player = context.getPlayer();
-        return player != null && context.getHand() == InteractionHand.MAIN_HAND
+        return player != null && context.getHand() == InteractionHand.MAIN_HAND && !Placements.isReplacing(context)
                 ? heightOf(player, context.getItemInHand())
                 : Height.NONE;
     }

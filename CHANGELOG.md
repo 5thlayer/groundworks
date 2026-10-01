@@ -7,6 +7,11 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Players
 
 - A **Stretch** is paid from the held stack first, then from the rest of the main inventory, and hands what it replaces back into the slot its charge freed: when it takes the held stack's last item, what it replaces lands in the hand, not in the first empty slot. Otherwise it joins a stack of its own before an empty slot, as before. (#36)
+- **Fast Replace.** A plain click with a block on a placed block of the same Replace group puts the held block in its place, and the preview draws it blue before you click. It costs one of the held block and hands the replaced one back, into your hand when that was the last. A sneak-click places beside instead, and a held Raise or Lower height leaves a replace where you aim. When there is no room for what comes back, the click is refused and you are told why. No vanilla block is in a group yet. (#31)
+
+### Consumers
+
+- `FastReplace.group(Identifier, Predicate<? super Block>)` states a **Replace group**: its blocks replace one another on a plain click, through the held item's own plan, asked with a place context whose clicked block counts as replaceable so that the plan lands on the aimed block (ADR 0008). `Placements.isReplacing(BlockPlaceContext)` tells an item's plan it is planning a replace, and its context has no Raise height. Only the main hand's `BlockItem` replaces, and a replace is drawn whether or not its block is opted in. The library carries out the click, not the item's own `place`: it charges one held item, swaps the block, calls `setPlacedBy` and the placed-block trigger, and hands the old block's item back. An item whose plan puts no block in the aimed block's place is refused as `Refusal.FastReplace.PLANS_ELSEWHERE`, and no room for the refund as `Refusal.FastReplace.NO_ROOM_TO_RETURN`. (#31)
 
 ## 0.5.0
 

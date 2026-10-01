@@ -67,8 +67,10 @@ public final class Placements {
     }
 
     /**
-     * Whether a Placement Preview is drawn for this item: it plans its own placement, its block is
-     * opted in, or it {@linkplain Stretches stretches}.
+     * Whether a Placement Preview is drawn for this item wherever it is aimed: it plans its own
+     * placement, its block is opted in, or it {@linkplain Stretches stretches}. A {@linkplain
+     * FastReplace Fast Replace} is drawn whatever this says, where it is aimed at a block of its
+     * group; {@link Raise} and {@link Rotate} ask this alone.
      */
     static boolean isDrawn(Item item) {
         return item instanceof PlansPlacement || item instanceof BlockItem block && isOptedIn(block.getBlock())
@@ -83,15 +85,13 @@ public final class Placements {
      *
      * <p>While a {@linkplain Stretches Stretch} is being drawn with the main hand's stack, it is the
      * stretch that a click would lay. A sneak-click that would store a stretch's start places
-     * nothing, so it has no plan.
+     * nothing, so it has no plan. Otherwise a plain click on a block of the held block's Replace
+     * group is a {@linkplain FastReplace Fast Replace}, drawn whether or not the item is.
      */
     @Nullable
     public static PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand,
                                         ItemStack stack, BlockHitResult hit) {
         Item item = stack.getItem();
-        if (!isDrawn(item)) {
-            return null;
-        }
         if (hand == InteractionHand.MAIN_HAND) {
             if (player != null && Stretches.startAt(level, player, stack, hit) != null) {
                 return null;
@@ -100,6 +100,13 @@ public final class Placements {
             if (stretch != null) {
                 return stretch;
             }
+        }
+        PlacementPlan replace = FastReplace.planFor(level, player, hand, stack, hit);
+        if (replace != null) {
+            return replace;
+        }
+        if (!isDrawn(item)) {
+            return null;
         }
         return planFor(item, new BlockPlaceContext(level, player, hand, stack, hit));
     }
@@ -176,6 +183,14 @@ public final class Placements {
      */
     public static BlockPos aimedPos(BlockPlaceContext context) {
         return ((UseOnContextInvoker) context).groundworks$hitResult().getBlockPos();
+    }
+
+    /**
+     * Whether this context is a {@linkplain FastReplace Fast Replace}'s, which plans the held item
+     * in the aimed block's place: an item's own plan may ask, to plan a replace its own way.
+     */
+    public static boolean isReplacing(BlockPlaceContext context) {
+        return context instanceof ReplacingContext;
     }
 
     /** Vanilla's own two conditions for "this state may stand here". */

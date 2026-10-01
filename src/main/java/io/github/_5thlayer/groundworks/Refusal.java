@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
  * Why a {@link PlacementPlan} or a {@link DismantleSpan} would not go through.
  *
  * <p>Open, with no methods: the library names only {@link Vanilla#VANILLA} and its
- * {@link Dismantle} and {@link Stretch} reasons, and each Consumer names its own reasons in an enum
+ * {@link Dismantle}, {@link Stretch} and {@link FastReplace} reasons, and each Consumer names its own reasons in an enum
  * that implements this. The renderer asks only whether a plan is refused, and a Consumer's checks keep comparing its
  * own enum values, which the compiler checks.
  *
@@ -54,6 +54,17 @@ public interface Refusal {
         MAY_NOT_BUILD,
         /** A sneak-click while a Column is drawn: a Column has no anchors between its ends (ADR 0006). */
         NO_ANCHOR_IN_A_COLUMN,
+    }
+
+    /**
+     * The library's own reasons for a {@linkplain io.github._5thlayer.groundworks.FastReplace Fast
+     * Replace}, which it tells the player itself.
+     */
+    enum FastReplace implements Refusal {
+        /** What the replace hands back would not fit in the player's inventory once it is charged. */
+        NO_ROOM_TO_RETURN,
+        /** The held item's own plan doesn't put a block in the aimed block's place. */
+        PLANS_ELSEWHERE,
     }
 
     /**

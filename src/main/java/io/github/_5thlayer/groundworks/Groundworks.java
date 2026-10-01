@@ -63,12 +63,15 @@ public final class Groundworks {
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
         GroundworksGameTests.register(modBus);
-        // An event rather than an item's own use: the tools that dismantle, and the items that
-        // stretch, are no one's in particular.
+        // An event rather than an item's own use: the tools that dismantle, the items that
+        // stretch, and the blocks that replace, are no one's in particular.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, PlayerInteractEvent.RightClickBlock.class, event -> {
             InteractionResult result = Dismantles.useOn(event.getEntity(), event.getHand(), event.getPos());
             if (result == InteractionResult.PASS) {
                 result = Stretches.useOn(event.getEntity(), event.getHand(), event.getHitVec());
+            }
+            if (result == InteractionResult.PASS) {
+                result = FastReplace.useOn(event.getEntity(), event.getHand(), event.getHitVec());
             }
             if (result != InteractionResult.PASS) {
                 event.setCanceled(true);

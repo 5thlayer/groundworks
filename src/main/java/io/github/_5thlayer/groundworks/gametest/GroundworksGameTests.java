@@ -26,6 +26,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
@@ -53,9 +54,11 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  *
  * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, and the one item,
  * {@link #STRETCHES_ARROWS}, whose legs {@link LineOfArrows} builds, and the dismantling tool
- * {@link #DISMANTLES}, are registered only when game tests are enabled, for the same reason. The
- * builder and the {@link RowOfTerracotta} family are registered at mod construction, as a
- * Consumer's are, so a dev client stretches and dismantles with them too.
+ * {@link #DISMANTLES}, and the item that plans its own placement, {@link #PLANS_PINK}, are
+ * registered only when game tests are enabled, for the same reason. The builder, the {@link
+ * RowOfTerracotta} family and the {@linkplain FastReplaceTests#stateGroups Replace groups} are
+ * registered at mod construction, as a Consumer's are, so a dev client stretches, dismantles and
+ * replaces with them too.
  */
 public final class GroundworksGameTests {
 
@@ -91,6 +94,10 @@ public final class GroundworksGameTests {
                 }
             });
 
+    /** The tests' item that plans its own placement, which places pink glazed terracotta. */
+    static final DeferredItem<PlansItsOwnPlacement> PLANS_PINK = ITEMS.registerItem("gametest_plans_pink",
+            properties -> new PlansItsOwnPlacement(Blocks.PINK_GLAZED_TERRACOTTA, properties));
+
     /**
      * The tests' dismantling tool, in {@code groundworks:dismantles} as an optional entry, which
      * takes up a {@linkplain RowOfTerracotta row of cyan terracotta}.
@@ -118,6 +125,7 @@ public final class GroundworksGameTests {
             ITEMS.register(modBus);
             Stretches.register(new LineOfArrows());
             Dismantles.register(new RowOfTerracotta());
+            FastReplaceTests.stateGroups();
         }
         // Posted only when game tests are enabled, so a production server never registers the tests.
         modBus.addListener(GroundworksGameTests::registerTests);
@@ -141,6 +149,7 @@ public final class GroundworksGameTests {
         VanillaStretchTests.register(tests);
         DismantleTests.register(tests);
         VanillaDismantleTests.register(tests);
+        FastReplaceTests.register(tests);
     }
 
     private static Identifier id(String path) {
