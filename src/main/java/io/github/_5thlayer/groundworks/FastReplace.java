@@ -23,6 +23,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.event.EventHooks;
@@ -55,6 +56,18 @@ import org.jspecify.annotations.Nullable;
  * is the stretch's. A height held by {@link Raise} doesn't move a replace and stays on the stack.
  * A refusal of the library's own is told by name; any other, the item's own, as that the held
  * block can't replace the aimed one here.
+ *
+ * <h2>The new block keeps the old one's orientation</h2>
+ *
+ * <p>The block that goes in the aimed block's place takes the orientation of the block it replaces:
+ * each facing, axis or rotation the two share, as the same {@link Property} object and never by
+ * name, the properties {@link Rotate} turns. No other property is copied, since one may count what
+ * a block holds, as a double slab's type does, or name a part of a block that spans two, and a
+ * replace charges one item and hands one back. A Consumer whose blocks keep more sets it in its
+ * own plan. An orientation the new block lacks is dropped, and any other property is the item
+ * plan's. A turn {@link Rotate} holds on the stack
+ * skips the copy: the new block is what the plan makes of the turned look, and the turn stays on
+ * the stack. The preview's plan carries the copied or turned state, which the click lays.
  *
  * <h2>A refused replace changes nothing</h2>
  *
@@ -135,7 +148,7 @@ public final class FastReplace {
         } else if (planned.blocks().stream().noneMatch(placed -> placed.pos().equals(aimed))) {
             plan = PlacementPlan.refused(planned.blocks(), Refusal.FastReplace.PLANS_ELSEWHERE);
         } else {
-            plan = new PlacementPlan(planned.blocks(), List.of(aimed), planned.refusal());
+            plan = new PlacementPlan(keepingOrientation(planned.blocks(), aimed, old, stack), List.of(aimed), planned.refusal());
         }
 
         Item back = old.getBlock().asItem();
@@ -148,6 +161,43 @@ public final class FastReplace {
             plan = refused(plan, Refusal.FastReplace.NO_ROOM_TO_RETURN);
         }
         return new Replacing(plan, charge);
+    }
+
+    /**
+     * The plan's blocks, the one at {@code aimed} taking its state from {@code old} where the held
+     * stack carries no {@linkplain Rotate#turnOf(ItemStack) turn}: a turn re-orients the replace, so
+     * the new block is what the item's plan makes of the turned look. The preview draws these
+     * states and the click lays them. Any other block of the plan is the item's own, as a builder's
+     * would set its own states.
+     */
+    private static List<PlacementPlan.Placed> keepingOrientation(List<PlacementPlan.Placed> blocks, BlockPos aimed,
+                                                                 BlockState old, ItemStack stack) {
+        if (Rotate.turnOf(stack).equals(QuarterTurn.NONE)) {
+            return blocks.stream()
+                    .map(placed -> placed.pos().equals(aimed) ? new PlacementPlan.Placed(aimed, copied(placed.state(), old)) : placed)
+                    .toList();
+        }
+        return blocks;
+    }
+
+    /**
+     * {@code to} with each orientation it shares with {@code from} set to {@code from}'s value. A
+     * property is shared when it is the same {@link Property} object, never when it only has the
+     * same name, as vanilla's blocks and a Consumer's share theirs; the same object has the same
+     * values, so the new block always accepts the old value. Any other property keeps its value.
+     */
+    private static BlockState copied(BlockState to, BlockState from) {
+        BlockState copy = to;
+        for (Property<?> property : from.getProperties()) {
+            if (Rotate.isOrientation(property)) {
+                copy = copied(copy, from, property);
+            }
+        }
+        return copy;
+    }
+
+    private static <T extends Comparable<T>> BlockState copied(BlockState to, BlockState from, Property<T> property) {
+        return to.trySetValue(property, from.getValue(property));
     }
 
     /**

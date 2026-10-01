@@ -11,7 +11,9 @@ import io.github._5thlayer.groundworks.Height;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.Placements;
 import io.github._5thlayer.groundworks.Raise;
+import io.github._5thlayer.groundworks.QuarterTurn;
 import io.github._5thlayer.groundworks.Refusal;
+import io.github._5thlayer.groundworks.Rotate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -26,15 +28,20 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Fast Replace on the tests' own {@linkplain #stateGroups Replace groups}: lime, pink and magenta
- * glazed terracotta replace one another, and gray is a group of its own. Every click goes through
- * the server player's own {@code useItemOn}, so through the event Groundworks answers, and every
- * plan through {@link Placements#planFor}, as the preview asks it.
+ * glazed terracotta replace one another, birch and jungle slabs and a birch log replace one
+ * another, and gray is a group of its own. Every click goes through the server player's own
+ * {@code useItemOn}, so through the event Groundworks answers, and every plan through {@link
+ * Placements#planFor}, as the preview asks it.
  *
  * <p>Each test replaces the block at {@link #AIMED}, aimed at its top, with the player standing
  * west of it looking east and holding the item in hotbar slot 3.
@@ -52,6 +59,9 @@ final class FastReplaceTests {
         FastReplace.group(id("gametest_glazed"), block -> block == Blocks.LIME_GLAZED_TERRACOTTA
                 || block == Blocks.PINK_GLAZED_TERRACOTTA || block == Blocks.MAGENTA_GLAZED_TERRACOTTA);
         FastReplace.group(id("gametest_gray"), block -> block == Blocks.GRAY_GLAZED_TERRACOTTA);
+        // Slabs, whose type counts what they hold, and a log, whose axis no slab has.
+        FastReplace.group(id("gametest_birch"), block -> block == Blocks.BIRCH_SLAB || block == Blocks.JUNGLE_SLAB
+                || block == Blocks.BIRCH_LOG);
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
@@ -78,6 +88,13 @@ final class FastReplaceTests {
         tests.test("an_entity_where_the_new_block_would_go_refuses_the_replace", 20, FastReplaceTests::entityInTheWay);
         tests.test("a_creative_player_replaces_for_nothing_and_is_handed_nothing_even_with_a_full_inventory", 20,
                 FastReplaceTests::creativeReplaces);
+        tests.test("a_replace_keeps_the_old_block_s_facing_and_the_preview_shows_it", 20, FastReplaceTests::keepsFacing);
+        tests.test("a_replace_with_a_turn_held_takes_the_turned_look_and_keeps_the_turn", 20,
+                FastReplaceTests::turnOverridesTheCopy);
+        tests.test("a_replace_copies_no_property_but_the_orientation_so_a_double_slab_is_not_duplicated", 20,
+                FastReplaceTests::doubleSlabIsNotCopied);
+        tests.test("an_orientation_the_new_block_does_not_have_is_dropped", 20,
+                FastReplaceTests::orientationTheNewBlockLacks);
     }
 
     private static void replaces(GameTestHelper helper) {
@@ -253,6 +270,85 @@ final class FastReplaceTests {
     }
 
     /**
+     * The player looks north, where a fresh lime would face south, and the pink faces east: the lime
+     * takes the pink's facing, and the plan the preview draws already shows it.
+     */
+    private static void keepsFacing(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST));
+        expectFacing(helper, AIMED, Blocks.PINK_GLAZED_TERRACOTTA, Direction.EAST);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        look(player, Direction.NORTH);
+        PlacementPlan plan = replaceAsPlanned(helper, player, Blocks.LIME_GLAZED_TERRACOTTA);
+        if (plan.blocks().getFirst().state().getValue(BlockStateProperties.HORIZONTAL_FACING) != Direction.EAST) {
+            helper.fail("the plan showed " + plan.blocks().getFirst().state() + ", not facing east");
+        }
+        expectFacing(helper, AIMED, Blocks.LIME_GLAZED_TERRACOTTA, Direction.EAST);
+        helper.succeed();
+    }
+
+    /**
+     * With a quarter turn held the copy is skipped. The player looks east, so the turned look is
+     * south, and glazed terracotta faces against the look: north. The pink faces east, and the turn
+     * stays on the stack.
+     */
+    private static void turnOverridesTheCopy(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST));
+        expectFacing(helper, AIMED, Blocks.PINK_GLAZED_TERRACOTTA, Direction.EAST);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        Rotate.press(player, null, false);
+        // A fresh lime on empty ground, with the same turn, faces the same way: the cross-check.
+        BlockPos ground = new BlockPos(4, 0, 2);
+        PlacementPlan fresh = Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(),
+                onTop(helper, ground));
+        if (fresh == null || fresh.blocks().getFirst().state().getValue(BlockStateProperties.HORIZONTAL_FACING) != Direction.NORTH) {
+            helper.fail("a fresh lime with a quarter turn planned " + fresh + ", not facing north");
+        }
+        PlacementPlan plan = replaceAsPlanned(helper, player, Blocks.LIME_GLAZED_TERRACOTTA);
+        if (plan.blocks().getFirst().state().getValue(BlockStateProperties.HORIZONTAL_FACING) != Direction.NORTH) {
+            helper.fail("the plan showed " + plan.blocks().getFirst().state() + ", not facing north");
+        }
+        expectFacing(helper, AIMED, Blocks.LIME_GLAZED_TERRACOTTA, Direction.NORTH);
+        if (!Rotate.turnOf(player.getMainHandItem()).equals(QuarterTurn.of(1))) {
+            helper.fail("the turn on the stack is " + Rotate.turnOf(player.getMainHandItem()) + ", not a quarter");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A double birch slab's type is no orientation, so the jungle slab is the plan's, a bottom slab
+     * for a click on the top face: one held slab never buys a double one.
+     */
+    private static void doubleSlabIsNotCopied(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.BIRCH_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE));
+        ListeningPlayer player = holding(helper, new ItemStack(Items.JUNGLE_SLAB, 2));
+        PlacementPlan plan = replaceAsPlanned(helper, player, Blocks.JUNGLE_SLAB);
+        if (plan.blocks().getFirst().state().getValue(SlabBlock.TYPE) != SlabType.BOTTOM
+                || helper.getBlockState(AIMED).getValue(SlabBlock.TYPE) != SlabType.BOTTOM) {
+            helper.fail("the plan put " + plan.blocks().getFirst().state() + " and the click " + helper.getBlockState(AIMED)
+                    + ", not a bottom slab", AIMED);
+        }
+        helper.succeed();
+    }
+
+    /** A birch log's axis is an orientation no slab has, so the slab is the plan's, and the replace goes through. */
+    private static void orientationTheNewBlockLacks(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.BIRCH_LOG.defaultBlockState().setValue(BlockStateProperties.AXIS, Direction.Axis.X));
+        ListeningPlayer player = holding(helper, new ItemStack(Items.JUNGLE_SLAB, 2));
+        replaceAsPlanned(helper, player, Blocks.JUNGLE_SLAB);
+        if (helper.getBlockState(AIMED).getValue(SlabBlock.TYPE) != SlabType.BOTTOM) {
+            helper.fail("the click put " + helper.getBlockState(AIMED) + ", not a bottom slab", AIMED);
+        }
+        helper.succeed();
+    }
+
+    private static void expectFacing(GameTestHelper helper, BlockPos pos, Block block, Direction facing) {
+        BlockState there = helper.getBlockState(pos);
+        if (!there.is(block) || there.getValue(BlockStateProperties.HORIZONTAL_FACING) != facing) {
+            helper.fail(there + " is not " + block + " facing " + facing, pos);
+        }
+    }
+
+    /**
      * Fails unless the plan is refused for {@code reason}, and the click, which tells the player
      * {@code message}, changes nothing: the aimed block stays, nothing is placed beside it, and the
      * held stack is whole.
@@ -300,9 +396,9 @@ final class FastReplaceTests {
 
     /**
      * Asks the plan, clicks, and fails unless the plan replaced the aimed block alone with the held
-     * block and the click put down exactly the planned state there, and nothing above it.
+     * block and the click put down exactly the planned state there, and nothing above it. Returns the plan.
      */
-    private static void replaceAsPlanned(GameTestHelper helper, ListeningPlayer player, Block held) {
+    private static PlacementPlan replaceAsPlanned(GameTestHelper helper, ListeningPlayer player, Block held) {
         BlockPos aimed = helper.absolutePos(AIMED);
         PlacementPlan plan = plan(helper, player);
         if (plan == null || plan.isRefused() || !plan.replaces().equals(List.of(aimed)) || plan.blocks().size() != 1
@@ -316,6 +412,7 @@ final class FastReplaceTests {
         if (!helper.getBlockState(AIMED.above()).isAir()) {
             helper.fail("the replace also placed " + helper.getBlockState(AIMED.above()), AIMED.above());
         }
+        return plan;
     }
 
     /** The click does what vanilla does: the aimed block stays and the held block goes on top of it. */
@@ -367,10 +464,14 @@ final class FastReplaceTests {
         player.setShiftKeyDown(false);
     }
 
+    private static void look(ListeningPlayer player, Direction look) {
+        player.setYRot(look.toYRot());
+        player.setYHeadRot(look.toYRot());
+    }
+
     private static ListeningPlayer holding(GameTestHelper helper, ItemStack stack) {
         ListeningPlayer player = new ListeningPlayer(helper, new BlockPos(0, 1, 2));
-        player.setYRot(Direction.EAST.toYRot());
-        player.setYHeadRot(Direction.EAST.toYRot());
+        look(player, Direction.EAST);
         player.getInventory().setSelectedSlot(HELD_SLOT);
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         return player;

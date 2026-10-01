@@ -95,12 +95,17 @@ public final class Rotate {
 
     private static boolean orients(Block block) {
         for (Property<?> property : block.getStateDefinition().getProperties()) {
-            if (property.getValueClass() == Direction.class || property.getValueClass() == Direction.Axis.class
-                    || property == BlockStateProperties.ROTATION_16) {
+            if (isOrientation(property)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Whether this property says which way a block is oriented: a facing, an axis or a rotation. */
+    static boolean isOrientation(Property<?> property) {
+        return property.getValueClass() == Direction.class || property.getValueClass() == Direction.Axis.class
+                || property == BlockStateProperties.ROTATION_16;
     }
 
     /**
