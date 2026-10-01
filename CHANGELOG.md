@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- **Fast Replace** hands back what breaking the replaced block drops, as if broken with its correct tool and no enchantment: a grass block hands back dirt, stone cobblestone, a double slab both slabs, and glass nothing. No replace is a silk-touch break, so a replace group can't turn into a source of grass blocks. A full inventory still refuses a replace that drops something, though the preview no longer shows that refusal before you click. (#38)
+
+### Consumers
+
+- A **Replace group** without a builder hands back the old block's loot, rolled on the server with the block's entity and the player, and an unenchanted netherite pickaxe, axe, shovel, hoe or sword, the first correct for the block, or no tool where none is. Before, it was the block's item. Since loot is the server's, the room check for it is the click's alone, and the plan the client asks is never refused as `Refusal.FastReplace.NO_ROOM_TO_RETURN`. A `ReplaceBuilder`'s `refund` is unchanged. (#38)
+
 ## 0.5.1
 
 ### Players

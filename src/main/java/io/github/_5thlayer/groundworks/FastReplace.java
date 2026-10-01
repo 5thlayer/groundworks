@@ -13,12 +13,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -46,9 +49,20 @@ import org.jspecify.annotations.Nullable;
  * counts as replaceable, so it lands on the aimed block; the plan names that block as replaced, and
  * the preview draws it in the replace tint. An item whose plan puts no block there is refused. The
  * library carries out the click, never the item's own place, so the click lays what the preview
- * drew: it charges one held item, swaps the block, tells the new block it was placed, and hands the
- * old block's item back into the slot the charge freed, through the {@link Charge} a {@linkplain
- * Stretches Stretch} lays through. What becomes of the old block's contents is the block's own.
+ * drew: it charges one held item, swaps the block, tells the new block it was placed, and hands
+ * back into the slot the charge freed what the old block drops, through the {@link Charge} a
+ * {@linkplain Stretches Stretch} lays through. What becomes of the old block's contents is the
+ * block's own.
+ *
+ * <h2>A replace hands back the old block's drops</h2>
+ *
+ * <p>Without a builder, a replace hands back what breaking the old block drops, its loot table
+ * rolled as a break rolls it, by the player, with the {@linkplain #toolFor correct tool} for the
+ * block and no enchantment: a grass block hands back dirt and glass nothing, since no replace is
+ * a silk-touch break, and a double slab both slabs. A block no tool is correct for is broken by
+ * hand. Loot tables are the server's alone, so the drops are rolled on the server, once for the
+ * click, which checks room for them and hands back those; the preview checks no room for such a
+ * replace and draws it accepted, as it draws one a claim would refuse.
  *
  * <p>A replace is the main hand's, as a Stretch is, and the held item is a {@link BlockItem},
  * whose block's group is asked. It is drawn whether or not its block is {@linkplain
@@ -79,7 +93,7 @@ import org.jspecify.annotations.Nullable;
  * each facing, axis or rotation the two share, as the same {@link Property} object and never by
  * name, the properties {@link Rotate} turns. No other property is copied, since one may count what
  * a block holds, as a double slab's type does, or name a part of a block that spans two, and a
- * replace charges one item and hands one back. A Consumer whose blocks keep more sets it in its
+ * replace charges one item. A Consumer whose blocks keep more sets it in its
  * own plan. An orientation the new block lacks is dropped, and any other property is the item
  * plan's. A turn {@link Rotate} holds on the stack
  * skips the copy: the new block is what the plan makes of the turned look, and the turn stays on
@@ -111,6 +125,14 @@ public final class FastReplace {
      * the vanilla Consumer's tags are another, whose ids come from data and which have no builder.
      */
     private static final List<Function<Block, @Nullable Group>> GROUP_STATEMENTS = new CopyOnWriteArrayList<>();
+
+    /**
+     * The tools a replace may break the old block with, the first {@linkplain #toolFor correct} for
+     * it chosen. Each is of the highest tier, so a block's tier never makes it incorrect. Shears are
+     * not one: they drop leaves and cobwebs whole, as silk touch does.
+     */
+    private static final List<Item> TOOLS = List.of(Items.NETHERITE_PICKAXE, Items.NETHERITE_AXE,
+            Items.NETHERITE_SHOVEL, Items.NETHERITE_HOE, Items.NETHERITE_SWORD);
 
     private FastReplace() {
     }
@@ -198,20 +220,21 @@ public final class FastReplace {
         }
 
         PlacementPlan plan;
-        ItemStack back;
+        List<ItemStack> returned;
         if (builder == null) {
             plan = itemPlan(level, player, hand, stack, hit, item, old);
-            back = new ItemStack(old.getBlock().asItem());
+            returned = drops(level, player, aimed, old);
         } else {
             PlacementPlan planned = builder.plan(level, player, stack, aimed, old);
             if (planned == null) {
                 return null;
             }
             plan = leavesAGap(planned) ? refused(planned, Refusal.FastReplace.LEAVES_A_GAP) : planned;
-            back = builder.refund(level, aimed, old);
+            ItemStack back = builder.refund(level, aimed, old);
+            returned = back.isEmpty() ? List.of() : List.of(back);
         }
 
-        Charge charge = Charge.of(player, item, 1, back.isEmpty() ? List.of() : List.of(back));
+        Charge charge = Charge.of(player, item, 1, returned);
         // Where the player may not build, the replace is refused whatever else refused it.
         List<BlockPos> positions = plan.blocks().stream().map(PlacementPlan.Placed::pos).toList();
         if (player != null && !Charge.mayBuildAll(level, player, positions)) {
@@ -237,6 +260,31 @@ public final class FastReplace {
             return PlacementPlan.refused(planned.blocks(), Refusal.FastReplace.PLANS_ELSEWHERE);
         }
         return new PlacementPlan(keepingOrientation(planned.blocks(), aimed, old, stack), List.of(aimed), planned.refusal());
+    }
+
+    /**
+     * What breaking {@code old} at {@code pos} drops, by the player with the correct tool: its loot
+     * table, rolled on the server. Nothing on the client, which has no loot tables, nor for a
+     * player with infinite materials, who is handed nothing back.
+     */
+    private static List<ItemStack> drops(Level level, @Nullable Player player, BlockPos pos, BlockState old) {
+        if (!(level instanceof ServerLevel server) || player == null || player.hasInfiniteMaterials()) {
+            return List.of();
+        }
+        return Block.getDrops(old, server, pos, level.getBlockEntity(pos), player, toolFor(old)).stream()
+                .filter(drop -> !drop.isEmpty())
+                .toList();
+    }
+
+    /** The first of {@link #TOOLS} correct for breaking this block, unenchanted, or none where none is. */
+    private static ItemStack toolFor(BlockState state) {
+        for (Item tool : TOOLS) {
+            ItemStack stack = new ItemStack(tool);
+            if (stack.isCorrectToolForDrops(state)) {
+                return stack;
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     /** Whether the plan replaces a position it puts no block at. */

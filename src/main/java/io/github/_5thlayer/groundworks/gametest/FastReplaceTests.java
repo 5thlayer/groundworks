@@ -75,6 +75,9 @@ final class FastReplaceTests {
         // Slabs, whose type counts what they hold, and a log, whose axis no slab has.
         FastReplace.group(id("gametest_birch"), block -> block == Blocks.BIRCH_SLAB || block == Blocks.JUNGLE_SLAB
                 || block == Blocks.BIRCH_LOG);
+        // Blocks whose loot is not their own item: grass drops dirt without silk touch, glass nothing.
+        FastReplace.group(id("gametest_ground"), block -> block == Blocks.GRASS_BLOCK || block == Blocks.STONE
+                || block == Blocks.GLASS);
         // The builders' groups, each a column of two blocks. Smokers and blast furnaces face a way, which a builder's plan sets.
         FastReplace.group(id("gametest_column"), block -> block == Blocks.IRON_BLOCK || block == Blocks.GOLD_BLOCK
                 || block == Blocks.SMOKER || block == Blocks.BLAST_FURNACE, new ReplacesAColumn(ReplacesAColumn.Way.REPLACES));
@@ -115,6 +118,12 @@ final class FastReplaceTests {
                 FastReplaceTests::doubleSlabIsNotCopied);
         tests.test("an_orientation_the_new_block_does_not_have_is_dropped", 20,
                 FastReplaceTests::orientationTheNewBlockLacks);
+        tests.test("a_replace_hands_back_the_old_block_s_drops_with_no_silk_touch", 20, FastReplaceTests::handsBackDrops);
+        tests.test("a_replace_hands_back_what_the_correct_tool_breaks_the_old_block_into", 20,
+                FastReplaceTests::handsBackWhatTheToolBreaks);
+        tests.test("a_replace_hands_back_every_item_the_old_block_drops", 20, FastReplaceTests::handsBackEveryItem);
+        tests.test("a_replace_of_a_block_that_drops_nothing_hands_nothing_back_and_needs_no_room", 20,
+                FastReplaceTests::handsBackNothingAndNeedsNoRoom);
 
         // A Replace group's builder, which plans a replace that spans a column of two blocks.
         tests.test("a_builder_replaces_a_column_from_its_lower_block_for_one_item_and_hands_back_what_it_names", 20,
@@ -577,6 +586,54 @@ final class FastReplaceTests {
         helper.succeed();
     }
 
+    /** A grass block breaks into dirt without silk touch, so its replace hands back dirt and never a grass block. */
+    private static void handsBackDrops(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.GRASS_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.STONE, 2));
+        replaceAsPlanned(helper, player, Blocks.STONE);
+        expectSlot(helper, player, HELD_SLOT, Items.STONE, 1);
+        expectHanded(helper, player, Items.DIRT);
+        expectNotHanded(helper, player, Items.GRASS_BLOCK);
+        helper.succeed();
+    }
+
+    /** Stone breaks into cobblestone under a pickaxe, its correct tool, so its replace hands back cobblestone. */
+    private static void handsBackWhatTheToolBreaks(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.STONE);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.GLASS, 1));
+        replaceAsPlanned(helper, player, Blocks.GLASS);
+        expectSlot(helper, player, HELD_SLOT, Items.COBBLESTONE, 1);
+        expectNotHanded(helper, player, Items.STONE);
+        helper.succeed();
+    }
+
+    /** A double birch slab breaks into two slabs, so its replace hands both back. */
+    private static void handsBackEveryItem(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.BIRCH_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE));
+        ListeningPlayer player = holding(helper, new ItemStack(Items.JUNGLE_SLAB, 2));
+        replaceAsPlanned(helper, player, Blocks.JUNGLE_SLAB);
+        if (player.getInventory().countItem(Items.BIRCH_SLAB) != 2) {
+            helper.fail("the replace handed back " + player.getInventory().countItem(Items.BIRCH_SLAB) + " birch slabs, not 2");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Glass drops nothing without silk touch, so its replace hands nothing back, and a full
+     * inventory doesn't refuse it: the held slot the charge empties stays empty.
+     */
+    private static void handsBackNothingAndNeedsNoRoom(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.GLASS);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.STONE, 1));
+        fillInventory(player);
+        replaceAsPlanned(helper, player, Blocks.STONE);
+        if (!player.getInventory().getItem(HELD_SLOT).isEmpty()) {
+            helper.fail("the replace handed back " + player.getInventory().getItem(HELD_SLOT));
+        }
+        expectNotHanded(helper, player, Items.GLASS);
+        helper.succeed();
+    }
+
     private static void expectFacing(GameTestHelper helper, BlockPos pos, Block block, Direction facing) {
         BlockState there = helper.getBlockState(pos);
         if (!there.is(block) || there.getValue(BlockStateProperties.HORIZONTAL_FACING) != facing) {
@@ -691,6 +748,12 @@ final class FastReplaceTests {
     private static void expectHanded(GameTestHelper helper, ListeningPlayer player, Item item) {
         if (player.getInventory().countItem(item) != 1) {
             helper.fail("the inventory holds " + player.getInventory().countItem(item) + " " + item + ", expected 1");
+        }
+    }
+
+    private static void expectNotHanded(GameTestHelper helper, ListeningPlayer player, Item item) {
+        if (player.getInventory().countItem(item) != 0) {
+            helper.fail("the replace handed back " + player.getInventory().countItem(item) + " " + item);
         }
     }
 
