@@ -9,6 +9,7 @@ import java.util.function.Predicate;
 
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,6 +24,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.neoforged.neoforge.common.util.BlockSnapshot;
+import net.neoforged.neoforge.event.EventHooks;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -52,6 +55,20 @@ import org.jspecify.annotations.Nullable;
  * is the stretch's. A height held by {@link Raise} doesn't move a replace and stays on the stack.
  * A refusal of the library's own is told by name; any other, the item's own, as that the held
  * block can't replace the aimed one here.
+ *
+ * <h2>A refused replace changes nothing</h2>
+ *
+ * <p>A refused click is cancelled and its reason put on the action bar, so it never falls through
+ * to placing beside. The player may not build where the plan puts any block, in adventure mode,
+ * outside the world or in protected ground, as a Stretch's rule has it, and that is in the plan
+ * the preview draws, whatever else refused it. A protection mod that cancels NeoForge's place
+ * event, once for each position as {@link Rotate} fires it for the block it turns, refuses on the
+ * click alone, and only a replace that would otherwise go through: firing an event every frame of
+ * the preview is not the preview's to do, so the preview draws such a replace accepted. Either
+ * refuses as {@link Refusal.FastReplace#MAY_NOT_BUILD}.
+ * An entity in the new block's way refuses through the item's own plan, as vanilla refuses a
+ * placement. A player with infinite materials is charged nothing, handed nothing back and so never
+ * refused for room.
  */
 public final class FastReplace {
 
@@ -123,8 +140,12 @@ public final class FastReplace {
 
         Item back = old.getBlock().asItem();
         Charge charge = Charge.of(player, item, 1, back == Items.AIR ? List.of() : List.of(new ItemStack(back)));
-        if (player != null && !plan.isRefused() && !charge.fits(player)) {
-            plan = new PlacementPlan(plan.blocks(), plan.replaces(), Refusal.FastReplace.NO_ROOM_TO_RETURN);
+        // Where the player may not build, the replace is refused whatever else refused it.
+        List<BlockPos> positions = plan.blocks().stream().map(PlacementPlan.Placed::pos).toList();
+        if (player != null && !Charge.mayBuildAll(level, player, positions)) {
+            plan = refused(plan, Refusal.FastReplace.MAY_NOT_BUILD);
+        } else if (player != null && !plan.isRefused() && !charge.fits(player)) {
+            plan = refused(plan, Refusal.FastReplace.NO_ROOM_TO_RETURN);
         }
         return new Replacing(plan, charge);
     }
@@ -141,7 +162,7 @@ public final class FastReplace {
             return InteractionResult.PASS;
         }
         if (!level.isClientSide()) {
-            PlacementPlan plan = replacing.plan();
+            PlacementPlan plan = guarded(level, player, replacing.plan());
             if (plan.isRefused()) {
                 tell(player, message(plan.refusal()));
             } else {
@@ -160,6 +181,31 @@ public final class FastReplace {
         return InteractionResult.SUCCESS;
     }
 
+    /**
+     * The plan, refused as may-not-build when a protection mod cancels the place event at any
+     * position it puts a block. The claim guard Rotate uses: NeoForge's event, fired once for each
+     * position, before the swap, which a claim mod listens to and a plan asked every frame by the
+     * preview must not fire. It is asked only of a replace that would go through, as Rotate asks
+     * only of a turn it will make, so no event is heard for a block that never goes down.
+     */
+    private static PlacementPlan guarded(Level level, Player player, PlacementPlan plan) {
+        if (plan.isRefused()) {
+            return plan;
+        }
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            BlockSnapshot before = BlockSnapshot.create(level.dimension(), level, placed.pos());
+            if (EventHooks.onBlockPlace(player, before, Direction.UP)) {
+                return refused(plan, Refusal.FastReplace.MAY_NOT_BUILD);
+            }
+        }
+        return plan;
+    }
+
+    /** The same plan, refused for {@code reason}. */
+    private static PlacementPlan refused(PlacementPlan plan, Refusal reason) {
+        return new PlacementPlan(plan.blocks(), plan.replaces(), reason);
+    }
+
     /** What the player is told of a refused replace: the library's own reason, or that the held block can't go there. */
     static Component message(Refusal refusal) {
         Refusal reason = refusal instanceof Refusal.At at ? at.reason() : refusal;
@@ -168,6 +214,7 @@ public final class FastReplace {
         }
         return switch (fastReplace) {
             case NO_ROOM_TO_RETURN -> Component.translatable("message.groundworks.fast_replace_no_room_to_return");
+            case MAY_NOT_BUILD -> Component.translatable("message.groundworks.fast_replace_may_not_build");
             case PLANS_ELSEWHERE -> Component.translatable("message.groundworks.fast_replace_plans_elsewhere");
         };
     }

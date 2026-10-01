@@ -17,10 +17,13 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
@@ -67,6 +70,14 @@ final class FastReplaceTests {
                 FastReplaceTests::stretchStartStored);
         tests.test("a_held_height_does_not_move_a_replace_and_stays_on_the_stack", 20, FastReplaceTests::heightHeld);
         tests.test("no_room_to_return_refuses_the_replace_and_changes_nothing", 20, FastReplaceTests::noRoomToReturn);
+        tests.test("a_player_who_may_not_build_is_refused_and_told_and_nothing_changes", 20,
+                FastReplaceTests::mayNotBuild);
+        tests.test("a_claim_refusing_through_the_place_event_refuses_the_replace", 20, FastReplaceTests::claimGuards);
+        tests.test("a_replace_refused_for_no_room_fires_no_place_event_in_a_claim", 20,
+                FastReplaceTests::refusedFiresNoPlaceEvent);
+        tests.test("an_entity_where_the_new_block_would_go_refuses_the_replace", 20, FastReplaceTests::entityInTheWay);
+        tests.test("a_creative_player_replaces_for_nothing_and_is_handed_nothing_even_with_a_full_inventory", 20,
+                FastReplaceTests::creativeReplaces);
     }
 
     private static void replaces(GameTestHelper helper) {
@@ -155,23 +166,136 @@ final class FastReplaceTests {
     private static void noRoomToReturn(GameTestHelper helper) {
         helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
         ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        fillInventory(player);
+        expectRefusedWhole(helper, player, Refusal.FastReplace.NO_ROOM_TO_RETURN,
+                "message.groundworks.fast_replace_no_room_to_return");
+        helper.succeed();
+    }
+
+    /** The player is in adventure mode, so the plan is refused, and the click tells so and changes nothing. */
+    private static void mayNotBuild(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        player.setGameMode(GameType.ADVENTURE);
+        expectRefusedWhole(helper, player, Refusal.FastReplace.MAY_NOT_BUILD, "message.groundworks.fast_replace_may_not_build");
+        helper.succeed();
+    }
+
+    /**
+     * A claim mod cancels the place event at the aimed block alone: the plan, which fires no event,
+     * still goes through, and the click is refused, told so, and changes nothing. Out of the claim
+     * the same click replaces.
+     */
+    private static void claimGuards(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        whileClaimed(helper, () -> {
+            PlacementPlan plan = plan(helper, player);
+            if (plan == null || plan.isRefused()) {
+                helper.fail("in a claim the plan was " + plan + ", not a replace that goes through");
+            }
+            click(helper, player, false);
+        });
+        expectUntouched(helper, Blocks.PINK_GLAZED_TERRACOTTA);
+        expectNothingBeside(helper);
+        expectSlot(helper, player, HELD_SLOT, Items.LIME_GLAZED_TERRACOTTA, 2);
+        if (!player.heard.equals(List.of("message.groundworks.fast_replace_may_not_build"))) {
+            helper.fail("the player was told " + player.heard);
+        }
+        replaceAsPlanned(helper, player, Blocks.LIME_GLAZED_TERRACOTTA);
+        helper.succeed();
+    }
+
+    /**
+     * A replace already refused, for no room, is not one the claim mod is asked about, as Rotate
+     * asks only of a turn it will make: the player is told there is no room, and no place event
+     * that a claim mod or a logger hears is fired for a block that never goes down.
+     */
+    private static void refusedFiresNoPlaceEvent(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        fillInventory(player);
+        whileClaimed(helper, () -> click(helper, player, false));
+        expectUntouched(helper, Blocks.PINK_GLAZED_TERRACOTTA);
+        if (!player.heard.equals(List.of("message.groundworks.fast_replace_no_room_to_return"))) {
+            helper.fail("the player was told " + player.heard);
+        }
+        helper.succeed();
+    }
+
+    /** An entity in the new block's way refuses, as vanilla refuses a placement: with the item's own refusal. */
+    private static void entityInTheWay(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
+        Mob pig = helper.spawn(EntityType.PIG, AIMED);
+        pig.setNoAi(true);
+        pig.setNoGravity(true);
+        pig.setInvulnerable(true);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        expectRefusedWhole(helper, player, Refusal.Vanilla.VANILLA, "message.groundworks.fast_replace_refused");
+        helper.succeed();
+    }
+
+    /** A creative player's replace swaps the block for nothing, and hands nothing back to a full inventory. */
+    private static void creativeReplaces(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
+        player.setGameMode(GameType.CREATIVE);
+        fillInventory(player);
+        replaceAsPlanned(helper, player, Blocks.LIME_GLAZED_TERRACOTTA);
+        expectSlot(helper, player, HELD_SLOT, Items.LIME_GLAZED_TERRACOTTA, 2);
+        if (player.getInventory().countItem(Items.PINK_GLAZED_TERRACOTTA) != 0) {
+            helper.fail("the replace handed back " + player.getInventory().countItem(Items.PINK_GLAZED_TERRACOTTA) + " pink");
+        }
+        if (!player.heard.isEmpty()) {
+            helper.fail("the player was told " + player.heard);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * Fails unless the plan is refused for {@code reason}, and the click, which tells the player
+     * {@code message}, changes nothing: the aimed block stays, nothing is placed beside it, and the
+     * held stack is whole.
+     */
+    private static void expectRefusedWhole(GameTestHelper helper, ListeningPlayer player, Refusal reason, String message) {
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.refusal() != reason) {
+            helper.fail("the plan was " + plan + ", not refused with " + reason);
+        }
+        click(helper, player, false);
+        expectUntouched(helper, Blocks.PINK_GLAZED_TERRACOTTA);
+        expectNothingBeside(helper);
+        expectSlot(helper, player, HELD_SLOT, Items.LIME_GLAZED_TERRACOTTA, 2);
+        if (!player.heard.equals(List.of(message))) {
+            helper.fail("the player was told " + player.heard + ", expected " + message);
+        }
+    }
+
+    /** What vanilla would have done with the click, had the replace let it fall through: a block on top. */
+    private static void expectNothingBeside(GameTestHelper helper) {
+        if (!helper.getBlockState(AIMED.above()).isAir()) {
+            helper.fail("the refused replace placed " + helper.getBlockState(AIMED.above()) + " on top", AIMED.above());
+        }
+    }
+
+    /** Runs {@code body} with a claim on the aimed block, which cancels the place event there as a claim mod does. */
+    private static void whileClaimed(GameTestHelper helper, Runnable body) {
+        BlockPos claimed = helper.absolutePos(AIMED);
+        RotateInPlaceTests.CLAIMED.add(claimed);
+        try {
+            body.run();
+        } finally {
+            RotateInPlaceTests.CLAIMED.remove(claimed);
+        }
+    }
+
+    private static void fillInventory(ListeningPlayer player) {
         var inventory = player.getInventory().getNonEquipmentItems();
         for (int slot = 0; slot < inventory.size(); slot++) {
             if (inventory.get(slot).isEmpty()) {
                 inventory.set(slot, new ItemStack(Items.DIRT, 64));
             }
         }
-        PlacementPlan plan = plan(helper, player);
-        if (plan == null || plan.refusal() != Refusal.FastReplace.NO_ROOM_TO_RETURN) {
-            helper.fail("the plan was " + plan + ", not refused for no room to return");
-        }
-        click(helper, player, false);
-        expectUntouched(helper, Blocks.PINK_GLAZED_TERRACOTTA);
-        expectSlot(helper, player, HELD_SLOT, Items.LIME_GLAZED_TERRACOTTA, 2);
-        if (!player.heard.contains("message.groundworks.fast_replace_no_room_to_return")) {
-            helper.fail("the player was told " + player.heard);
-        }
-        helper.succeed();
     }
 
     /**

@@ -63,6 +63,12 @@ public interface Refusal {
     enum FastReplace implements Refusal {
         /** What the replace hands back would not fit in the player's inventory once it is charged. */
         NO_ROOM_TO_RETURN,
+        /**
+         * The player may not build at some position the replace puts a block: they may not build at
+         * all, as in adventure mode, or the position is outside the world, protected as spawn is, or
+         * guarded by a protection mod through the place event.
+         */
+        MAY_NOT_BUILD,
         /** The held item's own plan doesn't put a block in the aimed block's place. */
         PLANS_ELSEWHERE,
     }

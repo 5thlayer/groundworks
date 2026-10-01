@@ -43,7 +43,7 @@ final class RotateInPlaceTests {
     private static final BlockPos AIMED = new BlockPos(4, 1, 4);
 
     /** Where a test has put a claim: the place event there is cancelled, as a claim mod cancels it. */
-    private static final Set<BlockPos> CLAIMED = ConcurrentHashMap.newKeySet();
+    static final Set<BlockPos> CLAIMED = ConcurrentHashMap.newKeySet();
 
     /**
      * A block the shipped tag {@code groundworks:rotates_in_place} holds for each way a block

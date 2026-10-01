@@ -24,6 +24,7 @@
   "message.groundworks.stretch_rise_does_not_fit": "The rise doesn't fit before the stretch turns or reaches its anchor.",
   "message.groundworks.stretch_vanilla_refused": "That can't be placed there.",
   "message.groundworks.fast_replace_no_room_to_return": "There is no room in your inventory for the block you replace.",
+  "message.groundworks.fast_replace_may_not_build": "You may not build where the replace puts a block.",
   "message.groundworks.fast_replace_plans_elsewhere": "The held block would not go in the aimed block's place.",
   "message.groundworks.fast_replace_refused": "The held block can't replace the aimed block here.",
   "key.category.groundworks.groundworks": "Groundworks",
