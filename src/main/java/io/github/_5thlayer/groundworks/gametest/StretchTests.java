@@ -22,6 +22,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -71,6 +72,14 @@ final class StretchTests {
                 StretchTests::mayNotInteract);
         tests.test("a_replaced_block_is_returned_to_the_inventory", 20, StretchTests::returned);
         tests.test("no_room_to_return_refuses_the_stretch_whole", 20, StretchTests::noRoomToReturn);
+        tests.test("a_stretch_that_empties_the_held_stack_hands_back_into_the_held_slot", 20,
+                StretchTests::returnedIntoTheFreedSlot);
+        tests.test("a_stretch_charges_the_held_stack_before_another_of_the_same_item", 20,
+                StretchTests::chargedFromTheHeldStackFirst);
+        tests.test("a_stretch_whose_only_room_to_return_is_the_slot_it_empties_is_laid", 20,
+                StretchTests::onlyRoomIsTheFreedSlot);
+        tests.test("a_replaced_block_merges_into_a_stack_of_its_own_before_an_empty_slot", 20,
+                StretchTests::returnedOntoItsOwnStack);
         tests.test("laying_resets_the_stored_stretch_and_the_height", 20, StretchTests::layingResets);
         tests.test("clearing_resets_the_stored_stretch_and_the_height_and_keeps_the_turn", 20, StretchTests::clearingResets);
         tests.test("with_no_stretch_stored_a_click_places_one_block_as_planned", 20, StretchTests::single);
@@ -345,6 +354,68 @@ final class StretchTests {
         helper.succeed();
     }
 
+    /** Five arrows held in hotbar slot 3, slot 0 empty: the stretch of five takes them all. */
+    private static void returnedIntoTheFreedSlot(GameTestHelper helper) {
+        BlockPos replaced = new BlockPos(3, 1, 2);
+        helper.setBlock(replaced, LineOfArrows.REPLACED);
+        ListeningPlayer player = holdingIn(helper, 3, 5);
+        start(helper, player);
+        expectLaid(helper, layAsPlanned(helper, player, new BlockPos(5, 0, 2)), line(1, 5, 1, 2));
+        expectSlot(helper, player, 3, Items.LIGHT_BLUE_GLAZED_TERRACOTTA, 1);
+        expectSlot(helper, player, 0, Items.AIR, 0);
+        helper.succeed();
+    }
+
+    /** Five arrows held in slot 3 and five more in slot 1: the held five pay, and slot 3 takes the return. */
+    private static void chargedFromTheHeldStackFirst(GameTestHelper helper) {
+        BlockPos replaced = new BlockPos(3, 1, 2);
+        helper.setBlock(replaced, LineOfArrows.REPLACED);
+        ListeningPlayer player = holdingIn(helper, 3, 5);
+        player.getInventory().setItem(1, new ItemStack(GroundworksGameTests.STRETCHES_ARROWS.get(), 5));
+        start(helper, player);
+        expectLaid(helper, layAsPlanned(helper, player, new BlockPos(5, 0, 2)), line(1, 5, 1, 2));
+        expectSlot(helper, player, 1, GroundworksGameTests.STRETCHES_ARROWS.get(), 5);
+        expectSlot(helper, player, 3, Items.LIGHT_BLUE_GLAZED_TERRACOTTA, 1);
+        helper.succeed();
+    }
+
+    /** Every other slot full of dirt: the slot the stretch empties is the only room for what it replaces. */
+    private static void onlyRoomIsTheFreedSlot(GameTestHelper helper) {
+        BlockPos replaced = new BlockPos(3, 1, 2);
+        helper.setBlock(replaced, LineOfArrows.REPLACED);
+        ListeningPlayer player = holdingIn(helper, 3, 5);
+        var inventory = player.getInventory().getNonEquipmentItems();
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            if (inventory.get(slot).isEmpty()) {
+                inventory.set(slot, new ItemStack(Items.DIRT, 64));
+            }
+        }
+        start(helper, player);
+        expectLaid(helper, layAsPlanned(helper, player, new BlockPos(5, 0, 2)), line(1, 5, 1, 2));
+        expectSlot(helper, player, 3, Items.LIGHT_BLUE_GLAZED_TERRACOTTA, 1);
+        helper.succeed();
+    }
+
+    /** The held stack keeps items, so what comes back joins the light blue terracotta in slot 6, not empty slot 0. */
+    private static void returnedOntoItsOwnStack(GameTestHelper helper) {
+        BlockPos replaced = new BlockPos(3, 1, 2);
+        helper.setBlock(replaced, LineOfArrows.REPLACED);
+        ListeningPlayer player = holdingIn(helper, 3, 16);
+        player.getInventory().setItem(6, new ItemStack(Items.LIGHT_BLUE_GLAZED_TERRACOTTA, 10));
+        start(helper, player);
+        expectLaid(helper, layAsPlanned(helper, player, new BlockPos(5, 0, 2)), line(1, 5, 1, 2));
+        expectSlot(helper, player, 6, Items.LIGHT_BLUE_GLAZED_TERRACOTTA, 11);
+        expectSlot(helper, player, 0, Items.AIR, 0);
+        helper.succeed();
+    }
+
+    private static void expectSlot(GameTestHelper helper, ListeningPlayer player, int slot, Item item, int count) {
+        ItemStack there = player.getInventory().getItem(slot);
+        if (!there.is(item) || there.getCount() != count) {
+            helper.fail("slot " + slot + " holds " + there + ", expected " + count + " " + item);
+        }
+    }
+
     private static void layingResets(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, 16);
         start(helper, player);
@@ -509,7 +580,12 @@ final class StretchTests {
     }
 
     private static ListeningPlayer holding(GameTestHelper helper, int count) {
+        return holdingIn(helper, 0, count);
+    }
+
+    private static ListeningPlayer holdingIn(GameTestHelper helper, int hotbarSlot, int count) {
         ListeningPlayer player = new ListeningPlayer(helper, new BlockPos(0, 1, 0));
+        player.getInventory().setSelectedSlot(hotbarSlot);
         player.setYRot(Direction.EAST.toYRot());
         player.setYHeadRot(Direction.EAST.toYRot());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GroundworksGameTests.STRETCHES_ARROWS.get(), count));

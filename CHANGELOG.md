@@ -4,6 +4,10 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- A **Stretch** is paid from the held stack first, then from the rest of the main inventory, and hands what it replaces back into the slot its charge freed: when it takes the held stack's last item, what it replaces lands in the hand, not in the first empty slot. Otherwise it joins a stack of its own before an empty slot, as before. (#36)
+
 ## 0.5.0
 
 ### Players

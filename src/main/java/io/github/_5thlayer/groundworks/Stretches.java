@@ -10,14 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -28,9 +25,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.ticks.BlackholeTickAccess;
@@ -60,8 +55,8 @@ import org.jspecify.annotations.Nullable;
  * detour} when one clears it.
  *
  * <p>Laying charges one held item per placed block, nothing in creative, and hands each replaced
- * block back to the inventory. A stretch the inventory can't pay for, or has no room to take back
- * from, is refused whole.
+ * block back, into the slot the charge freed first, as its {@link Charge} has it. A stretch the
+ * inventory can't pay for, or has no room to take back from, is refused whole.
  */
 public final class Stretches {
 
@@ -199,8 +194,8 @@ public final class Stretches {
         }
     };
 
-    /** A stretch's plan, what laying it charges, and what it hands back. */
-    private record Laying(PlacementPlan plan, int cost, List<ItemStack> returned) {
+    /** A stretch's plan and what laying it charges. */
+    private record Laying(PlacementPlan plan, Charge charge) {
     }
 
     private static @Nullable Laying laying(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
@@ -272,48 +267,33 @@ public final class Stretches {
         return new Column(stored.start(), player == null ? 0 : Raise.heightOf(player, stack).blocks(), stored.look());
     }
 
-    /** The stretch's plan refused where the player may not build or can't pay, with its charge and what it hands back. */
+    /** The stretch's plan refused where the player may not build or can't pay, with its charge. */
     private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan plan) {
         Refusal refusal = plan.refusal();
         Set<BlockPos> positions = new LinkedHashSet<>();
         plan.blocks().forEach(placed -> positions.add(placed.pos()));
         List<BlockPos> replaces = plan.replaces();
         // Where the player may not build, the stretch is refused whole, whatever else refused it.
-        if (player != null && !mayBuildAll(level, player, positions)) {
+        if (player != null && !Charge.mayBuildAll(level, player, positions)) {
             refusal = Refusal.Stretch.MAY_NOT_BUILD;
         }
 
-        int cost = 0;
         List<ItemStack> returned = new ArrayList<>();
-        if (player != null && !player.hasInfiniteMaterials()) {
-            cost = positions.size();
-            for (BlockPos pos : replaces) {
-                Item back = level.getBlockState(pos).getBlock().asItem();
-                if (back != Items.AIR) {
-                    returned.add(new ItemStack(back));
-                }
-            }
-            if (refusal == null) {
-                if (ContainerHelper.clearOrCountMatchingItems(player.getInventory(), isOf(item), 0, true) < cost) {
-                    refusal = Refusal.Stretch.NOT_ENOUGH_ITEMS;
-                } else if (!fits(player, item, cost, returned)) {
-                    refusal = Refusal.Stretch.NO_ROOM_TO_RETURN;
-                }
+        for (BlockPos pos : replaces) {
+            Item back = level.getBlockState(pos).getBlock().asItem();
+            if (back != Items.AIR) {
+                returned.add(new ItemStack(back));
             }
         }
-        return new Laying(new PlacementPlan(plan.blocks(), replaces, refusal), cost, returned);
-    }
-
-    private static boolean mayBuildAll(Level level, Player player, Set<BlockPos> positions) {
-        if (!player.mayBuild()) {
-            return false;
-        }
-        for (BlockPos pos : positions) {
-            if (!level.isInWorldBounds(pos) || !level.mayInteract(player, pos)) {
-                return false;
+        Charge charge = Charge.of(player, item, positions.size(), returned);
+        if (player != null && refusal == null) {
+            if (!charge.affordable(player)) {
+                refusal = Refusal.Stretch.NOT_ENOUGH_ITEMS;
+            } else if (!charge.fits(player)) {
+                refusal = Refusal.Stretch.NO_ROOM_TO_RETURN;
             }
         }
-        return true;
+        return new Laying(new PlacementPlan(plan.blocks(), replaces, refusal), charge);
     }
 
     /**
@@ -425,25 +405,8 @@ public final class Stretches {
 
     // The state is reset before the charge, which may take the held stack's last item.
     private static void lay(Laying laying, Level level, ItemStack held, Player player, StretchState reset) {
-        Item item = held.getItem();
         store(held, reset);
-        if (laying.cost() > 0) {
-            ContainerHelper.clearOrCountMatchingItems(player.getInventory(), isOf(item), laying.cost(), false);
-        }
-        for (PlacementPlan.Placed placed : laying.plan().blocks()) {
-            level.setBlock(placed.pos(), placed.state(), Block.UPDATE_ALL);
-        }
-        for (ItemStack stack : laying.returned()) {
-            player.getInventory().placeItemBackInInventory(stack);
-        }
-        if (laying.plan().blocks().isEmpty()) {
-            return;
-        }
-        PlacementPlan.Placed first = laying.plan().blocks().getFirst();
-        SoundType sound = first.state().getSoundType();
-        level.playSound(null, first.pos(), sound.getPlaceSound(), SoundSource.BLOCKS,
-                (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F);
-        level.gameEvent(GameEvent.BLOCK_PLACE, first.pos(), GameEvent.Context.of(player, first.state()));
+        laying.charge().lay(level, player, laying.plan());
     }
 
     // No stretch, no height and no turn are no components, so a stack laid or cleared stacks again with one never used.
@@ -455,54 +418,6 @@ public final class Stretches {
         }
         Raise.setHeight(stack, state.height());
         Rotate.setTurn(stack, state.turn());
-    }
-
-    /**
-     * Whether the inventory holds what the stretch hands back once its charge is taken, as
-     * {@code Inventory#placeItemBackInInventory} would place it, in the main inventory.
-     */
-    private static boolean fits(Player player, Item item, int cost, List<ItemStack> returned) {
-        if (returned.isEmpty()) {
-            return true;
-        }
-        List<ItemStack> slots = new ArrayList<>();
-        for (ItemStack slot : player.getInventory().getNonEquipmentItems()) {
-            slots.add(slot.copy());
-        }
-        int toTake = cost;
-        for (ItemStack slot : slots) {
-            if (toTake == 0) {
-                break;
-            }
-            if (slot.is(item)) {
-                int taken = Math.min(toTake, slot.getCount());
-                slot.shrink(taken);
-                toTake -= taken;
-            }
-        }
-        for (ItemStack back : returned) {
-            ItemStack rest = back.copy();
-            for (ItemStack slot : slots) {
-                if (!slot.isEmpty() && ItemStack.isSameItemSameComponents(slot, rest)) {
-                    int moved = Math.max(0, Math.min(rest.getCount(), slot.getMaxStackSize() - slot.getCount()));
-                    slot.grow(moved);
-                    rest.shrink(moved);
-                }
-            }
-            for (int i = 0; i < slots.size() && !rest.isEmpty(); i++) {
-                if (slots.get(i).isEmpty()) {
-                    slots.set(i, rest.split(rest.getMaxStackSize()));
-                }
-            }
-            if (!rest.isEmpty()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static Predicate<ItemStack> isOf(Item item) {
-        return stack -> stack.is(item);
     }
 
     private static void tell(Player player, Component message) {
