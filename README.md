@@ -15,7 +15,7 @@ Groundworks lets you lay whole lines of blocks in one drag, see every placement 
 
 ## For pack developers
 
-Which blocks and items each feature reaches is data. Each feature has one tag, shipped with defaults, which a datapack changes with no code: `groundworks:plan_opt_in`, `groundworks:rotates_in_place`, `groundworks:stretches`, `groundworks:stretches_vertically`, and the families under `groundworks:dismantle_family/`. The server config's `planOptInNamespaces` gives every block of a mod a preview in one line.
+Which blocks and items each feature reaches is data. Each feature has one tag, shipped with defaults, which a datapack changes with no code: `groundworks:plan_opt_in`, `groundworks:rotates_in_place`, `groundworks:stretches`, `groundworks:stretches_vertically`, the families under `groundworks:dismantle_family/`, and the Fast Replace groups under `groundworks:replace_group/`, which ships empty. The server config's `planOptInNamespaces` gives every block of a mod a preview in one line.
 
 ## For mod developers
 

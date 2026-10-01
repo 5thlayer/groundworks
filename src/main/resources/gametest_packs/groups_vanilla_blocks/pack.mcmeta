@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Groundworks game tests: adds two Replace groups of concrete, which share red concrete",
+    "min_format": [101, 1],
+    "max_format": [101, 1]
+  }
+}

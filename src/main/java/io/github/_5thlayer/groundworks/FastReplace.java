@@ -5,6 +5,7 @@ package io.github._5thlayer.groundworks;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import net.minecraft.advancements.CriteriaTriggers;
@@ -37,7 +38,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The library keeps no list of mods. A Consumer {@linkplain #group states a group}: an id and
  * which blocks are its members. A block belongs to the first group that claims it, and is never
- * replaced by itself.
+ * replaced by itself. The vanilla Consumer states its groups through data, {@linkplain
+ * VanillaReplaceGroups the block tags} a pack developer fills, after every mod's own.
  *
  * <h2>The item plans, the library lays</h2>
  *
@@ -85,10 +87,12 @@ import org.jspecify.annotations.Nullable;
  */
 public final class FastReplace {
 
-    private record Group(Identifier id, Predicate<? super Block> members) {
-    }
-
-    private static final List<Group> GROUPS = new CopyOnWriteArrayList<>();
+    /**
+     * The statements of which group a block belongs to, asked in the order they were made: each
+     * answers a block with its group's id, or {@code null}. A {@linkplain #group stated group} is
+     * one; the vanilla Consumer's tags are another, whose ids come from data.
+     */
+    private static final List<Function<Block, @Nullable Identifier>> GROUP_STATEMENTS = new CopyOnWriteArrayList<>();
 
     private FastReplace() {
     }
@@ -101,14 +105,24 @@ public final class FastReplace {
      * threads at once.
      */
     public static void group(Identifier id, Predicate<? super Block> members) {
-        GROUPS.add(new Group(id, members));
+        groupsFrom(block -> members.test(block) ? id : null);
+    }
+
+    /**
+     * States groups whose ids are not known until a block is asked, as the vanilla Consumer's are
+     * its tags. A block belongs to the first group any statement gives it, in the order they were
+     * made.
+     */
+    static void groupsFrom(Function<Block, @Nullable Identifier> statement) {
+        GROUP_STATEMENTS.add(statement);
     }
 
     /** The id of the group this block belongs to, the first stated that claims it, or {@code null}. */
     static @Nullable Identifier groupOf(Block block) {
-        for (Group group : GROUPS) {
-            if (group.members().test(block)) {
-                return group.id();
+        for (Function<Block, @Nullable Identifier> statement : GROUP_STATEMENTS) {
+            Identifier group = statement.apply(block);
+            if (group != null) {
+                return group;
             }
         }
         return null;

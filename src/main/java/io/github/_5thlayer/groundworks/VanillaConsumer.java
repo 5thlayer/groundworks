@@ -36,6 +36,10 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * <p>Its {@linkplain VanillaFamilies Dismantle families} are the block tags under {@code
  * groundworks:dismantle_family/}, shipped as fences, walls, bars and rails, each taken up with the
  * tool vanilla breaks its blocks with.
+ *
+ * <p>Its {@linkplain FastReplace Replace groups} are the block tags under {@code
+ * groundworks:replace_group/}, one group per tag, shipped with none: a pack developer fills them,
+ * and a plain click with one of a tag's blocks on another replaces it.
  */
 public final class VanillaConsumer {
 
@@ -60,9 +64,10 @@ public final class VanillaConsumer {
 
     /**
      * Makes the statements, at mod construction as a Consumer mod does, but for its Stretch
-     * builder and Dismantle families. Those are registered once every mod is constructed, so they
-     * are the last asked: a Consumer mod's own builder for an item in the tag builds that item's
-     * legs, and its own family claims its blocks.
+     * builder, Dismantle families and Replace groups. Those are registered once every mod is
+     * constructed, so they are the last asked: a Consumer mod's own builder for an item in the tag
+     * builds that item's legs, its own family claims its blocks, and its own group claims its
+     * blocks.
      */
     static void register(IEventBus modBus) {
         Placements.optIn(VanillaConsumer::optsIn);
@@ -71,6 +76,7 @@ public final class VanillaConsumer {
         modBus.addListener(FMLCommonSetupEvent.class, event -> {
             Stretches.register(new VanillaLegs());
             Dismantles.register(new VanillaFamilies());
+            FastReplace.groupsFrom(VanillaReplaceGroups::groupOf);
         });
     }
 

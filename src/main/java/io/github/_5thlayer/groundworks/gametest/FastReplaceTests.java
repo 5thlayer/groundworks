@@ -45,11 +45,21 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Each test replaces the block at {@link #AIMED}, aimed at its top, with the player standing
  * west of it looking east and holding the item in hotbar slot 3.
+ *
+ * <p>The vanilla Consumer's groups, block tags under {@code groundworks:replace_group/}, are tested
+ * on concrete, which no group stated here holds, with a datapack switched on for a batch of its own.
  */
 final class FastReplaceTests {
 
     private static final BlockPos AIMED = new BlockPos(2, 1, 2);
     private static final int HELD_SLOT = 3;
+
+    /**
+     * The pack under {@code gametest_packs/} whose tags under {@code groundworks:replace_group/}
+     * group concrete: {@code first} blue and red, {@code second} red and yellow, so red is in two,
+     * and {@code third} green and lime glazed terracotta, which a group stated in code claims.
+     */
+    private static final String GROUPS_VANILLA_BLOCKS = "groups_vanilla_blocks";
 
     private FastReplaceTests() {
     }
@@ -95,6 +105,31 @@ final class FastReplaceTests {
                 FastReplaceTests::doubleSlabIsNotCopied);
         tests.test("an_orientation_the_new_block_does_not_have_is_dropped", 20,
                 FastReplaceTests::orientationTheNewBlockLacks);
+
+        // The vanilla Consumer's groups, block tags a pack developer fills, of which Groundworks ships none.
+        tests.test("with_no_datapack_a_plain_click_with_concrete_on_concrete_places_beside", 20, helper ->
+                passesToVanilla(helper, Blocks.RED_CONCRETE, Items.BLUE_CONCRETE, false));
+        var grouped = tests.withPack(GROUPS_VANILLA_BLOCKS);
+        grouped.test("a_datapack_tag_under_replace_group_makes_its_blocks_replace_one_another", 20,
+                FastReplaceTests::tagGroupReplaces);
+        // Red is in first, with blue, and in second, with yellow: it belongs to first, so yellow, in second alone, is not its group.
+        grouped.test("a_block_in_two_replace_group_tags_belongs_to_the_first_by_id", 20, helper ->
+                passesToVanilla(helper, Blocks.RED_CONCRETE, Items.YELLOW_CONCRETE, false));
+        grouped.test("a_block_of_the_second_tag_alone_does_not_replace_one_in_both", 20, helper ->
+                passesToVanilla(helper, Blocks.YELLOW_CONCRETE, Items.RED_CONCRETE, false));
+        // Third holds green concrete and lime glazed terracotta, which a group stated in code claimed first.
+        grouped.test("a_group_stated_in_code_claims_its_blocks_before_a_tag_does", 20, helper ->
+                passesToVanilla(helper, Blocks.LIME_GLAZED_TERRACOTTA, Items.GREEN_CONCRETE, false));
+    }
+
+    /** A blue concrete replaces a red one, as the tag {@code first} groups them, charged and handed back. */
+    private static void tagGroupReplaces(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.RED_CONCRETE);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.BLUE_CONCRETE, 2));
+        replaceAsPlanned(helper, player, Blocks.BLUE_CONCRETE);
+        expectSlot(helper, player, HELD_SLOT, Items.BLUE_CONCRETE, 1);
+        expectHanded(helper, player, Items.RED_CONCRETE);
+        helper.succeed();
     }
 
     private static void replaces(GameTestHelper helper) {

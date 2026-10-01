@@ -4,13 +4,11 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -24,7 +22,6 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.WallSide;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
 /**
  * The vanilla Consumer's {@linkplain DismantleFamily Dismantle families} (ADR 0005), one per block
@@ -44,8 +41,6 @@ final class VanillaFamilies implements DismantleFamily {
 
     static final String FOLDER = "dismantle_family/";
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-
     /** The blocks already warned of, so a block in two family tags is warned of once. */
     private static final Set<Block> WARNED = ConcurrentHashMap.newKeySet();
 
@@ -62,15 +57,7 @@ final class VanillaFamilies implements DismantleFamily {
      * is warned of.
      */
     static @Nullable TagKey<Block> familyOf(BlockState state) {
-        List<TagKey<Block>> tags = state.getBlock().builtInRegistryHolder().tags()
-                .filter(tag -> tag.location().getNamespace().equals(Groundworks.MOD_ID)
-                        && tag.location().getPath().startsWith(FOLDER))
-                .sorted(Comparator.comparing((TagKey<Block> tag) -> tag.location().toString()))
-                .toList();
-        if (tags.size() > 1 && WARNED.add(state.getBlock())) {
-            LOGGER.warn("{} is in {} Dismantle family tags, {}; it belongs to the first", state.getBlock(), tags.size(), tags);
-        }
-        return tags.isEmpty() ? null : tags.getFirst();
+        return VanillaTags.firstUnder(state.getBlock(), FOLDER, "Dismantle family", WARNED);
     }
 
     @Override
