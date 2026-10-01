@@ -71,6 +71,11 @@ public interface Refusal {
         MAY_NOT_BUILD,
         /** The held item's own plan doesn't put a block in the aimed block's place. */
         PLANS_ELSEWHERE,
+        /**
+         * A builder's plan replaces a position it puts no block at: a replace swaps and never
+         * clears, so a plan must place a block at every position it replaces.
+         */
+        LEAVES_A_GAP,
     }
 
     /**

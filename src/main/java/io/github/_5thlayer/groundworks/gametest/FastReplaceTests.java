@@ -39,7 +39,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * Fast Replace on the tests' own {@linkplain #stateGroups Replace groups}: lime, pink and magenta
  * glazed terracotta replace one another, birch and jungle slabs and a birch log replace one
- * another, and gray is a group of its own. Every click goes through the server player's own
+ * another, and gray is a group of its own. Three groups have a {@linkplain ReplacesAColumn builder}
+ * that replaces a column of two blocks: iron, gold, smoker and blast furnace blocks, which it plans
+ * whole; copper and lapis blocks, whose plan leaves a gap; and emerald and redstone blocks, which
+ * it refuses. Every click goes through the server player's own
  * {@code useItemOn}, so through the event Groundworks answers, and every plan through {@link
  * Placements#planFor}, as the preview asks it.
  *
@@ -72,6 +75,13 @@ final class FastReplaceTests {
         // Slabs, whose type counts what they hold, and a log, whose axis no slab has.
         FastReplace.group(id("gametest_birch"), block -> block == Blocks.BIRCH_SLAB || block == Blocks.JUNGLE_SLAB
                 || block == Blocks.BIRCH_LOG);
+        // The builders' groups, each a column of two blocks. Smokers and blast furnaces face a way, which a builder's plan sets.
+        FastReplace.group(id("gametest_column"), block -> block == Blocks.IRON_BLOCK || block == Blocks.GOLD_BLOCK
+                || block == Blocks.SMOKER || block == Blocks.BLAST_FURNACE, new ReplacesAColumn(ReplacesAColumn.Way.REPLACES));
+        FastReplace.group(id("gametest_gap"), block -> block == Blocks.COPPER_BLOCK || block == Blocks.LAPIS_BLOCK,
+                new ReplacesAColumn(ReplacesAColumn.Way.LEAVES_A_GAP));
+        FastReplace.group(id("gametest_refuses"), block -> block == Blocks.EMERALD_BLOCK || block == Blocks.REDSTONE_BLOCK,
+                new ReplacesAColumn(ReplacesAColumn.Way.REFUSES));
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
@@ -106,6 +116,22 @@ final class FastReplaceTests {
         tests.test("an_orientation_the_new_block_does_not_have_is_dropped", 20,
                 FastReplaceTests::orientationTheNewBlockLacks);
 
+        // A Replace group's builder, which plans a replace that spans a column of two blocks.
+        tests.test("a_builder_replaces_a_column_from_its_lower_block_for_one_item_and_hands_back_what_it_names", 20,
+                helper -> columnReplaced(helper, AIMED));
+        tests.test("a_builder_replaces_a_column_from_its_upper_block_for_one_item_and_hands_back_what_it_names", 20,
+                helper -> columnReplaced(helper, AIMED.above()));
+        tests.test("a_builder_s_plan_names_both_blocks_replaced_and_both_placed", 20, FastReplaceTests::columnPlan);
+        tests.test("a_builder_that_plans_nothing_leaves_the_click_to_vanilla", 20, helper ->
+                passesToVanilla(helper, Blocks.GOLD_BLOCK, Items.IRON_BLOCK, false));
+        tests.test("a_builder_decides_whether_a_block_replaces_its_own_kind", 20, FastReplaceTests::builderReplacesItsOwnKind);
+        tests.test("a_builder_s_plan_takes_no_orientation_from_the_old_blocks", 20, FastReplaceTests::builderKeepsNoOrientation);
+        tests.test("a_builder_plan_that_replaces_a_block_it_does_not_place_is_refused_and_changes_nothing", 20,
+                FastReplaceTests::leavesAGap);
+        tests.test("a_builder_s_own_refusal_cancels_the_click_and_the_player_is_told_its_reason", 20,
+                FastReplaceTests::builderRefuses);
+        tests.test("a_claim_on_any_block_of_a_builder_s_plan_refuses_the_replace", 20, FastReplaceTests::claimOnTheSecondBlock);
+
         // The vanilla Consumer's groups, block tags a pack developer fills, of which Groundworks ships none.
         tests.test("with_no_datapack_a_plain_click_with_concrete_on_concrete_places_beside", 20, helper ->
                 passesToVanilla(helper, Blocks.RED_CONCRETE, Items.BLUE_CONCRETE, false));
@@ -120,6 +146,181 @@ final class FastReplaceTests {
         // Third holds green concrete and lime glazed terracotta, which a group stated in code claimed first.
         grouped.test("a_group_stated_in_code_claims_its_blocks_before_a_tag_does", 20, helper ->
                 passesToVanilla(helper, Blocks.LIME_GLAZED_TERRACOTTA, Items.GREEN_CONCRETE, false));
+    }
+
+    /**
+     * Gold blocks stand in a column of two, and an iron block replaces them with a click on either:
+     * the plan swaps both, the click charges one iron block and hands back the one amethyst shard
+     * the builder names, and not a gold block for each.
+     */
+    private static void columnReplaced(GameTestHelper helper, BlockPos aim) {
+        setColumn(helper, Blocks.GOLD_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.IRON_BLOCK, 2));
+        PlacementPlan plan = planAt(helper, player, aim);
+        expectColumnPlan(helper, plan, Blocks.IRON_BLOCK);
+        clickAt(helper, player, aim);
+        expectColumn(helper, Blocks.IRON_BLOCK);
+        expectSlot(helper, player, HELD_SLOT, Items.IRON_BLOCK, 1);
+        expectHanded(helper, player, Items.AMETHYST_SHARD);
+        if (player.getInventory().countItem(Items.GOLD_BLOCK) != 0) {
+            helper.fail("the replace handed back " + player.getInventory().countItem(Items.GOLD_BLOCK) + " gold blocks");
+        }
+        if (!helper.getBlockState(AIMED.above(2)).isAir()) {
+            helper.fail("the replace also placed " + helper.getBlockState(AIMED.above(2)), AIMED.above(2));
+        }
+        if (!player.heard.isEmpty()) {
+            helper.fail("the player was told " + player.heard);
+        }
+        helper.succeed();
+    }
+
+    /** The plan the preview asks names both blocks of the column as replaced, so it draws both in the replace tint. */
+    private static void columnPlan(GameTestHelper helper) {
+        setColumn(helper, Blocks.GOLD_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.IRON_BLOCK, 2));
+        expectColumnPlan(helper, planAt(helper, player, AIMED), Blocks.IRON_BLOCK);
+        expectColumnPlan(helper, planAt(helper, player, AIMED.above()), Blocks.IRON_BLOCK);
+        expectColumn(helper, Blocks.GOLD_BLOCK);
+        helper.succeed();
+    }
+
+    /**
+     * Without a builder a block is never replaced by itself; the builder decides, so an iron column
+     * is replaced by an iron block, charged and handed back as any replace.
+     */
+    private static void builderReplacesItsOwnKind(GameTestHelper helper) {
+        setColumn(helper, Blocks.IRON_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.IRON_BLOCK, 2));
+        expectColumnPlan(helper, planAt(helper, player, AIMED), Blocks.IRON_BLOCK);
+        clickAt(helper, player, AIMED);
+        expectColumn(helper, Blocks.IRON_BLOCK);
+        expectSlot(helper, player, HELD_SLOT, Items.IRON_BLOCK, 1);
+        expectHanded(helper, player, Items.AMETHYST_SHARD);
+        helper.succeed();
+    }
+
+    /**
+     * The smokers face east, and a blast furnace whose plan took their facing would too: the
+     * builder's plan is as it made it, facing north, in the plan the preview draws and in the world.
+     */
+    private static void builderKeepsNoOrientation(GameTestHelper helper) {
+        BlockState smoker = Blocks.SMOKER.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST);
+        helper.setBlock(AIMED, smoker);
+        helper.setBlock(AIMED.above(), smoker);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.BLAST_FURNACE, 2));
+        PlacementPlan plan = planAt(helper, player, AIMED);
+        expectColumnPlan(helper, plan, Blocks.BLAST_FURNACE);
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            if (placed.state().getValue(BlockStateProperties.HORIZONTAL_FACING) != Direction.NORTH) {
+                helper.fail("the plan showed " + placed.state() + ", not facing north");
+            }
+        }
+        clickAt(helper, player, AIMED);
+        expectFacing(helper, AIMED, Blocks.BLAST_FURNACE, Direction.NORTH);
+        expectFacing(helper, AIMED.above(), Blocks.BLAST_FURNACE, Direction.NORTH);
+        helper.succeed();
+    }
+
+    /**
+     * The builder replaces both copper blocks and places only the upper: a replace swaps and never
+     * clears, so the plan is refused as leaving a gap, still drawn where its blocks go, and the
+     * click tells so, never places beside the upper block it is aimed at, and changes nothing.
+     */
+    private static void leavesAGap(GameTestHelper helper) {
+        setColumn(helper, Blocks.COPPER_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.LAPIS_BLOCK, 2));
+        PlacementPlan plan = planAt(helper, player, AIMED.above());
+        if (plan == null || plan.refusal() != Refusal.FastReplace.LEAVES_A_GAP || plan.blocks().size() != 1) {
+            helper.fail("the plan was " + plan + ", not refused with " + Refusal.FastReplace.LEAVES_A_GAP);
+        }
+        clickAt(helper, player, AIMED.above());
+        expectColumn(helper, Blocks.COPPER_BLOCK);
+        if (!helper.getBlockState(AIMED.above(2)).isAir()) {
+            helper.fail("the refused replace placed " + helper.getBlockState(AIMED.above(2)), AIMED.above(2));
+        }
+        expectSlot(helper, player, HELD_SLOT, Items.LAPIS_BLOCK, 2);
+        expectNothingHanded(helper, player);
+        if (!player.heard.equals(List.of("message.groundworks.fast_replace_leaves_a_gap"))) {
+            helper.fail("the player was told " + player.heard);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The builder refuses the emerald column with a reason of its own, standing at the aimed upper
+     * block: the plan is drawn where its blocks go, the click is cancelled and never places beside,
+     * the player is told what the builder says of the reason itself, and nothing changes.
+     */
+    private static void builderRefuses(GameTestHelper helper) {
+        setColumn(helper, Blocks.EMERALD_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.REDSTONE_BLOCK, 2));
+        PlacementPlan plan = planAt(helper, player, AIMED.above());
+        if (plan == null || !(plan.refusal() instanceof Refusal.At at) || at.reason() != ReplacesAColumn.Refuses.NOT_THIS_COLUMN
+                || plan.blocks().size() != 2 || plan.replaces().size() != 2) {
+            helper.fail("the plan was " + plan + ", not the builder's refusal of the column");
+        }
+        clickAt(helper, player, AIMED.above());
+        expectColumn(helper, Blocks.EMERALD_BLOCK);
+        if (!helper.getBlockState(AIMED.above(2)).isAir()) {
+            helper.fail("the refused replace placed " + helper.getBlockState(AIMED.above(2)), AIMED.above(2));
+        }
+        expectSlot(helper, player, HELD_SLOT, Items.REDSTONE_BLOCK, 2);
+        expectNothingHanded(helper, player);
+        if (!player.heard.equals(List.of(ReplacesAColumn.REFUSED))) {
+            helper.fail("the player was told " + player.heard + ", expected " + ReplacesAColumn.REFUSED);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A claim covers the upper block of the column alone, which the click is not aimed at: the plan
+     * goes through, and the click, which asks the place event at each block it puts down, is
+     * refused and changes nothing.
+     */
+    private static void claimOnTheSecondBlock(GameTestHelper helper) {
+        setColumn(helper, Blocks.GOLD_BLOCK);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.IRON_BLOCK, 2));
+        whileClaimed(helper, AIMED.above(), () -> clickAt(helper, player, AIMED));
+        expectColumn(helper, Blocks.GOLD_BLOCK);
+        expectSlot(helper, player, HELD_SLOT, Items.IRON_BLOCK, 2);
+        expectNothingHanded(helper, player);
+        if (!player.heard.equals(List.of("message.groundworks.fast_replace_may_not_build"))) {
+            helper.fail("the player was told " + player.heard);
+        }
+        helper.succeed();
+    }
+
+    private static void setColumn(GameTestHelper helper, Block block) {
+        helper.setBlock(AIMED, block);
+        helper.setBlock(AIMED.above(), block);
+    }
+
+    private static void expectColumn(GameTestHelper helper, Block block) {
+        expectBlock(helper, AIMED, block);
+        expectBlock(helper, AIMED.above(), block);
+    }
+
+    private static void expectBlock(GameTestHelper helper, BlockPos pos, Block block) {
+        if (!helper.getBlockState(pos).is(block)) {
+            helper.fail("expected " + block + ", found " + helper.getBlockState(pos), pos);
+        }
+    }
+
+    /** Fails unless the plan replaces and places both blocks of the column, as {@code block}, and would go through. */
+    private static void expectColumnPlan(GameTestHelper helper, @Nullable PlacementPlan plan, Block block) {
+        List<BlockPos> column = List.of(helper.absolutePos(AIMED), helper.absolutePos(AIMED.above()));
+        if (plan == null || plan.isRefused() || !plan.replaces().equals(column)
+                || !plan.blocks().stream().map(PlacementPlan.Placed::pos).toList().equals(column)
+                || !plan.blocks().stream().allMatch(placed -> placed.state().is(block))) {
+            helper.fail("the plan was " + plan + ", not a replace of both blocks of the column with " + block);
+        }
+    }
+
+    /** What the refusal handed back: nothing at all. */
+    private static void expectNothingHanded(GameTestHelper helper, ListeningPlayer player) {
+        if (player.getInventory().countItem(Items.AMETHYST_SHARD) != 0) {
+            helper.fail("the refused replace handed back " + player.getInventory().countItem(Items.AMETHYST_SHARD) + " amethyst shards");
+        }
     }
 
     /** A blue concrete replaces a red one, as the tag {@code first} groups them, charged and handed back. */
@@ -411,7 +612,12 @@ final class FastReplaceTests {
 
     /** Runs {@code body} with a claim on the aimed block, which cancels the place event there as a claim mod does. */
     private static void whileClaimed(GameTestHelper helper, Runnable body) {
-        BlockPos claimed = helper.absolutePos(AIMED);
+        whileClaimed(helper, AIMED, body);
+    }
+
+    /** The same, for the block at {@code pos}. */
+    private static void whileClaimed(GameTestHelper helper, BlockPos pos, Runnable body) {
+        BlockPos claimed = helper.absolutePos(pos);
         RotateInPlaceTests.CLAIMED.add(claimed);
         try {
             body.run();
@@ -489,14 +695,22 @@ final class FastReplaceTests {
     }
 
     private static @Nullable PlacementPlan plan(GameTestHelper helper, ListeningPlayer player) {
-        return Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(), onTop(helper, AIMED));
+        return planAt(helper, player, AIMED);
+    }
+
+    private static @Nullable PlacementPlan planAt(GameTestHelper helper, ListeningPlayer player, BlockPos aim) {
+        return Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(), onTop(helper, aim));
     }
 
     private static void click(GameTestHelper helper, ListeningPlayer player, boolean sneaking) {
         player.setShiftKeyDown(sneaking);
-        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
-                onTop(helper, AIMED));
+        clickAt(helper, player, AIMED);
         player.setShiftKeyDown(false);
+    }
+
+    private static void clickAt(GameTestHelper helper, ListeningPlayer player, BlockPos aim) {
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
+                onTop(helper, aim));
     }
 
     private static void look(ListeningPlayer player, Direction look) {

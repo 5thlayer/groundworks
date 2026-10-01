@@ -26,6 +26,7 @@
   "message.groundworks.fast_replace_no_room_to_return": "There is no room in your inventory for the block you replace.",
   "message.groundworks.fast_replace_may_not_build": "You may not build where the replace puts a block.",
   "message.groundworks.fast_replace_plans_elsewhere": "The held block would not go in the aimed block's place.",
+  "message.groundworks.fast_replace_leaves_a_gap": "This replace would leave a gap.",
   "message.groundworks.fast_replace_refused": "The held block can't replace the aimed block here.",
   "key.category.groundworks.groundworks": "Groundworks",
   "key.groundworks.rotate": "Rotate",

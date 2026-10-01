@@ -18,9 +18,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,9 +34,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <h2>Each Consumer states its groups</h2>
  *
- * <p>The library keeps no list of mods. A Consumer {@linkplain #group states a group}: an id and
- * which blocks are its members. A block belongs to the first group that claims it, and is never
- * replaced by itself. The vanilla Consumer states its groups through data, {@linkplain
+ * <p>The library keeps no list of mods. A Consumer {@linkplain #group states a group}: an id,
+ * which blocks are its members, and optionally a {@linkplain ReplaceBuilder builder}. A block
+ * belongs to the first group that claims it, and without a builder is never replaced by itself.
+ * The vanilla Consumer states its groups through data, {@linkplain
  * VanillaReplaceGroups the block tags} a pack developer fills, after every mod's own.
  *
  * <h2>The item plans, the library lays</h2>
@@ -58,6 +57,21 @@ import org.jspecify.annotations.Nullable;
  * is the stretch's. A height held by {@link Raise} doesn't move a replace and stays on the stack.
  * A refusal of the library's own is told by name; any other, the item's own, as that the held
  * block can't replace the aimed one here.
+ *
+ * <h2>A group's builder plans a replace that spans blocks</h2>
+ *
+ * <p>A group with a builder takes its plan from the builder, not from the item: the group is the
+ * aimed block's, which must be the held block's too, and the builder is asked for the whole plan,
+ * the positions it swaps, the state at each and which it replaces. It is asked wherever the item's
+ * own plan would be, and when it plans nothing the click is the item's own, as vanilla's. The
+ * builder decides which members replace which, so the same kind is not refused as it is without
+ * one, and its plan is used as it is, with no orientation copied. A plan must place a block at
+ * every position it replaces, since a replace swaps and never clears: one that leaves a position
+ * out is refused as {@link Refusal.FastReplace#LEAVES_A_GAP}. The builder says what a replace hands
+ * back, one stack for the plan. The library charges one held item for the plan, checks room for
+ * the refund and that the player may build at each position, fires the place event at each, and
+ * lays the swaps in the plan's order, as it does the item's. A refusal of the builder's own is told
+ * through its {@linkplain ReplaceBuilder#message message}, as a Stretch's leg builder's is.
  *
  * <h2>The new block keeps the old one's orientation</h2>
  *
@@ -87,25 +101,45 @@ import org.jspecify.annotations.Nullable;
  */
 public final class FastReplace {
 
+    /** A Replace group: its id, and the builder that plans its replaces, or {@code null} for the item's own plan. */
+    private record Group(Identifier id, @Nullable ReplaceBuilder builder) {
+    }
+
     /**
      * The statements of which group a block belongs to, asked in the order they were made: each
-     * answers a block with its group's id, or {@code null}. A {@linkplain #group stated group} is
-     * one; the vanilla Consumer's tags are another, whose ids come from data.
+     * answers a block with its group, or {@code null}. A {@linkplain #group stated group} is one;
+     * the vanilla Consumer's tags are another, whose ids come from data and which have no builder.
      */
-    private static final List<Function<Block, @Nullable Identifier>> GROUP_STATEMENTS = new CopyOnWriteArrayList<>();
+    private static final List<Function<Block, @Nullable Group>> GROUP_STATEMENTS = new CopyOnWriteArrayList<>();
 
     private FastReplace() {
     }
 
     /**
-     * States a Replace group: the blocks {@code members} matches replace one another.
+     * States a Replace group: the blocks {@code members} matches replace one another, each as the
+     * held item's own plan puts it.
      *
      * <p>Called at mod construction, on both sides, since the preview asks on the client and the
      * click on the server. Mods are constructed in parallel, so this may be called from several
      * threads at once.
      */
     public static void group(Identifier id, Predicate<? super Block> members) {
-        groupsFrom(block -> members.test(block) ? id : null);
+        state(id, members, null);
+    }
+
+    /**
+     * States a Replace group whose replace {@code builder} plans: a replace that spans several
+     * blocks, and what it hands back, is the builder's to say.
+     *
+     * <p>Called at mod construction, on both sides, as {@link #group(Identifier, Predicate)} is.
+     */
+    public static void group(Identifier id, Predicate<? super Block> members, ReplaceBuilder builder) {
+        state(id, members, builder);
+    }
+
+    private static void state(Identifier id, Predicate<? super Block> members, @Nullable ReplaceBuilder builder) {
+        Group group = new Group(id, builder);
+        GROUP_STATEMENTS.add(block -> members.test(block) ? group : null);
     }
 
     /**
@@ -114,13 +148,16 @@ public final class FastReplace {
      * made.
      */
     static void groupsFrom(Function<Block, @Nullable Identifier> statement) {
-        GROUP_STATEMENTS.add(statement);
+        GROUP_STATEMENTS.add(block -> {
+            Identifier id = statement.apply(block);
+            return id == null ? null : new Group(id, null);
+        });
     }
 
-    /** The id of the group this block belongs to, the first stated that claims it, or {@code null}. */
-    static @Nullable Identifier groupOf(Block block) {
-        for (Function<Block, @Nullable Identifier> statement : GROUP_STATEMENTS) {
-            Identifier group = statement.apply(block);
+    /** The group this block belongs to, the first stated that claims it, or {@code null}. */
+    private static @Nullable Group groupOf(Block block) {
+        for (Function<Block, @Nullable Group> statement : GROUP_STATEMENTS) {
+            Group group = statement.apply(block);
             if (group != null) {
                 return group;
             }
@@ -128,8 +165,8 @@ public final class FastReplace {
         return null;
     }
 
-    /** A replace's plan and what laying it charges. */
-    private record Replacing(PlacementPlan plan, Charge charge) {
+    /** A replace's plan, what laying it charges, and the builder that planned it, if its group has one. */
+    private record Replacing(PlacementPlan plan, Charge charge, @Nullable ReplaceBuilder builder) {
     }
 
     /**
@@ -150,23 +187,31 @@ public final class FastReplace {
         }
         BlockPos aimed = hit.getBlockPos();
         BlockState old = level.getBlockState(aimed);
-        Identifier group = groupOf(item.getBlock());
-        if (group == null || old.is(item.getBlock()) || !group.equals(groupOf(old.getBlock()))) {
+        Group group = groupOf(item.getBlock());
+        Group aimedGroup = groupOf(old.getBlock());
+        if (group == null || aimedGroup == null || !group.id().equals(aimedGroup.id())) {
+            return null;
+        }
+        ReplaceBuilder builder = aimedGroup.builder();
+        if (builder == null && old.is(item.getBlock())) {
             return null;
         }
 
-        PlacementPlan planned = Placements.planFor(item, new ReplacingContext(level, player, hand, stack, hit));
         PlacementPlan plan;
-        if (planned == null) {
-            plan = PlacementPlan.refused(aimed, item.getBlock().defaultBlockState(), Refusal.FastReplace.PLANS_ELSEWHERE);
-        } else if (planned.blocks().stream().noneMatch(placed -> placed.pos().equals(aimed))) {
-            plan = PlacementPlan.refused(planned.blocks(), Refusal.FastReplace.PLANS_ELSEWHERE);
+        ItemStack back;
+        if (builder == null) {
+            plan = itemPlan(level, player, hand, stack, hit, item, old);
+            back = new ItemStack(old.getBlock().asItem());
         } else {
-            plan = new PlacementPlan(keepingOrientation(planned.blocks(), aimed, old, stack), List.of(aimed), planned.refusal());
+            PlacementPlan planned = builder.plan(level, player, stack, aimed, old);
+            if (planned == null) {
+                return null;
+            }
+            plan = leavesAGap(planned) ? refused(planned, Refusal.FastReplace.LEAVES_A_GAP) : planned;
+            back = builder.refund(level, aimed, old);
         }
 
-        Item back = old.getBlock().asItem();
-        Charge charge = Charge.of(player, item, 1, back == Items.AIR ? List.of() : List.of(new ItemStack(back)));
+        Charge charge = Charge.of(player, item, 1, back.isEmpty() ? List.of() : List.of(back));
         // Where the player may not build, the replace is refused whatever else refused it.
         List<BlockPos> positions = plan.blocks().stream().map(PlacementPlan.Placed::pos).toList();
         if (player != null && !Charge.mayBuildAll(level, player, positions)) {
@@ -174,7 +219,29 @@ public final class FastReplace {
         } else if (player != null && !plan.isRefused() && !charge.fits(player)) {
             plan = refused(plan, Refusal.FastReplace.NO_ROOM_TO_RETURN);
         }
-        return new Replacing(plan, charge);
+        return new Replacing(plan, charge, builder);
+    }
+
+    /**
+     * The held item's own plan for the aimed block, marked as replacing it, with the old block's
+     * orientation: refused where the item plans no block there.
+     */
+    private static PlacementPlan itemPlan(Level level, @Nullable Player player, InteractionHand hand, ItemStack stack,
+                                          BlockHitResult hit, BlockItem item, BlockState old) {
+        BlockPos aimed = hit.getBlockPos();
+        PlacementPlan planned = Placements.planFor(item, new ReplacingContext(level, player, hand, stack, hit));
+        if (planned == null) {
+            return PlacementPlan.refused(aimed, item.getBlock().defaultBlockState(), Refusal.FastReplace.PLANS_ELSEWHERE);
+        }
+        if (planned.blocks().stream().noneMatch(placed -> placed.pos().equals(aimed))) {
+            return PlacementPlan.refused(planned.blocks(), Refusal.FastReplace.PLANS_ELSEWHERE);
+        }
+        return new PlacementPlan(keepingOrientation(planned.blocks(), aimed, old, stack), List.of(aimed), planned.refusal());
+    }
+
+    /** Whether the plan replaces a position it puts no block at. */
+    private static boolean leavesAGap(PlacementPlan plan) {
+        return !plan.blocks().stream().map(PlacementPlan.Placed::pos).toList().containsAll(plan.replaces());
     }
 
     /**
@@ -228,7 +295,7 @@ public final class FastReplace {
         if (!level.isClientSide()) {
             PlacementPlan plan = guarded(level, player, replacing.plan());
             if (plan.isRefused()) {
-                tell(player, message(plan.refusal()));
+                tell(player, message(replacing.builder(), plan.refusal()));
             } else {
                 // The charge may take the held stack's last item, and a placed block is told what placed it.
                 ItemStack placedWith = held.copyWithCount(1);
@@ -270,16 +337,20 @@ public final class FastReplace {
         return new PlacementPlan(plan.blocks(), plan.replaces(), reason);
     }
 
-    /** What the player is told of a refused replace: the library's own reason, or that the held block can't go there. */
-    static Component message(Refusal refusal) {
+    /**
+     * What the player is told of a refused replace: the library's own reason, or else the group's
+     * builder's, and where there is none, that the held block can't go there.
+     */
+    static Component message(@Nullable ReplaceBuilder builder, Refusal refusal) {
         Refusal reason = refusal instanceof Refusal.At at ? at.reason() : refusal;
         if (!(reason instanceof Refusal.FastReplace fastReplace)) {
-            return Component.translatable("message.groundworks.fast_replace_refused");
+            return builder == null ? Component.translatable("message.groundworks.fast_replace_refused") : builder.message(reason);
         }
         return switch (fastReplace) {
             case NO_ROOM_TO_RETURN -> Component.translatable("message.groundworks.fast_replace_no_room_to_return");
             case MAY_NOT_BUILD -> Component.translatable("message.groundworks.fast_replace_may_not_build");
             case PLANS_ELSEWHERE -> Component.translatable("message.groundworks.fast_replace_plans_elsewhere");
+            case LEAVES_A_GAP -> Component.translatable("message.groundworks.fast_replace_leaves_a_gap");
         };
     }
 
