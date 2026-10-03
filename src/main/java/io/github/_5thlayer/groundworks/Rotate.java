@@ -122,12 +122,22 @@ public final class Rotate {
         switch (RotatePress.decide(isRotatable(held) ? turnOf(held) : null, reverse,
                 aimed == null || !mayReach(player, aimed) ? null : new AimedInWorld(player, aimed, reverse))) {
             case RotatePress.PlanTurned<BlockState>(QuarterTurn turn) -> setTurn(held, turn);
-            case RotatePress.TurnedInPlace<BlockState>(BlockState turned) ->
-                    player.level().setBlock(aimed, turned, Block.UPDATE_ALL);
+            case RotatePress.TurnedInPlace<BlockState>(BlockState turned) -> turnInPlace(player.level(), aimed, turned);
             case RotatePress.Refused<BlockState>(String reason) ->
                     player.sendOverlayMessage(Component.translatable(reason));
             case RotatePress.Nothing<BlockState>() -> {
             }
+        }
+    }
+
+    /** Lays a turn in place: the aimed block's new state, or for a footprint, its origin's, which turns the whole. */
+    private static void turnInPlace(Level level, BlockPos aimed, BlockState turned) {
+        BlockState state = level.getBlockState(aimed);
+        Footprint footprint = Footprint.of(state);
+        if (footprint != null) {
+            footprint.turn(level, aimed, state, turned);
+        } else {
+            level.setBlock(aimed, turned, Block.UPDATE_ALL);
         }
     }
 
@@ -154,9 +164,11 @@ public final class Rotate {
             return player.level().getBlockState(pos);
         }
 
+        /** A footprint's blocks need no statement: a footprint always turns whole (ADR 0009). */
         @Override
         public boolean isStated() {
-            return isTurnedInPlace(state().getBlock());
+            BlockState state = state();
+            return isTurnedInPlace(state.getBlock()) || Footprint.of(state) != null;
         }
 
         /**
@@ -172,6 +184,10 @@ public final class Rotate {
         @Override
         public @Nullable Verdict<BlockState> ownTurn() {
             BlockState state = state();
+            Footprint footprint = Footprint.of(state);
+            if (footprint != null) {
+                return footprint.turnInPlace(player.level(), pos, state, player, reverse);
+            }
             return state.getBlock() instanceof TurnsInPlace block
                     ? block.turnInPlace(state, player.level(), pos, reverse)
                     : null;

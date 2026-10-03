@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Groundworks game tests: the tests' footprint origin drops its item",
+    "min_format": [101, 1],
+    "max_format": [101, 1]
+  }
+}

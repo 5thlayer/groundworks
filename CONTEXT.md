@@ -108,6 +108,20 @@ _Avoid_: height gesture (the pair's old working name), elevate, lift
 The way a **Leg** goes round an obstacle at its own height, flat, on the side of the leg the player stands on, and never far from the straight line. It leaves and meets the leg's **Anchors** the way the leg does, so the rise stays put and the next leg heads the same way; an obstacle right beside an anchor is not gone round. What is an obstacle is the item's to say; a leg that no detour clears is refused.
 _Avoid_: pathfinding, reroute, go-around
 
+### Footprints
+
+**Footprint**:
+A block that stands on several positions, placed and broken whole: one **Origin** and a **Part** at each of its other positions, set by its shape. One item places it, facing the player, or nothing when any of its positions is taken, and the **Placement Preview** draws it whole. Breaking any of its blocks breaks the **Origin** as the player would, so what the origin drops comes back once, and takes every part with it. **Rotate in Place** on any of its blocks turns it whole about its **Origin**, which keeps what it holds, or refuses with its reason when the turned shape doesn't fit. Groundworks has none of its own: a **Consumer** declares each, by its shape, and its machines stand on one.
+_Avoid_: multiblock (a structure the player assembles block by block), machine (what a Consumer builds on a footprint)
+
+**Origin**:
+The block of a **Footprint** that every other is placed relative to: it holds the block entity and the facing, and is the Consumer's own block.
+_Avoid_: anchor (a **Stretch**'s), controller, core
+
+**Part**:
+A block of a **Footprint** other than its **Origin**. It is not drawn, holds nothing and is never placed alone; it answers for its origin, to a click, to a lookup of energy, fluid or items, and to a look at it.
+_Avoid_: slave, dummy block
+
 ### Dismantling
 
 **Dismantle**:

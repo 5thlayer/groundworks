@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
  * Why a {@link PlacementPlan} or a {@link DismantleSpan} would not go through.
  *
  * <p>Open, with no methods: the library names only {@link Vanilla#VANILLA} and its
- * {@link Dismantle}, {@link Stretch} and {@link FastReplace} reasons, and each Consumer names its own reasons in an enum
+ * {@link Dismantle}, {@link Stretch}, {@link FastReplace} and {@link Footprint} reasons, and each Consumer names its own reasons in an enum
  * that implements this. The renderer asks only whether a plan is refused, and a Consumer's checks keep comparing its
  * own enum values, which the compiler checks.
  *
@@ -76,6 +76,15 @@ public interface Refusal {
          * clears, so a plan must place a block at every position it replaces.
          */
         LEAVES_A_GAP,
+    }
+
+    /** The library's own reason for placing a {@linkplain io.github._5thlayer.groundworks.Footprint Footprint}. */
+    enum Footprint implements Refusal {
+        /**
+         * A position the footprint would stand on is outside the world, holds a block a placement
+         * can't replace, or has an entity in the way.
+         */
+        BLOCKED,
     }
 
     /**

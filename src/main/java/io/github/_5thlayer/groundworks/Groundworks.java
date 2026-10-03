@@ -25,7 +25,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * {@link Rotate} keeps its turn there and {@link Raise} its height, each answering its keys'
  * payload; the {@linkplain Stretches Stretch} keeps the stretch being drawn there and answers the
  * clicks too. The {@linkplain VanillaConsumer vanilla Consumer} makes its statements here, read from
- * a tag and the {@linkplain GroundworksConfig server config}. The drawing and the keys are {@code
+ * a tag and the {@linkplain GroundworksConfig server config}. Every {@linkplain FootprintPartBlock
+ * footprint part} forwards its capabilities to its origin from here. The drawing and the keys are {@code
  * client.GroundworksClient}.
  */
 @Mod(Groundworks.MOD_ID)
@@ -62,6 +63,7 @@ public final class Groundworks {
         VanillaConsumer.register(modBus);
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
+        modBus.addListener(Footprint::forwardCapabilities);
         GroundworksGameTests.register(modBus);
         // An event rather than an item's own use: the tools that dismantle, the items that
         // stretch, and the blocks that replace, are no one's in particular.

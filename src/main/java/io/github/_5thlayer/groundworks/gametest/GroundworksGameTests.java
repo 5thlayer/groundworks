@@ -58,7 +58,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * registered only when game tests are enabled, for the same reason. The builder, the {@link
  * RowOfTerracotta} family and the {@linkplain FastReplaceTests#stateGroups Replace groups} are
  * registered at mod construction, as a Consumer's are, so a dev client stretches, dismantles and
- * replaces with them too.
+ * replaces with them too. The {@linkplain TestFootprint tests' Footprint} is registered only when
+ * game tests are enabled, with its blocks and item.
  */
 public final class GroundworksGameTests {
 
@@ -126,6 +127,7 @@ public final class GroundworksGameTests {
             Stretches.register(new LineOfArrows());
             Dismantles.register(new RowOfTerracotta());
             FastReplaceTests.stateGroups();
+            TestFootprint.register(modBus);
         }
         // Posted only when game tests are enabled, so a production server never registers the tests.
         modBus.addListener(GroundworksGameTests::registerTests);
@@ -150,6 +152,7 @@ public final class GroundworksGameTests {
         DismantleTests.register(tests);
         VanillaDismantleTests.register(tests);
         FastReplaceTests.register(tests);
+        FootprintTests.register(tests);
     }
 
     private static Identifier id(String path) {
