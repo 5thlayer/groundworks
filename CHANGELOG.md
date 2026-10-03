@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.2
+
 ### Players
 
 - **Footprints**: a machine a mod builds on several blocks is placed whole from one item, facing you, and the preview draws it whole; it is refused whole, placing nothing, when any of its blocks is taken. Breaking any of its blocks breaks the whole machine and hands its item back once, and Rotate in Place on any of its blocks turns it whole, keeping what it holds, or tells you there is no room. Jade shows the machine's own line on every block of it. Groundworks adds no machine of its own. (#40)
