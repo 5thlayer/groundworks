@@ -85,7 +85,7 @@ _Avoid_: replace list, upgrade path
 ### Stretching
 
 **Stretch**:
-The blocks one drag of a held item lays, planned, charged, laid and refused whole. Its route passes through every **Anchor**, one **Leg** after another. It never changes height by itself: only **Raise** and **Lower** do. Its **Placement Preview** draws each block as it will stand once the whole stretch is laid, joined to its planned neighbours and to the world beside it.
+The blocks one drag of a held item lays, planned, charged, laid and refused whole. Its route passes through every **Anchor**, one **Leg** after another. It never changes height by itself: only **Raise** and **Lower** do. Its **Placement Preview** draws each block as it will stand once the whole stretch is laid, joined to its planned neighbours and to the world beside it. A block of the held item's own **Replace group** is no obstacle to it: a stretch replaces it in place, at the stretch's own height, drawn in the replace tint and handed back as a **Fast Replace** hands back what it replaces, and a start, anchor or end aimed at one lies in it rather than beside it, so a road is laid into the ground and Raised to lie on top. A plant the replace leaves with nothing to stand on goes with it, dropping nothing, as a placement overwrites one in its way. A block that already is the held block stays as it stands, neither charged nor handed back. A group whose replace spans several blocks is always an obstacle. Each replaced block keeps none of its orientation: the stretch's look sets it.
 _Avoid_: run, zoop, drag (the gesture, not what it lays)
 
 **Anchor**:
