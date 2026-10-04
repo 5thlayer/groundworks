@@ -4,6 +4,10 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- Groundworks' item tags, `groundworks:dismantles`, `groundworks:stretches` and `groundworks:stretches_vertically`, have display names, so EMI no longer warns that they are untranslated.
+
 ## 0.5.2
 
 ### Players
