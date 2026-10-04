@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.4
+
 ### Players
 
 - A **Footprint** part left in a world after its mod changed the machine's shape no longer crashes the game when you right-click it, Fast Replace over it, or aim at it holding a block that replaces. It is left an orphan, as a part whose machine is gone is: clicks on it pass, nothing replaces it, and breaking it removes it alone. (#42)
