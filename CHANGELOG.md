@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- A **Footprint** part left in a world after its mod changed the machine's shape no longer crashes the game when you right-click it, Fast Replace over it, or aim at it holding a block that replaces. It is left an orphan, as a part whose machine is gone is: clicks on it pass, nothing replaces it, and breaking it removes it alone. (#42)
+
+### Consumers
+
+- `FootprintShape.originOf` answers `null` for a part number outside the shape, and `FootprintShape.hasPart` says whether a number is in it, so `Footprint.standingOrigin` answers `null` for such a part, as for one whose origin is gone, rather than throwing. Fast Replace asks no group's `ReplaceBuilder` of an orphan part, so a builder need not guard against one. (#42)
+
 ## 0.5.3
 
 ### Players

@@ -67,7 +67,9 @@ import org.jspecify.annotations.Nullable;
  * <p>A replace is the main hand's, as a Stretch is, and the held item is a {@link BlockItem},
  * whose block's group is asked. It is drawn whether or not its block is {@linkplain
  * Placements#optIn opted in}, since the click replaces either way and the preview shows what the
- * click does. A sneak-click places beside instead. A plain click while a Stretch's start is stored
+ * click does. A sneak-click places beside instead. An orphan {@linkplain FootprintPartBlock footprint
+ * part}, one with no origin standing for it, is no replace whatever its group, and its group's
+ * builder is never asked of it. A plain click while a Stretch's start is stored
  * is the stretch's. A height held by {@link Raise} doesn't move a replace and stays on the stack.
  * A refusal of the library's own is told by name; any other, the item's own, as that the held
  * block can't replace the aimed one here.
@@ -209,6 +211,10 @@ public final class FastReplace {
         }
         BlockPos aimed = hit.getBlockPos();
         BlockState old = level.getBlockState(aimed);
+        // An orphan footprint part answers for no origin, so no group's builder is asked of it.
+        if (Footprint.isOrphan(level, aimed, old)) {
+            return null;
+        }
         Group group = groupOf(item.getBlock());
         Group aimedGroup = groupOf(old.getBlock());
         if (group == null || aimedGroup == null || !group.id().equals(aimedGroup.id())) {

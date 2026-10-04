@@ -4,6 +4,8 @@
 package io.github._5thlayer.groundworks;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -94,6 +96,17 @@ class FootprintShapeTest {
                 assertEquals(origin, shape.originOf(positions.get(part), part, facing));
             }
         }
+    }
+
+    /** A part left from before its Consumer shrank the shape names no origin, rather than throwing. */
+    @Test
+    void aPartNumberedOutsideTheShapeHasNoOrigin() {
+        FootprintShape shape = FootprintShape.of(FORWARD, UP);
+        BlockPos part = new BlockPos(3, 64, 3);
+        assertNull(shape.originOf(part, 3, Direction.NORTH));
+        assertNull(shape.originOf(part, 0, Direction.NORTH));
+        assertFalse(shape.hasPart(3));
+        assertTrue(shape.hasPart(2));
     }
 
     @Test

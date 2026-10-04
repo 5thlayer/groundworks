@@ -161,13 +161,20 @@ public final class Footprint {
 
     /**
      * Where the origin of this footprint's block at {@code pos} stands, the block's own position if
-     * it is the origin, or {@code null} where the origin is gone, as from a part left behind.
+     * it is the origin, or {@code null} for an orphan part: one whose origin is gone, as from a part
+     * left behind, or whose number is outside the shape, as from a part left in a world from before
+     * its Consumer changed the shape.
      */
     public @Nullable BlockPos standingOrigin(BlockGetter level, BlockPos pos, BlockState state) {
         BlockPos at = isPart(state)
                 ? shape.originOf(pos, state.getValue(FootprintPartBlock.PART), state.getValue(FACING))
                 : pos;
-        return isOrigin(level.getBlockState(at)) ? at : null;
+        return at != null && isOrigin(level.getBlockState(at)) ? at : null;
+    }
+
+    /** Whether this block is a part of any footprint with no origin {@linkplain #standingOrigin standing} for it. */
+    static boolean isOrphan(BlockGetter level, BlockPos pos, BlockState state) {
+        return state.getBlock() instanceof FootprintPartBlock part && part.footprint().standingOrigin(level, pos, state) == null;
     }
 
     /** The state each position is placed in, the origin's at {@code 0}, facing this way. */

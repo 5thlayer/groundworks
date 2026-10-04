@@ -6,6 +6,7 @@ package io.github._5thlayer.groundworks.gametest;
 import java.util.List;
 
 import io.github._5thlayer.groundworks.Footprint;
+import io.github._5thlayer.groundworks.FootprintPartBlock;
 import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.Height;
 import io.github._5thlayer.groundworks.PlacementPlan;
@@ -58,6 +59,8 @@ final class FootprintTests {
                 FootprintTests::turnsWhole);
         tests.test("a_footprint_with_no_room_to_turn_is_refused_whole_and_nothing_changes", 20,
                 FootprintTests::turnRefused);
+        tests.test("a_part_numbered_outside_its_shape_is_an_orphan_clicked_replaced_over_turned_and_broken_alone", 20,
+                FootprintTests::outOfShapeOrphan);
         var withLoot = tests.withPack(PACK);
         withLoot.test("breaking_a_footprint_part_breaks_it_whole_and_drops_its_item_once", 20, helper ->
                 brokenWhole(helper, ORIGIN.above()));
@@ -220,6 +223,47 @@ final class FootprintTests {
         helper.setBlock(ORIGIN.above(), Blocks.AIR);
         expectGone(helper);
         expectDropped(helper, 1);
+        helper.succeed();
+    }
+
+    /**
+     * A part numbered past its shape, as one left in a world from before its Consumer shrank the
+     * shape, names no origin: the preview plans no replace of it, though the held item is in its
+     * group, a click with the item or without passes, it forwards nothing, Rotate in Place leaves
+     * it, and a break removes it alone. Any of these that asked where its origin stands threw.
+     */
+    private static void outOfShapeOrphan(GameTestHelper helper) {
+        int number = TestFootprint.SHAPE.partCount() + 2;
+        BlockState orphan = TestFootprint.FOOTPRINT.stateAt(1, PLACED_FACING).setValue(FootprintPartBlock.PART, number);
+        helper.setBlock(ORIGIN, orphan);
+        BlockPos at = helper.absolutePos(ORIGIN);
+        BlockHitResult onTop = new BlockHitResult(Vec3.atCenterOf(at).relative(Direction.UP, 0.5), Direction.UP, at, false);
+        ListeningPlayer player = holding(helper, 2);
+
+        PlacementPlan plan = Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(), onTop);
+        if (plan != null && plan.replaces().contains(at)) {
+            helper.fail("the preview planned a replace of an orphan part: " + plan, ORIGIN);
+        }
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND, onTop);
+        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        player.gameMode.useItemOn(player, helper.getLevel(), ItemStack.EMPTY, InteractionHand.MAIN_HAND, onTop);
+        if (!helper.getBlockState(ORIGIN).equals(orphan)) {
+            helper.fail("a click changed the orphan part to " + helper.getBlockState(ORIGIN), ORIGIN);
+        }
+        if (helper.getLevel().getCapability(Capabilities.Energy.BLOCK, at, Direction.UP) != null) {
+            helper.fail("an orphan part forwarded an energy lookup", ORIGIN);
+        }
+        Rotate.press(player, at, false);
+        if (!helper.getBlockState(ORIGIN).equals(orphan)) {
+            helper.fail("Rotate in Place changed the orphan part to " + helper.getBlockState(ORIGIN), ORIGIN);
+        }
+        player.gameMode.destroyBlock(at);
+        if (!helper.getBlockState(ORIGIN).isAir()) {
+            helper.fail("breaking the orphan part left " + helper.getBlockState(ORIGIN), ORIGIN);
+        }
+        if (!helper.getEntities(EntityType.ITEM).isEmpty()) {
+            helper.fail("breaking the orphan part dropped " + helper.getEntities(EntityType.ITEM));
+        }
         helper.succeed();
     }
 

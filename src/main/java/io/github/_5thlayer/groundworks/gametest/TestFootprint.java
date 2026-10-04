@@ -3,15 +3,28 @@
 
 package io.github._5thlayer.groundworks.gametest;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.mojang.serialization.MapCodec;
+import io.github._5thlayer.groundworks.FastReplace;
 import io.github._5thlayer.groundworks.FootprintShape;
 import io.github._5thlayer.groundworks.FootprintItem;
 import io.github._5thlayer.groundworks.Footprint;
 import io.github._5thlayer.groundworks.FootprintPartBlock;
 import io.github._5thlayer.groundworks.Groundworks;
+import io.github._5thlayer.groundworks.PlacementPlan;
+import io.github._5thlayer.groundworks.Refusal;
+import io.github._5thlayer.groundworks.ReplaceBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -34,7 +47,8 @@ import org.jspecify.annotations.Nullable;
  * The tests' Footprint, declared as a Consumer declares one: an origin that holds energy, a part
  * forward, a part above and a part to the side, so that a turn moves two of them. Its origin's loot
  * table, which drops its item, is in the {@code footprints} test pack, since the item exists only
- * where game tests are enabled. Registered only then.
+ * where game tests are enabled. Registered only then, with a Replace group of its blocks whose
+ * {@linkplain ReplacesWhole builder} asks where the origin stands, as a Consumer's machine tiers do.
  */
 final class TestFootprint {
 
@@ -71,6 +85,8 @@ final class TestFootprint {
         BLOCKS.register(modBus);
         ITEMS.register(modBus);
         BLOCK_ENTITIES.register(modBus);
+        FastReplace.group(Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "gametest_footprint"),
+                block -> block == ORIGIN.get() || block == PART.get(), new ReplacesWhole());
         modBus.addListener(RegisterCapabilitiesEvent.class, event ->
                 event.registerBlockEntity(Capabilities.Energy.BLOCK, HOLDS_ENERGY.get(), (entity, side) -> entity.energy));
     }
@@ -103,6 +119,34 @@ final class TestFootprint {
         protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
             super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
             FOOTPRINT.teardown(level, pos, state.getValue(FACING), pos);
+        }
+    }
+
+    /**
+     * Replaces the whole footprint as it stands, asking where its origin is as a Consumer's builder
+     * does, with no guard of its own: the library never asks it of an orphan part.
+     */
+    private static final class ReplacesWhole implements ReplaceBuilder {
+
+        @Override
+        public @Nullable PlacementPlan plan(Level level, @Nullable Player player, ItemStack held, BlockPos aimed,
+                                            BlockState old) {
+            BlockPos origin = FOOTPRINT.standingOrigin(level, aimed, old);
+            if (origin == null) {
+                throw new IllegalStateException("a replace builder was asked of an orphan part at " + aimed);
+            }
+            Direction facing = level.getBlockState(origin).getValue(Footprint.FACING);
+            List<BlockPos> positions = FOOTPRINT.positions(origin, facing);
+            List<PlacementPlan.Placed> blocks = new ArrayList<>(positions.size());
+            for (int i = 0; i < positions.size(); i++) {
+                blocks.add(new PlacementPlan.Placed(positions.get(i), FOOTPRINT.stateAt(i, facing)));
+            }
+            return PlacementPlan.replacing(blocks, null);
+        }
+
+        @Override
+        public Component message(Refusal refusal) {
+            return Component.literal(String.valueOf(refusal));
         }
     }
 

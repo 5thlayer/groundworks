@@ -36,6 +36,11 @@ import net.minecraft.world.phys.BlockHitResult;
  * It answers for its origin: a click on it is the origin's, a lookup of energy, fluid or items is
  * forwarded to the origin, and Jade shows the origin's line. Breaking it breaks the footprint, as
  * {@link Footprint} has it.
+ *
+ * <p>A part with no origin standing for it is an orphan: its origin is gone, or its number is
+ * outside its footprint's shape, as a part left in a world from before its Consumer changed the
+ * shape. A click on it passes, nothing replaces it, it forwards no lookup, and breaking it removes
+ * it alone, dropping nothing.
  */
 public class FootprintPartBlock extends Block {
 

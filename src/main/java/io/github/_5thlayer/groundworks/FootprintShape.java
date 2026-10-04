@@ -10,6 +10,7 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The shape of a {@linkplain Footprint Footprint}: where each of its blocks stands relative
@@ -77,7 +78,7 @@ public record FootprintShape(List<Local> offsets) {
     }
 
     public Local offsetOfPart(int part) {
-        if (part < 1 || part > partCount()) {
+        if (!hasPart(part)) {
             throw new IllegalArgumentException("a part is numbered 1 to " + partCount() + ", got " + part);
         }
         return offsets.get(part);
@@ -92,9 +93,18 @@ public record FootprintShape(List<Local> offsets) {
         return positions;
     }
 
-    /** Where the origin stands, from a part's position, its number and its footprint's facing. */
-    public BlockPos originOf(BlockPos part, int number, Direction facing) {
-        return part.subtract(offsetOfPart(number).inWorld(facing));
+    /** Whether this shape has a part of this number. */
+    public boolean hasPart(int number) {
+        return number >= 1 && number <= partCount();
+    }
+
+    /**
+     * Where the origin stands, from a part's position, its number and its footprint's facing, or
+     * {@code null} for a number outside this shape, as a part left in a world from before its
+     * Consumer changed the shape is numbered.
+     */
+    public @Nullable BlockPos originOf(BlockPos part, int number, Direction facing) {
+        return hasPart(number) ? part.subtract(offsetOfPart(number).inWorld(facing)) : null;
     }
 
     /** One position relative to the origin, in its frame: {@code x} forward, {@code y} up, {@code z} to the side. */
