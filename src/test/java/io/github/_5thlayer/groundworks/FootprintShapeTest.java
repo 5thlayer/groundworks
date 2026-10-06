@@ -58,24 +58,30 @@ class FootprintShapeTest {
         return FootprintShape.of(line);
     }
 
-    /** Craftworks' Assemblers.square(2): y, then x, then z, the origin left out. */
+    /** Saved worlds number their parts by this order: the bottom layer up, then x, then z, the origin left out. */
     @Test
-    void aSquareOfThreeIsCraftworksAssemblerShapeInTheSameOrder() {
-        List<FootprintShape.Local> expected = new java.util.ArrayList<>();
-        for (int y = 0; y < 2; y++) {
-            for (int x = -1; x <= 1; x++) {
-                for (int z = -1; z <= 1; z++) {
-                    if (x != 0 || y != 0 || z != 0) {
-                        expected.add(new FootprintShape.Local(x, y, z));
-                    }
-                }
-            }
-        }
+    void aSquareNumbersItsPartsBottomLayerUpThenXThenZ() {
+        List<FootprintShape.Local> expected = List.of(
+                new FootprintShape.Local(-1, 0, -1),
+                new FootprintShape.Local(-1, 0, 0),
+                new FootprintShape.Local(-1, 0, 1),
+                new FootprintShape.Local(0, 0, -1),
+                new FootprintShape.Local(0, 0, 1),
+                new FootprintShape.Local(1, 0, -1),
+                new FootprintShape.Local(1, 0, 0),
+                new FootprintShape.Local(1, 0, 1),
+                new FootprintShape.Local(-1, 1, -1),
+                new FootprintShape.Local(-1, 1, 0),
+                new FootprintShape.Local(-1, 1, 1),
+                new FootprintShape.Local(0, 1, -1),
+                new FootprintShape.Local(0, 1, 0),
+                new FootprintShape.Local(0, 1, 1),
+                new FootprintShape.Local(1, 1, -1),
+                new FootprintShape.Local(1, 1, 0),
+                new FootprintShape.Local(1, 1, 1));
         FootprintShape square = FootprintShape.square(3, 2);
         assertEquals(17, square.partCount());
         assertEquals(expected, square.offsets().subList(1, square.offsets().size()));
-        assertEquals(new FootprintShape.Local(-1, 0, -1), square.offsetOfPart(1));
-        assertEquals(new FootprintShape.Local(1, 1, 1), square.offsetOfPart(17));
     }
 
     @Test
@@ -86,6 +92,8 @@ class FootprintShapeTest {
         assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(5, 6));
         assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(4, 1));
         assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(3, 0));
+        assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(0, 1));
+        assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(-1, 1));
     }
 
     @Test

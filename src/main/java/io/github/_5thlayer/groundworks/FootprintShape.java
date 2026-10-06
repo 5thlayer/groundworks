@@ -62,43 +62,36 @@ public record FootprintShape(List<Local> offsets) {
         if (tileWidth % 2 == 0 || tileHeight % 2 == 0) {
             throw new IllegalArgumentException("a " + tileWidth + "x" + tileHeight + " footprint has no centre block");
         }
-        int halfX = tileHeight / 2;
-        int halfZ = tileWidth / 2;
-        List<Local> parts = new ArrayList<>();
-        for (int y = 0; y < tileWidth; y++) {
-            for (int x = -halfX; x <= halfX; x++) {
-                for (int z = -halfZ; z <= halfZ; z++) {
-                    if (x != 0 || y != 0 || z != 0) {
-                        parts.add(new Local(x, y, z));
-                    }
-                }
-            }
-        }
-        return of(parts.toArray(Local[]::new));
+        return box(tileHeight / 2, tileWidth, tileWidth / 2);
     }
 
     /**
-     * Factorio's tile square lying on the ground: {@code tiles} by {@code tiles} blocks and {@code height}
-     * blocks tall, with the origin at its bottom centre. Parts are numbered from the bottom layer up,
-     * with {@code x} and then {@code z} running from {@code -half} to {@code +half}, the origin left out.
+     * Factorio's tile square lying on the ground: {@code tileWidth} by {@code tileWidth} blocks and
+     * {@code height} blocks tall, with the origin at its bottom centre. Parts are numbered from the bottom
+     * layer up, with {@code x} and then {@code z} running from {@code -half} to {@code +half}, the origin
+     * left out.
      *
-     * @param tiles  the side of the square, odd so that there is a centre block
-     * @param height the blocks it stands tall, at least 1
-     * @throws IllegalArgumentException for an even {@code tiles}, a {@code height} below 1, or a shape of
-     *                                  more than {@link #MAX_PARTS} parts
+     * @param tileWidth the side of the square, odd so that there is a centre block
+     * @param height    the blocks it stands tall, at least 1
+     * @throws IllegalArgumentException for an even or non-positive {@code tileWidth}, a {@code height}
+     *                                  below 1, or a shape of more than {@link #MAX_PARTS} parts
      */
-    public static FootprintShape square(int tiles, int height) {
-        if (tiles < 1 || tiles % 2 == 0) {
-            throw new IllegalArgumentException("a " + tiles + "x" + tiles + " square has no centre block");
+    public static FootprintShape square(int tileWidth, int height) {
+        if (tileWidth < 1 || tileWidth % 2 == 0) {
+            throw new IllegalArgumentException("a " + tileWidth + "x" + tileWidth + " square has no centre block");
         }
         if (height < 1) {
             throw new IllegalArgumentException("a footprint is at least 1 block tall, got " + height);
         }
-        int half = tiles / 2;
+        return box(tileWidth / 2, height, tileWidth / 2);
+    }
+
+    /** Every block of the box from y 0 up, x from -halfX to +halfX, z from -halfZ to +halfZ, the origin left out, in that order. */
+    private static FootprintShape box(int halfX, int height, int halfZ) {
         List<Local> parts = new ArrayList<>();
         for (int y = 0; y < height; y++) {
-            for (int x = -half; x <= half; x++) {
-                for (int z = -half; z <= half; z++) {
+            for (int x = -halfX; x <= halfX; x++) {
+                for (int z = -halfZ; z <= halfZ; z++) {
                     if (x != 0 || y != 0 || z != 0) {
                         parts.add(new Local(x, y, z));
                     }

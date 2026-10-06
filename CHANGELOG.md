@@ -6,8 +6,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ### Consumers
 
-- A **Footprint** may have up to **124 parts**, a 5x5x5 block less its origin: `FootprintShape.MAX_PARTS` is 124 and `FootprintPartBlock.PART` runs 1 to 124. A part's number is unchanged, so a world saved with parts 1 to 26 loads as before. (#44)
-- `FootprintShape.square(tiles, height)` is Factorio's tile square lying on the ground, `tiles` by `tiles` and `height` blocks tall, the origin at its bottom centre: parts numbered from the bottom layer up, `x` then `z` running from `-half` to `+half`, the origin left out. `tiles` must be odd and `height` at least 1, and a shape over `MAX_PARTS` is refused. `FootprintShape.standing` builds a wall, which its Javadoc now says. (#44)
+- A **Footprint** may have up to **124 parts**, a 5x5x5 block less its origin: `FootprintShape.MAX_PARTS` is 124 and `FootprintPartBlock.PART` runs 1 to 124. A part's number is unchanged, so a world saved with parts 1 to 26 loads as before. A part block's blockstate JSON written with one variant per `part` value now needs entries up to the parts its footprint has; one with a single variant is unaffected. (#44)
+- `FootprintShape.square(tileWidth, height)` is Factorio's tile square lying on the ground, the origin at its bottom centre; `standing` builds a wall. It throws for an even or non-positive `tileWidth`, a `height` below 1, or a shape over `MAX_PARTS`. (#44)
 
 ## 0.5.4
 
