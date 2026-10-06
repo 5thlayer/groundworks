@@ -23,8 +23,8 @@ import org.jspecify.annotations.Nullable;
  */
 public record FootprintShape(List<Local> offsets) {
 
-    /** The most parts one footprint may have, which its part block numbers. */
-    public static final int MAX_PARTS = 26;
+    /** The most parts one footprint may have, which its part block numbers: a 5x5x5 block of them less the origin. */
+    public static final int MAX_PARTS = 124;
 
     private static final Local ORIGIN = new Local(0, 0, 0);
 
@@ -53,6 +53,10 @@ public record FootprintShape(List<Local> offsets) {
      * Factorio's tile square, standing as tall as it is wide, with the origin at the bottom centre,
      * so the footprint stands centred on the block the player clicks. The tile width runs to the side
      * and up, the tile height forward. Both are odd, so there is a centre block.
+     *
+     * <p>This builds a wall: the footprint stands as tall as it is wide, and its depth along the
+     * facing is the tile height. For a machine lying on the ground, a tile square of any height,
+     * use {@link #square}.
      */
     public static FootprintShape standing(int tileWidth, int tileHeight) {
         if (tileWidth % 2 == 0 || tileHeight % 2 == 0) {
@@ -64,6 +68,37 @@ public record FootprintShape(List<Local> offsets) {
         for (int y = 0; y < tileWidth; y++) {
             for (int x = -halfX; x <= halfX; x++) {
                 for (int z = -halfZ; z <= halfZ; z++) {
+                    if (x != 0 || y != 0 || z != 0) {
+                        parts.add(new Local(x, y, z));
+                    }
+                }
+            }
+        }
+        return of(parts.toArray(Local[]::new));
+    }
+
+    /**
+     * Factorio's tile square lying on the ground: {@code tiles} by {@code tiles} blocks and {@code height}
+     * blocks tall, with the origin at its bottom centre. Parts are numbered from the bottom layer up,
+     * with {@code x} and then {@code z} running from {@code -half} to {@code +half}, the origin left out.
+     *
+     * @param tiles  the side of the square, odd so that there is a centre block
+     * @param height the blocks it stands tall, at least 1
+     * @throws IllegalArgumentException for an even {@code tiles}, a {@code height} below 1, or a shape of
+     *                                  more than {@link #MAX_PARTS} parts
+     */
+    public static FootprintShape square(int tiles, int height) {
+        if (tiles < 1 || tiles % 2 == 0) {
+            throw new IllegalArgumentException("a " + tiles + "x" + tiles + " square has no centre block");
+        }
+        if (height < 1) {
+            throw new IllegalArgumentException("a footprint is at least 1 block tall, got " + height);
+        }
+        int half = tiles / 2;
+        List<Local> parts = new ArrayList<>();
+        for (int y = 0; y < height; y++) {
+            for (int x = -half; x <= half; x++) {
+                for (int z = -half; z <= half; z++) {
                     if (x != 0 || y != 0 || z != 0) {
                         parts.add(new Local(x, y, z));
                     }

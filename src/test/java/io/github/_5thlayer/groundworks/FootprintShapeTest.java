@@ -43,14 +43,49 @@ class FootprintShapeTest {
     }
 
     @Test
-    void aFootprintHasAtMostTwentySixParts() {
+    void aFootprintHasAtMost124Parts() {
         assertEquals(26, FootprintShape.standing(3, 3).partCount());
-        assertThrows(IllegalArgumentException.class, () -> FootprintShape.standing(5, 3));
-        FootprintShape.Local[] twentySeven = new FootprintShape.Local[27];
-        for (int i = 0; i < twentySeven.length; i++) {
-            twentySeven[i] = new FootprintShape.Local(i + 1, 0, 0);
+        assertEquals(74, FootprintShape.standing(5, 3).partCount());
+        assertEquals(124, line(124).partCount());
+        assertThrows(IllegalArgumentException.class, () -> line(125));
+    }
+
+    private static FootprintShape line(int parts) {
+        FootprintShape.Local[] line = new FootprintShape.Local[parts];
+        for (int i = 0; i < parts; i++) {
+            line[i] = new FootprintShape.Local(i + 1, 0, 0);
         }
-        assertThrows(IllegalArgumentException.class, () -> FootprintShape.of(twentySeven));
+        return FootprintShape.of(line);
+    }
+
+    /** Craftworks' Assemblers.square(2): y, then x, then z, the origin left out. */
+    @Test
+    void aSquareOfThreeIsCraftworksAssemblerShapeInTheSameOrder() {
+        List<FootprintShape.Local> expected = new java.util.ArrayList<>();
+        for (int y = 0; y < 2; y++) {
+            for (int x = -1; x <= 1; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (x != 0 || y != 0 || z != 0) {
+                        expected.add(new FootprintShape.Local(x, y, z));
+                    }
+                }
+            }
+        }
+        FootprintShape square = FootprintShape.square(3, 2);
+        assertEquals(17, square.partCount());
+        assertEquals(expected, square.offsets().subList(1, square.offsets().size()));
+        assertEquals(new FootprintShape.Local(-1, 0, -1), square.offsetOfPart(1));
+        assertEquals(new FootprintShape.Local(1, 1, 1), square.offsetOfPart(17));
+    }
+
+    @Test
+    void aSquareHasItsTilesByTilesBlocksPerLayerUpToTheCap() {
+        assertEquals(74, FootprintShape.square(5, 3).partCount());
+        assertEquals(124, FootprintShape.square(5, 5).partCount());
+        assertEquals(new FootprintShape.Local(0, 0, 0), FootprintShape.square(5, 3).offsets().getFirst());
+        assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(5, 6));
+        assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(4, 1));
+        assertThrows(IllegalArgumentException.class, () -> FootprintShape.square(3, 0));
     }
 
     @Test
