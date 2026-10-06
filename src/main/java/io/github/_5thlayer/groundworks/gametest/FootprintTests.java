@@ -61,6 +61,7 @@ final class FootprintTests {
                 FootprintTests::turnRefused);
         tests.test("a_part_numbered_outside_its_shape_is_an_orphan_clicked_replaced_over_turned_and_broken_alone", 20,
                 FootprintTests::outOfShapeOrphan);
+        tests.test("a_74_part_footprint_from_a_square_is_placed_whole_and_breaks_as_one", 40, FootprintTests::bigSquare);
         var withLoot = tests.withPack(PACK);
         withLoot.test("breaking_a_footprint_part_breaks_it_whole_and_drops_its_item_once", 20, helper ->
                 brokenWhole(helper, ORIGIN.above()));
@@ -197,6 +198,47 @@ final class FootprintTests {
         expectStanding(helper, PLACED_FACING);
         if (!helper.getLevel().getBlockState(taken).is(Blocks.STONE) || !player.heard.equals(List.of(Footprint.TURN_BLOCKED))) {
             helper.fail("the refused turn changed the taken block or told " + player.heard);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A 5x5x3 footprint from {@code FootprintShape.square(5, 3)}, past the old cap of 26 parts: it is placed
+     * whole, its 74th part carries {@code part=74}, and breaking that part takes all 75 blocks down.
+     */
+    private static void bigSquare(GameTestHelper helper) {
+        BlockPos origin = new BlockPos(4, 1, 4);
+        ListeningPlayer player = new ListeningPlayer(helper, new BlockPos(0, 1, 4));
+        player.setYRot(Direction.EAST.toYRot());
+        player.setYHeadRot(Direction.EAST.toYRot());
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(TestFootprint.BIG_ITEM.get(), 1));
+        BlockPos floor = helper.absolutePos(origin.below());
+        BlockHitResult onFloor = new BlockHitResult(Vec3.atCenterOf(floor).relative(Direction.UP, 0.5), Direction.UP, floor, false);
+        PlacementPlan plan = Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(), onFloor);
+        if (plan == null || plan.isRefused() || plan.blocks().size() != 75) {
+            helper.fail("the plan was " + plan + ", not the whole 75 blocks accepted");
+        }
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND, onFloor);
+
+        List<BlockPos> positions = TestFootprint.BIG_FOOTPRINT.positions(helper.absolutePos(origin), PLACED_FACING);
+        if (positions.size() != 75) {
+            helper.fail("the footprint has " + positions.size() + " blocks, not 75");
+        }
+        for (int i = 0; i < positions.size(); i++) {
+            BlockState there = helper.getLevel().getBlockState(positions.get(i));
+            if (!there.equals(TestFootprint.BIG_FOOTPRINT.stateAt(i, PLACED_FACING))) {
+                helper.fail("block " + i + " of the big footprint at " + positions.get(i) + " is " + there);
+            }
+        }
+        BlockState last = helper.getLevel().getBlockState(positions.get(74));
+        if (!last.is(TestFootprint.BIG_PART.get()) || last.getValue(FootprintPartBlock.PART) != 74) {
+            helper.fail("the 74th part is " + last + ", not part=74");
+        }
+        player.gameMode.destroyBlock(positions.get(74));
+        for (BlockPos pos : positions) {
+            if (!helper.getLevel().getBlockState(pos).isAir()) {
+                helper.fail("breaking the 74th part left " + helper.getLevel().getBlockState(pos) + " at " + pos);
+            }
         }
         helper.succeed();
     }

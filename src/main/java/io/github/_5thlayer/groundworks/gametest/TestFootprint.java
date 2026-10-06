@@ -55,6 +55,9 @@ final class TestFootprint {
     static final FootprintShape SHAPE = FootprintShape.of(new FootprintShape.Local(1, 0, 0), new FootprintShape.Local(0, 1, 0),
             new FootprintShape.Local(0, 0, 1));
 
+    /** A 5x5 square three blocks tall, 74 parts, as a Consumer's big machine is declared. */
+    static final FootprintShape BIG_SHAPE = FootprintShape.square(5, 3);
+
     private static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Groundworks.MOD_ID);
     private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Groundworks.MOD_ID);
     private static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
@@ -71,6 +74,17 @@ final class TestFootprint {
     static final DeferredItem<FootprintItem> ITEM = ITEMS.registerItem("gametest_footprint",
             properties -> new FootprintItem(FOOTPRINT, properties));
 
+    static final DeferredBlock<BigOrigin> BIG_ORIGIN = BLOCKS.registerBlock("gametest_big_footprint_origin",
+            properties -> new BigOrigin(properties.pushReaction(PushReaction.BLOCK).noLootTable()));
+
+    static final DeferredBlock<FootprintPartBlock> BIG_PART = BLOCKS.registerBlock("gametest_big_footprint_part",
+            properties -> new FootprintPartBlock(properties.noLootTable(), () -> TestFootprint.BIG_FOOTPRINT));
+
+    static final Footprint BIG_FOOTPRINT = Footprint.declare(BIG_SHAPE, BIG_ORIGIN, BIG_PART, TestFootprint::bigItem);
+
+    static final DeferredItem<FootprintItem> BIG_ITEM = ITEMS.registerItem("gametest_big_footprint",
+            properties -> new FootprintItem(BIG_FOOTPRINT, properties));
+
     static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HoldsEnergy>> HOLDS_ENERGY =
             BLOCK_ENTITIES.register("gametest_footprint_origin", () -> new BlockEntityType<>(HoldsEnergy::new, ORIGIN.get()));
 
@@ -79,6 +93,10 @@ final class TestFootprint {
 
     private static FootprintItem item() {
         return ITEM.get();
+    }
+
+    private static FootprintItem bigItem() {
+        return BIG_ITEM.get();
     }
 
     static void register(IEventBus modBus) {
@@ -119,6 +137,32 @@ final class TestFootprint {
         protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
             super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
             FOOTPRINT.teardown(level, pos, state.getValue(FACING), pos);
+        }
+    }
+
+    /** The big footprint's origin: facing, no block entity, taking its parts with it when it goes. */
+    static final class BigOrigin extends HorizontalDirectionalBlock {
+
+        private static final MapCodec<BigOrigin> CODEC = simpleCodec(BigOrigin::new);
+
+        BigOrigin(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
+            return CODEC;
+        }
+
+        @Override
+        protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+            builder.add(FACING);
+        }
+
+        @Override
+        protected void affectNeighborsAfterRemoval(BlockState state, ServerLevel level, BlockPos pos, boolean movedByPiston) {
+            super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+            BIG_FOOTPRINT.teardown(level, pos, state.getValue(FACING), pos);
         }
     }
 
