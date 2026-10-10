@@ -1,6 +1,6 @@
 ## Purpose
 
-Groundworks is a mod that works in a vanilla game with no other mod: mass placement, its preview, Rotate, Raise and Lower, the Stretch and the Dismantle, for vanilla blocks. It is not a library that waits for other mods. Vanilla is a Consumer like any other, built into Groundworks and wired the way Beltworks is. What each vanilla block does is vanilla's own logic; which blocks and items it reaches is set by one tag per feature, shipped with defaults, which a pack developer changes through data, with no code (ADR 0005). Adding Consumer mods, such as Beltworks, is also the pack developer's choice. Read `CONTEXT.md` before judging what Groundworks is for, what it should ship, or where it is published.
+Groundworks is a mod that works in a vanilla game with no other mod: mass placement, its preview, Rotate, Raise and Lower, the Stretch and the Dismantle, for vanilla blocks. It is not a library that waits for other mods. Vanilla is a Consumer like any other, built into Groundworks and wired the way Beltworks is. What each vanilla block does is vanilla's own logic; which blocks and items it reaches is set by one tag per feature, shipped with defaults, which a pack developer changes through data, with no code (ADR 0005). Adding Consumer mods, such as Beltworks, is also the pack developer's choice. Read `GLOSSARY.md` before judging what Groundworks is for, what it should ship, or where it is published.
 
 The vanilla Consumer (`VanillaConsumer`) makes its statements through data: its Opt-in through the `groundworks:plan_opt_in` block tag with a namespace config, Rotate in Place through the `groundworks:rotates_in_place` block tag, its Stretch builder through the `groundworks:stretches` item tag and its Columns through `groundworks:stretches_vertically`, its Dismantle families through the block tags under `groundworks:dismantle_family/` (5thlayer/groundworks#22), and its Replace groups through the block tags under `groundworks:replace_group/`, of which it ships none (5thlayer/groundworks#34).
 
@@ -8,7 +8,7 @@ The vanilla Consumer (`VanillaConsumer`) makes its statements through data: its 
 
 Commit on the current branch; open a feature branch only when the user asks for one. Nothing is pushed without the user's word.
 
-Anything that changes Groundworks' behaviour gets a `/code-review`. Doc and plumbing changes skip it: that covers `CLAUDE.md`, `CONTEXT.md`, ADRs, `docs/`, `.claude/`, and tooling or CI config.
+Anything that changes Groundworks' behaviour gets a `/code-review`: the project skill in `.claude/skills/code-review`, from mattpocock/skills, never the built-in review of the same name. Doc and plumbing changes skip it: that covers `CLAUDE.md`, `GLOSSARY.md`, ADRs, `docs/`, `.claude/`, submodule bumps, and tooling or CI config.
 
 ## Commits
 
@@ -38,4 +38,4 @@ The five canonical triage roles, used verbatim as label strings. See `docs/agent
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
