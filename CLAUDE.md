@@ -24,7 +24,7 @@ The `skillworks:quicklaunch` skill opens the dev client into the most recent sav
 
 A change adds its line under `## Unreleased` in `CHANGELOG.md` as it lands, under Players, Consumers, or both (ADR 0007). Before bumping `mod_version`, publishing to `~/.m2`, tagging a release or uploading to Modrinth or CurseForge, read `docs/agents/releases.md`: releases go through `scripts/release.sh`, which uploads last with `scripts/upload.py`, and a published version never changes, in `~/.m2` or on either site. ADR 0001, inherited from 5thlayer/libworks, sets the version bumps.
 
-A release that must reach Beltworks or the Pack follows the `release-train` skill: one owning session per checkout, releases in order Groundworks → Beltworks → Pack, and pushes only on the user's word.
+A release that must reach Beltworks follows the `release-train` skill: one owning session per checkout, releases in order Groundworks → Beltworks, and pushes only on the user's word.
 
 ## Agent skills
 
