@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.7
+
 ### Consumers
 
 - `HandBack` makes public the rules Fast Replace and a Stretch hand back by, for an item that plans its own replace and lays it itself. `HandBack.fits(player, hand, returned)` says whether `returned` fits once one item of the held stack is charged, and `HandBack.charge(player, hand, returned)` charges it and hands `returned` back into the slot the charge freed, else onto a stack of its own, else the first empty slot; either hand may hold the item. A player with infinite materials is charged nothing and handed nothing. (#37)
