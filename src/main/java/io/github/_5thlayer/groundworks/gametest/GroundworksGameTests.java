@@ -37,7 +37,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
  * The library's game tests, run by the {@code gameTestServer} Gradle run. Each test stands on the
- * {@code gametest/platform} structure, a stone floor that {@code scripts/build-gametest-structures.py}
+ * {@code gametest/platform} structure, a stone floor that {@code sh ./gradlew buildGametestStructures}
  * writes, and places what it needs itself, so the setup is in the diff.
  *
  * <p>The tests use vanilla blocks. The {@linkplain io.github._5thlayer.groundworks.VanillaConsumer
