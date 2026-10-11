@@ -32,6 +32,7 @@ The library keeps no list of mods, so each part is scoped by what Consumers stat
 ## Consequences
 
 - Adding Fast Replace is an API addition under ADR 0001's semver: the group statement, the builder and `Refusal.FastReplace` become part of what Consumers compile against.
+- The rules a replace hands back by are public too, as `HandBack` (#37): `fits` checks room for what comes back as though one held item were spent, and `charge` spends it and hands back, into the slot it freed, in either hand. An item that plans its own replace, as Beltworks' splitter placed over a tile line does, hands back by the same rules as the library's replace and a **Stretch**, which share them; the library still carries out only its own replaces.
 - Beltworks states its four groups and keeps its contents across a swap. The Pack's own replace items move onto the library's click and the shared charge, and `ReplaceHandoff` goes. Beltworks' ADR 0002 already says Fast Replace is no longer the Pack's.
 - A stale height no longer changes what a plain click on a grouped block does. It only shifts the sneak-click that places beside.
 - A **Stretch**'s refund now lands in the freed slot, where before it went where the game put it.
