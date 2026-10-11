@@ -1,6 +1,6 @@
 # Releases
 
-A release reaches Consumers through the local maven repository (`~/.m2`) at a version of its own. Consumers read the Library from there by version, and the Pack (5thlayer/factoryworks) pins the jar's sha256. That only works if the jar published at a version is the one jar that version ever names.
+A release reaches Consumers through the local maven repository (`~/.m2`) at a version of its own. Consumers read the Library from there by version, and a Consumer that pins the jar pins its sha256. That only works if the jar published at a version is the one jar that version ever names.
 
 Groundworks names its Modrinth and CurseForge projects in `gradle.properties`, so a released version is also uploaded there, from the maintainer's machine (below; ADR 0007). CI builds and tests on every push but never publishes.
 
@@ -19,7 +19,7 @@ Each change adds its line under `## Unreleased` in `CHANGELOG.md` when it lands,
 
 It pushes nothing to git, and ends by printing the push command. To try the script out, set `MAVEN_REPO_LOCAL` to a scratch folder and run it in a throwaway clone: a version published to the real `~/.m2` is permanent.
 
-A release that must reach another Library or the Pack follows the `release-train` skill.
+A release that must reach a Consumer in another checkout, a Library or a pack that pins the jar, follows the `release-train` skill.
 
 ## Uploading to Modrinth and CurseForge
 
