@@ -152,6 +152,7 @@ public final class GroundworksGameTests {
         DismantleTests.register(tests);
         VanillaDismantleTests.register(tests);
         FastReplaceTests.register(tests);
+        HandBackTests.register(tests);
         FootprintTests.register(tests);
     }
 
