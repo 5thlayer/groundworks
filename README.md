@@ -1,6 +1,11 @@
 ![Groundworks](https://raw.githubusercontent.com/5thlayer/groundworks/main/publish/groundworks-cover.png)
 
-Groundworks lets you lay whole lines of blocks in one drag, see every placement before you click, turn, raise and lower it, and take a line back up in one go, all in vanilla.
+Groundworks allows to place multiple copies of a block in one drag, see a preview before confirming the placement, turn, raise and lower the block, and take a line back up in one go.
+Perfectly working with vanilla blocks.
+
+## Why?
+
+Because I've been spoiled by the way other automation games and many Minecraft mods allow easy block placement and dismantle. 
 
 **NeoForge, Minecraft 26.1.2 only.** Groundworks is early work, so please report any issues you find on [GitHub](https://github.com/5thlayer/groundworks/issues).
 
