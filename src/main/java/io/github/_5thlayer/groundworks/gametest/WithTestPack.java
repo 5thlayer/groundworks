@@ -29,9 +29,10 @@ import net.neoforged.neoforge.resource.JarContentsPackResources;
  * A test environment whose batch runs with one of the tests' datapacks switched on, as a pack
  * developer's would be, and switched off again after it.
  *
- * <p>The packs live under {@code gametest_packs/} in the jar. The game-test server switches on
- * every pack it finds, so a pack is found only while its batch runs: offered, found, then selected
- * by a reload, and the other way round after.
+ * <p>The packs live under {@code gametest_packs/} in {@code src/gametest/resources}, which the jar
+ * leaves out (libworks ADR 0004). The game-test server switches on every pack it finds, so a pack
+ * is found only while its batch runs: offered, found, then selected by a reload, and the other way
+ * round after.
  */
 record WithTestPack(String name) implements TestEnvironmentDefinition<Unit> {
 

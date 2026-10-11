@@ -4,6 +4,10 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- The game tests' datapacks, `gametest_packs/`, no longer ship in the jar. Nothing ever switched them on outside Groundworks' own game tests (libworks ADR 0004).
+
 ## 0.5.7
 
 ### Consumers
