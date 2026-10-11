@@ -4,6 +4,10 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Consumers
+
+- The jar now carries every licence under `LICENSES/` (Apache-2.0 and Mojang's as well as MIT). Its Maven coordinates, pom, module metadata and `v<version>` tags are unchanged. Groundworks now builds from the libworks convention plugin. (#46)
+
 ## 0.5.5
 
 ### Consumers
