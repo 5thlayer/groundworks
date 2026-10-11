@@ -1,7 +1,7 @@
 // ModDevGradle on Java 25, the game test server that names each test, the jar's licensing, ~/.m2-only
 // publishing and the release and upload tasks come from the libworks convention plugin (libworks ADR 0003).
 plugins {
-    id 'io.github.5thlayer.libworks.module' version '0.1.2'
+    id 'io.github.5thlayer.libworks.module' version '0.2.0'
 }
 
 // Groundworks requires no other Library.
