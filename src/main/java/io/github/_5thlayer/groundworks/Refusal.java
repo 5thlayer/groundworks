@@ -82,7 +82,7 @@ public interface Refusal {
     enum Footprint implements Refusal {
         /**
          * A position the footprint would stand on is outside the world, holds a block a placement
-         * can't replace, or has an entity in the way.
+         * can't replace, has an entity in the way, or is one the player may not build at.
          */
         BLOCKED,
     }

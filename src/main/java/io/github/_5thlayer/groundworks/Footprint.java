@@ -59,9 +59,10 @@ import org.jspecify.annotations.Nullable;
  * <p>The origin stands where the click places, facing the player, and every part as its shape
  * says, turned with that facing. The plan is refused whole as {@link Refusal.Footprint#BLOCKED}
  * when any position is outside the world, holds a block a placement can't replace, or has an entity
- * in the way, and where a {@linkplain Raise height} moved the click onto a taken spot; the click
- * then lays nothing and charges nothing. The origin takes the item's block-entity data and
- * components, and is told it was placed, as a placed block is.
+ * in the way, or is one the player may not build at, and where a {@linkplain Raise height} moved
+ * the click onto a taken spot; the click then lays nothing and charges nothing. A protection mod
+ * that cancels the place event at any position refuses the click the same way. The origin takes
+ * the item's block-entity data and components, and is told it was placed, as a placed block is.
  *
  * <h2>Broken whole</h2>
  *
@@ -189,9 +190,10 @@ public final class Footprint {
 
     /**
      * The whole footprint, its origin where the context places and facing the player, refused whole
-     * as {@link Refusal.Footprint#BLOCKED} where any position doesn't fit, or {@code null} where the
-     * context places nothing. What a {@link FootprintItem} plans, and what another item that places
-     * a footprint returns from its own {@link PlansPlacement#plan}.
+     * as {@link Refusal.Footprint#BLOCKED} where any position doesn't fit or the player may not
+     * build there, as at spawn, or {@code null} where the context places nothing. What a {@link
+     * FootprintItem} plans, and what another item that places a footprint returns from its own
+     * {@link PlansPlacement#plan}.
      */
     public @Nullable PlacementPlan plan(BlockPlaceContext context) {
         // A spot moved by a height is one the player chose, so a taken one is drawn refused, as a vanilla plan's is.
@@ -199,6 +201,7 @@ public final class Footprint {
             return null;
         }
         Level level = context.getLevel();
+        Player player = context.getPlayer();
         Direction facing = context.getHorizontalDirection().getOpposite();
         List<BlockPos> positions = positions(context.getClickedPos(), facing);
         List<PlacementPlan.Placed> blocks = new ArrayList<>(positions.size());
@@ -207,7 +210,7 @@ public final class Footprint {
             BlockPos pos = positions.get(i);
             BlockState state = stateAt(i, facing);
             blocks.add(new PlacementPlan.Placed(pos, state));
-            fits &= fits(level, pos, state);
+            fits &= fits(level, pos, state) && (player == null || level.mayInteract(player, pos));
         }
         return fits ? PlacementPlan.accepted(blocks) : PlacementPlan.refused(blocks, Refusal.Footprint.BLOCKED);
     }
@@ -227,6 +230,11 @@ public final class Footprint {
      * or none, and the item charged only when the footprint stands. The origin takes the item's
      * block-entity data and components and is told it was placed, as {@code BlockItem.place} does
      * for its one block. Whether it was laid.
+     *
+     * <p>A protection mod that cancels the place event at any position refuses it whole. NeoForge's
+     * own event for the click names the origin alone, so a claim on a part would go unheard; the
+     * claim guard Rotate uses fires once for each part, on the click alone, since the preview asks
+     * the plan every frame. The origin is left to NeoForge's event, so it is heard once.
      */
     public boolean place(BlockItem placing, BlockPlaceContext context) {
         PlacementPlan plan = Placements.planFor(placing, context);
@@ -234,11 +242,18 @@ public final class Footprint {
             return false;
         }
         Level level = context.getLevel();
+        Player player = context.getPlayer();
+        List<PlacementPlan.Placed> parts = plan.blocks().subList(1, plan.blocks().size());
+        for (PlacementPlan.Placed part : parts) {
+            BlockSnapshot before = BlockSnapshot.create(level.dimension(), level, part.pos());
+            if (EventHooks.onBlockPlace(player, before, Direction.UP)) {
+                return false;
+            }
+        }
         for (PlacementPlan.Placed placed : plan.blocks()) {
             level.setBlock(placed.pos(), placed.state(), Block.UPDATE_ALL);
         }
         BlockPos at = plan.blocks().getFirst().pos();
-        Player player = context.getPlayer();
         ItemStack held = context.getItemInHand();
         BlockState placed = level.getBlockState(at);
         BlockItem.updateCustomBlockEntityTag(level, player, at, held);

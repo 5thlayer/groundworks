@@ -50,6 +50,8 @@ final class FootprintTests {
         tests.test("a_footprint_is_placed_whole_facing_the_player_for_one_item", 20, FootprintTests::placedWhole);
         tests.test("a_footprint_with_a_position_taken_is_refused_whole_and_places_nothing", 20,
                 FootprintTests::refusedWhole);
+        tests.test("a_footprint_with_a_part_in_a_claim_is_refused_whole_and_places_nothing", 20,
+                FootprintTests::claimedPart);
         tests.test("a_footprint_raised_onto_a_taken_spot_is_drawn_refused_whole", 20, FootprintTests::raisedOntoATakenSpot);
         tests.test("a_footprint_part_forwards_an_energy_lookup_to_its_origin", 20, FootprintTests::forwardsEnergy);
         tests.test("a_capability_cache_beside_a_footprint_part_sees_it_placed_and_broken", 20,
@@ -104,6 +106,33 @@ final class FootprintTests {
         if (!helper.getBlockState(taken).is(Blocks.STONE) || player.getMainHandItem().getCount() != 2) {
             helper.fail("a refused footprint changed the taken block or charged an item");
         }
+        helper.succeed();
+    }
+
+    /**
+     * A claim on a part's position alone, the clicked one outside it, refuses the click whole, as a
+     * claim mod's guard on the place event does; out of the claim, the same click places it, so the
+     * claim is what stopped it.
+     */
+    private static void claimedPart(GameTestHelper helper) {
+        BlockPos claimed = helper.absolutePos(ORIGIN.above());
+        ListeningPlayer player = holding(helper, 2);
+        RotateInPlaceTests.CLAIMED.add(claimed);
+        try {
+            click(helper, player);
+        } finally {
+            RotateInPlaceTests.CLAIMED.remove(claimed);
+        }
+        for (BlockPos pos : List.of(ORIGIN, ORIGIN.above(), ORIGIN.north(), forwardOf(ORIGIN, PLACED_FACING))) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("a footprint reaching into a claim placed " + helper.getBlockState(pos), pos);
+            }
+        }
+        if (player.getMainHandItem().getCount() != 2) {
+            helper.fail("a footprint reaching into a claim charged an item");
+        }
+        click(helper, player);
+        expectStanding(helper, PLACED_FACING);
         helper.succeed();
     }
 

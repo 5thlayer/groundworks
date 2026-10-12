@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- A footprint is refused whole, placing nothing and charging nothing, when a claim mod guarding the place event protects any of its positions, not only the clicked one. A footprint reaching into spawn protection is refused the same way, and drawn refused. (#50)
+
+### Consumers
+
+- `Footprint.plan` refuses the footprint as `BLOCKED` where the player may not build at any position, and `Footprint.place` fires the place event at each part as well as NeoForge's own at the origin, refusing the click whole where any is cancelled. (#50)
+
 ## 0.5.9
 
 ### Players
