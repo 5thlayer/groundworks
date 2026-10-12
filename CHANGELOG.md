@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.8
+
 ### Players
 
 - With a Dismantle start or a queued span stored on a tool, a click on a block no Dismantle family claims now passes on to the tool and the block, with no message, and keeps what is stored, so another mod's wrench works on its own machines again. Confirming queued spans takes a click on a member; a click on open floor no longer confirms them. (#48)
