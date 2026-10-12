@@ -4,6 +4,7 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,11 +21,15 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.block.BambooStalkBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CactusBlock;
+import net.minecraft.world.level.block.SugarCaneBlock;
+import net.minecraft.world.level.block.VegetationBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.phys.BlockHitResult;
@@ -32,6 +37,7 @@ import net.minecraft.world.ticks.BlackholeTickAccess;
 import net.minecraft.world.ticks.LevelTickAccess;
 import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
+import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -54,9 +60,12 @@ import org.jspecify.annotations.Nullable;
  * leg is its builder's, gone round what the builder refuses at a position by a {@link Detours
  * detour} when one clears it.
  *
- * <p>Laying charges one held item per placed block, nothing in creative, and hands each replaced
- * block back, into the slot the charge freed first, as its {@link Charge} has it. A stretch the
- * inventory can't pay for, or has no room to take back from, is refused whole.
+ * <p>Laying charges one held item per placed block, nothing in creative, and hands back what
+ * breaking each replaced block drops, as a {@link FastReplace} does, into the slot the charge freed
+ * first, as its {@link Charge} has it. A stretch the inventory can't pay for, or has no room to
+ * take back from, is refused whole. The drops are rolled on the server, so the preview draws a
+ * stretch accepted for room. A plant that stood on a replaced block and breaks with it drops
+ * nothing.
  */
 public final class Stretches {
 
@@ -278,12 +287,10 @@ public final class Stretches {
             refusal = Refusal.Stretch.MAY_NOT_BUILD;
         }
 
+        // What breaking each replaced block drops, rolled on the server alone, so the preview draws the stretch accepted for room.
         List<ItemStack> returned = new ArrayList<>();
         for (BlockPos pos : replaces) {
-            Item back = level.getBlockState(pos).getBlock().asItem();
-            if (back != Items.AIR) {
-                returned.add(new ItemStack(back));
-            }
+            returned.addAll(FastReplace.drops(level, player, pos, level.getBlockState(pos)));
         }
         Charge charge = Charge.of(player, item, positions.size(), returned);
         if (player != null && refusal == null) {
@@ -298,12 +305,15 @@ public final class Stretches {
 
     /**
      * Where a placement at this hit would go with no height: the aimed block if it is replaceable,
-     * the spot across the hit face otherwise, as vanilla has it. The context's own position is
-     * moved by the held stack's height, which in a stretch is a leg's rise, so it is not asked.
+     * or one the stretch {@linkplain FastReplace#stretchesThrough goes through}, the spot across the
+     * hit face otherwise, as vanilla has it. The context's own position is moved by the held stack's
+     * height, which in a stretch is a leg's rise, so it is not asked.
      */
     private static BlockPos spotOf(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
         BlockPlaceContext context = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, stack, hit);
-        return context.replacingClickedOnBlock() ? hit.getBlockPos() : hit.getBlockPos().relative(hit.getDirection());
+        return context.replacingClickedOnBlock() || FastReplace.stretchesThrough(stack, level.getBlockState(hit.getBlockPos()))
+                ? hit.getBlockPos()
+                : hit.getBlockPos().relative(hit.getDirection());
     }
 
     /** What a click on a block does, by whether it sneaks and whether a stretch is being drawn. */
@@ -406,7 +416,52 @@ public final class Stretches {
     // The state is reset before the charge, which may take the held stack's last item.
     private static void lay(Laying laying, Level level, ItemStack held, Player player, StretchState reset) {
         store(held, reset);
-        laying.charge().lay(level, player, laying.plan());
+        Set<BlockPos> above = new HashSet<>();
+        laying.plan().replaces().forEach(pos -> above.add(pos.above()));
+        Silenced previous = silenced;
+        silenced = new Silenced(level, above);
+        try {
+            laying.charge().lay(level, player, laying.plan());
+        } finally {
+            silenced = previous;
+        }
+        // A plant that breaks only on its next tick, as sugar cane does, is cleared now, and each piece of it above.
+        for (BlockPos pos : above) {
+            for (BlockPos at = pos; isPlant(level.getBlockState(at)) && !level.getBlockState(at).canSurvive(level, at); at = at.above()) {
+                level.setBlock(at, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
+    }
+
+    /**
+     * Whether a block is a plant a stretch clears from the blocks it replaces: vegetation, a block
+     * a placement overwrites, such as a snow layer, or sugar cane, a cactus or bamboo.
+     */
+    private static boolean isPlant(BlockState state) {
+        Block block = state.getBlock();
+        return block instanceof VegetationBlock || block instanceof SugarCaneBlock || block instanceof CactusBlock
+                || block instanceof BambooStalkBlock || !state.isAir() && state.canBeReplaced();
+    }
+
+    /** Where plants break with no drop while a stretch is laid: on the blocks it replaces, in its level. */
+    private record Silenced(Level level, Set<BlockPos> positions) {
+    }
+
+    /** The stretch being laid, on the server thread, or {@code null}. */
+    private static @Nullable Silenced silenced;
+
+    /**
+     * Cancels the drops of a {@linkplain #isPlant plant} that a stretch being laid breaks by
+     * replacing the block it stood on, so it goes with no drop left on the road, as a placement
+     * overwrites a plant in its way. Whether it can still stand is the plant's own to say, as it
+     * breaks.
+     */
+    static void onBlockDrops(BlockDropsEvent event) {
+        Silenced laying = silenced;
+        if (laying != null && laying.level() == event.getLevel() && laying.positions().contains(event.getPos())
+                && isPlant(event.getState())) {
+            event.setCanceled(true);
+        }
     }
 
     // No stretch, no height and no turn are no components, so a stack laid or cleared stacks again with one never used.

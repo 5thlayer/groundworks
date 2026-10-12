@@ -15,6 +15,12 @@ import net.minecraft.world.level.Level;
  * <p>Groundworks runs the gesture, the anchors, the route seen from above, the legs' shape, the
  * charging and the preview for every item alike (ADR 0004). A builder answers only what a
  * {@link Leg} is built of.
+ *
+ * <p>Whether a leg replaces what stands in its way is the builder's (ADR 0008). One that goes
+ * through blocks of the held block's own Replace group asks {@link FastReplace#stretchesThrough}
+ * of each, and names those it replaces in its plan's {@linkplain PlacementPlan#replaces replaces};
+ * Groundworks hands back what breaking each drops, and the stretch's spot lookup lets a start, anchor
+ * or end lie in one. The vanilla Consumer's builder does.
  */
 public interface LegBuilder {
 

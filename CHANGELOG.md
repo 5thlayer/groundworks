@@ -7,10 +7,12 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Players
 
 - With a Dismantle start or a queued span stored on a tool, a click on a block no Dismantle family claims now passes on to the tool and the block, with no message, and keeps what is stored, so another mod's wrench works on its own machines again. Confirming queued spans takes a click on a member; a click on open floor no longer confirms them. (#48)
+- A **Stretch** goes through blocks of the held block's own **Replace group** instead of round them: each one at the stretch's height is replaced in place, drawn in the replace tint, charged one item and handed back what breaking it drops, as a Fast Replace hands back. A start, anchor or end aimed at one lies in it, so a road of stone bricks over a pack's `groundworks:replace_group/` tag of dirt and gravel is laid into the ground; Raise once before storing the start to lay it on top. A block that already is the held block stays as it stands, uncharged. A plant standing on a replaced block, sugar cane, cactus and bamboo included, goes with it, dropping nothing. A block outside the group, or of a group whose replace spans several blocks, is still gone round or refuses the leg. Columns do the same. The whole stretch is refused when the inventory has no room for every hand-back. (#39)
 - The game tests' datapacks, `gametest_packs/`, no longer ship in the jar. Nothing ever switched them on outside Groundworks' own game tests (libworks ADR 0004).
 
 ### Consumers
 
+- `FastReplace.groupOf(block)` answers a block's Replace group, a Consumer's or a vanilla tag's, as a `FastReplace.Group` with its `id()`, its `builder()` and `spansBlocks()`, or `null`. `FastReplace.stretchesThrough(held, there)` says whether a Stretch of `held` goes through `there`: both of one group whose replace is one block. A `LegBuilder` asks it to replace the blocks in its leg's way, naming them in its plan's `replaces()`; the vanilla Consumer's does. Every position any Consumer's stretch replaces now hands back what breaking it drops, rolled on the server. (#39)
 - `Dismantles.aimsAtMember(level, clicked)` says whether a click on `clicked` names a member of any Dismantle family, and so may be the Dismantle's; a click anywhere else passes on, whatever the held stack stores (ADR 0010). (#48)
 
 ## 0.5.7

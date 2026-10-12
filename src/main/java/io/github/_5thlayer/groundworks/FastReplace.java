@@ -117,8 +117,16 @@ import org.jspecify.annotations.Nullable;
  */
 public final class FastReplace {
 
-    /** A Replace group: its id, and the builder that plans its replaces, or {@code null} for the item's own plan. */
-    private record Group(Identifier id, @Nullable ReplaceBuilder builder) {
+    /**
+     * A Replace group, as {@link #groupOf} answers it for a block: its id, and the builder that
+     * plans its replaces, or {@code null} for the item's own plan.
+     */
+    public record Group(Identifier id, @Nullable ReplaceBuilder builder) {
+
+        /** Whether one replace of this group spans several blocks, its builder's to say, so a Stretch goes round it. */
+        public boolean spansBlocks() {
+            return builder != null;
+        }
     }
 
     /**
@@ -178,8 +186,12 @@ public final class FastReplace {
         });
     }
 
-    /** The group this block belongs to, the first stated that claims it, or {@code null}. */
-    private static @Nullable Group groupOf(Block block) {
+    /**
+     * The group this block belongs to, the first stated that claims it, or {@code null}: a
+     * Consumer's, or the vanilla Consumer's tags'. A Consumer's {@link LegBuilder} asks it to build
+     * a leg through the held block's group, as {@link #stretchesThrough} has it.
+     */
+    public static @Nullable Group groupOf(Block block) {
         for (Function<Block, @Nullable Group> statement : GROUP_STATEMENTS) {
             Group group = statement.apply(block);
             if (group != null) {
@@ -187,6 +199,23 @@ public final class FastReplace {
             }
         }
         return null;
+    }
+
+    /**
+     * Whether a Stretch of {@code held} goes through {@code there} rather than round it: both are of
+     * one group whose replace is one block, so the stretch replaces {@code there} in place, or leaves
+     * it standing when it is {@code held} itself. A group whose replace {@linkplain Group#spansBlocks
+     * spans blocks} is always an obstacle. The vanilla Consumer's leg builder asks it of every block
+     * in a leg's way, and a Consumer's own builder may.
+     */
+    public static boolean stretchesThrough(Block held, Block there) {
+        Group group = groupOf(held);
+        return group != null && !group.spansBlocks() && group.equals(groupOf(there));
+    }
+
+    /** Whether a Stretch of the held stack goes through {@code there}, as {@link #stretchesThrough(Block, Block)} has it; never for an item that is no block. */
+    static boolean stretchesThrough(ItemStack held, BlockState there) {
+        return held.getItem() instanceof BlockItem item && stretchesThrough(item.getBlock(), there.getBlock());
     }
 
     /** A replace's plan, what laying it charges, and the builder that planned it, if its group has one. */
@@ -273,7 +302,7 @@ public final class FastReplace {
      * table, rolled on the server. Nothing on the client, which has no loot tables, nor for a
      * player with infinite materials, who is handed nothing back.
      */
-    private static List<ItemStack> drops(Level level, @Nullable Player player, BlockPos pos, BlockState old) {
+    static List<ItemStack> drops(Level level, @Nullable Player player, BlockPos pos, BlockState old) {
         if (!(level instanceof ServerLevel server) || player == null || player.hasInfiniteMaterials()) {
             return List.of();
         }

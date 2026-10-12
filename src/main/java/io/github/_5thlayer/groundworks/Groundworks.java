@@ -80,6 +80,7 @@ public final class Groundworks {
                 event.setCancellationResult(result);
             }
         });
+        NeoForge.EVENT_BUS.addListener(Stretches::onBlockDrops);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, PlayerInteractEvent.RightClickItem.class, event -> {
             InteractionResult result = Dismantles.use(event.getEntity(), event.getHand());
             if (result == InteractionResult.PASS) {

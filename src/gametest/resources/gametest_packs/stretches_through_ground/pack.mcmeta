@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Groundworks game tests: groups dirt, coarse dirt, podzol and stone bricks as a road, and makes stone bricks and iron blocks stretch",
+    "min_format": [101, 1],
+    "max_format": [101, 1]
+  }
+}

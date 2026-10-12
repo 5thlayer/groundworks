@@ -31,7 +31,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Each block is asked of vanilla as {@link Placements#vanillaPlan} asks it, one at a time
  * against the world as it stands: a spot vanilla refuses, taken or unable to hold the block, is
- * refused there, so Groundworks goes round it. Groundworks sets no block state itself. What a block
+ * refused there, so Groundworks goes round it. A spot taken by a block the stretch {@linkplain
+ * FastReplace#stretchesThrough goes through}, of the held block's own Replace group, counts as
+ * free, and the plan names it among those it replaces; one that already holds the held block is
+ * left out of the plan, so it stays as it stands, uncharged. Groundworks sets no block state itself. What a block
  * becomes beside the rest of the stretch -- stairs joining at a corner, a rail sloping up to the
  * next, a fence reaching its neighbour -- vanilla does as the stretch is laid, and the preview draws
  * each block reshaped against the rest of the stretch the same way, so it shows what laying gives.
@@ -79,12 +82,20 @@ final class VanillaLegs implements LegBuilder {
         return laid((BlockItem) item, contexts, null);
     }
 
-    // Each block as vanilla places it alone, against the world as it stands.
+    // Each block as vanilla places it alone, against the world as it stands, in the place of one of the held block's group.
     private static PlacementPlan laid(BlockItem blockItem, List<Laying> contexts, @Nullable Refusal refused) {
         List<PlacementPlan.Placed> blocks = new ArrayList<>();
+        List<BlockPos> replaces = new ArrayList<>();
         Refusal refusal = refused;
         for (Laying context : contexts) {
+            if (context.replacing && context.getLevel().getBlockState(context.getClickedPos()).is(blockItem.getBlock())) {
+                // The held block already stands there, and stays as it stands.
+                continue;
+            }
             PlacementPlan alone = Placements.vanillaPlan(blockItem, context);
+            if (context.replacing && alone != null) {
+                replaces.add(context.getClickedPos());
+            }
             if (alone == null) {
                 // Vanilla has no plan where the spot is taken, and it is still drawn there.
                 BlockState state = blockItem.getBlock().getStateForPlacement(context);
@@ -96,7 +107,7 @@ final class VanillaLegs implements LegBuilder {
                 refusal = new Refusal.At(Refusal.Vanilla.VANILLA, context.getClickedPos());
             }
         }
-        return new PlacementPlan(blocks, List.of(), refusal);
+        return new PlacementPlan(blocks, replaces, refusal);
     }
 
     @Override
@@ -150,9 +161,23 @@ final class VanillaLegs implements LegBuilder {
 
         private final Direction facing;
 
+        /** Whether the block at the spot is of the held block's own Replace group, which the stretch goes through. */
+        private final boolean replacing;
+
         Laying(Level level, BlockPos pos, Direction facing, Direction clicked, ItemStack stack) {
             super(level, pos, facing, stack, clicked);
             this.facing = facing;
+            this.replacing = FastReplace.stretchesThrough(stack, level.getBlockState(pos));
+        }
+
+        @Override
+        public boolean canPlace() {
+            return replacing || super.canPlace();
+        }
+
+        @Override
+        public boolean replacingClickedOnBlock() {
+            return replacing || super.replacingClickedOnBlock();
         }
 
         @Override
