@@ -89,7 +89,7 @@ record Charge(Item item, int cost, List<ItemStack> returned) {
             return;
         }
         PlacementPlan.Placed first = plan.blocks().getFirst();
-        SoundType sound = first.state().getSoundType();
+        SoundType sound = first.state().getSoundType(level, first.pos(), player);
         level.playSound(null, first.pos(), sound.getPlaceSound(), SoundSource.BLOCKS,
                 (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F);
         level.gameEvent(GameEvent.BLOCK_PLACE, first.pos(), GameEvent.Context.of(player, first.state()));

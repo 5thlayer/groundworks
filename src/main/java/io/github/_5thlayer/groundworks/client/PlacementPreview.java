@@ -234,7 +234,7 @@ final class PlacementPreview {
             BlockPos pos = new BlockPos(face.cell().x(), face.cell().y(), face.cell().z());
             Direction direction = Direction.valueOf(face.side().name());
             BlockState neighbour = level.getBlockState(pos.relative(direction));
-            if (Block.shouldRenderFace(states.get(pos), neighbour, direction)) {
+            if (Block.shouldRenderFace(level, pos, states.get(pos), neighbour, direction)) {
                 faces.computeIfAbsent(pos, at -> EnumSet.noneOf(Direction.class)).add(direction);
             }
         }
