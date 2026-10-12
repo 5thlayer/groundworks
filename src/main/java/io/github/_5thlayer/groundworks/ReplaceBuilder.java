@@ -14,8 +14,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * What plans the Fast Replaces of a {@linkplain FastReplace#group(net.minecraft.resources.Identifier,
  * java.util.function.Predicate, ReplaceBuilder) Replace group} whose replace spans several blocks,
- * as a splitter's two halves or a pole's column do, supplied by the Consumer that states the group
- * (ADR 0008).
+ * as a splitter's two halves or a pole's column do, or whose replace of one block keeps more than
+ * its orientation, as a belt tile's tier swap keeps its shape, supplied by the Consumer that states the group (ADR 0008).
  *
  * <p>Without a builder, a group's replace is the held item's own plan for the aimed block, with
  * the old block's orientation copied onto it. With one, the plan is the builder's alone: the
@@ -52,6 +52,16 @@ public interface ReplaceBuilder {
      */
     default ItemStack refund(Level level, BlockPos aimed, BlockState old) {
         return new ItemStack(old.getBlock().asItem());
+    }
+
+    /**
+     * Whether one replace of this builder's group spans several blocks, so a {@linkplain Stretches
+     * Stretch} goes round its blocks, or false for one that replaces the aimed block alone, whose
+     * blocks a stretch of the group {@linkplain FastReplace#stretchesThrough goes through}. True
+     * unless the builder says otherwise. A stretch never asks {@link #plan} or {@link #refund}.
+     */
+    default boolean spansBlocks() {
+        return true;
     }
 
     /**

@@ -43,7 +43,8 @@ import org.jspecify.annotations.Nullable;
  * through the server player's own {@code useItemOn}, as in {@link VanillaStretchTests}.
  *
  * <p>Gold blocks are in {@link FastReplaceTests#stateGroups the tests' group} whose builder
- * replaces a column, so its replace spans blocks.
+ * replaces a column, so its replace spans blocks; quartz blocks and quartz bricks in one whose
+ * builder {@linkplain ReplacesOneBlock replaces one block}.
  */
 final class StretchReplaceTests {
 
@@ -80,6 +81,8 @@ final class StretchReplaceTests {
         road.test("a_creative_stretch_through_its_group_changes_no_inventory", 20, StretchReplaceTests::creative);
         road.test("a_group_whose_replace_spans_blocks_is_an_obstacle_to_a_stretch", 20,
                 StretchReplaceTests::builderGroupIsAnObstacle);
+        road.test("a_stretch_goes_through_a_group_whose_builder_replaces_one_block_and_hands_back_drops_not_its_refund", 20,
+                StretchReplaceTests::oneBlockBuilderGroup);
         road.test("a_column_through_its_group_replaces_each_block", 20, StretchReplaceTests::column);
         road.test("a_consumer_asks_a_block_s_replace_group_and_whether_a_stretch_goes_through_it", 20,
                 StretchReplaceTests::groupQuery);
@@ -318,6 +321,31 @@ final class StretchReplaceTests {
         helper.succeed();
     }
 
+    /**
+     * Quartz blocks are in a group whose builder replaces one block and says so: a stretch of
+     * quartz bricks starts in the row and replaces it whole, laying its own blocks, handing back
+     * each quartz block it drops and never the builder's stick.
+     */
+    private static void oneBlockBuilderGroup(GameTestHelper helper) {
+        layRow(helper, Blocks.QUARTZ_BLOCK);
+        ListeningPlayer player = holding(helper, Items.QUARTZ_BRICKS);
+        start(helper, player, WEST_END);
+        var stored = Stretches.storedOn(player.level(), player.getMainHandItem());
+        if (stored == null || !stored.start().equals(helper.absolutePos(WEST_END))) {
+            helper.fail("the start was stored at " + (stored == null ? null : stored.start()) + ", not in the quartz", WEST_END);
+        }
+        PlacementPlan plan = plan(helper, player, EAST_END);
+        if (plan == null || plan.isRefused() || !sorted(plan.replaces()).equals(row(helper))) {
+            helper.fail("the plan was " + plan + ", not a replace of the quartz row");
+        }
+        click(helper, player, EAST_END, false);
+        expectRow(helper, Blocks.QUARTZ_BRICKS);
+        expectHeld(helper, player, HELD - 5);
+        expectCount(helper, player, Items.QUARTZ_BLOCK, 5);
+        expectCount(helper, player, Items.STICK, 0);
+        helper.succeed();
+    }
+
     /** A column of three podzol, a start in its foot, two presses of Raise: three stone bricks, three dirt back. */
     private static void column(GameTestHelper helper) {
         for (int y = 1; y <= 3; y++) {
@@ -346,6 +374,11 @@ final class StretchReplaceTests {
         if (road == null || !road.id().equals(Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "replace_group/road"))
                 || road.spansBlocks()) {
             helper.fail("podzol's group was " + road + ", not the road tag's");
+        }
+        FastReplace.Group oneBlock = FastReplace.groupOf(Blocks.QUARTZ_BLOCK);
+        if (oneBlock == null || oneBlock.builder() == null || oneBlock.spansBlocks()
+                || !FastReplace.stretchesThrough(Blocks.QUARTZ_BRICKS, Blocks.QUARTZ_BLOCK)) {
+            helper.fail("the quartz block's group was " + oneBlock + ", not one whose builder replaces one block");
         }
         FastReplace.Group column = FastReplace.groupOf(Blocks.GOLD_BLOCK);
         if (column == null || !column.spansBlocks()) {

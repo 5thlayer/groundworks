@@ -13,6 +13,7 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Consumers
 
 - `FastReplace.groupOf(block)` answers a block's Replace group, a Consumer's or a vanilla tag's, as a `FastReplace.Group` with its `id()`, its `builder()` and `spansBlocks()`, or `null`. `FastReplace.stretchesThrough(held, there)` says whether a Stretch of `held` goes through `there`: both of one group whose replace is one block. A `LegBuilder` asks it to replace the blocks in its leg's way, naming them in its plan's `replaces()`; the vanilla Consumer's does. Every position any Consumer's stretch replaces now hands back what breaking it drops, rolled on the server. (#39)
+- `ReplaceBuilder.spansBlocks()` says whether one replace of the builder's group spans several blocks, true by default. A builder that replaces the aimed block alone, as a belt tile's tier swap does, returns false, and a Stretch of its group then goes through its blocks: `FastReplace.Group.spansBlocks()` and `stretchesThrough` read it, where before any group with a builder was an obstacle. The stretch lays its leg builder's blocks and hands back what breaking each old one drops; the builder's `plan` and `refund` stay a Fast Replace's. (#49)
 - `Dismantles.aimsAtMember(level, clicked)` says whether a click on `clicked` names a member of any Dismantle family, and so may be the Dismantle's; a click anywhere else passes on, whatever the held stack stores (ADR 0010). (#48)
 
 ## 0.5.7

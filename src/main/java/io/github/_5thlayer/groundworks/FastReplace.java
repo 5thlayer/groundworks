@@ -123,9 +123,13 @@ public final class FastReplace {
      */
     public record Group(Identifier id, @Nullable ReplaceBuilder builder) {
 
-        /** Whether one replace of this group spans several blocks, its builder's to say, so a Stretch goes round it. */
+        /**
+         * Whether one replace of this group spans several blocks, so a Stretch goes round its
+         * blocks: its builder's to {@linkplain ReplaceBuilder#spansBlocks say}, and never for a group
+         * with none.
+         */
         public boolean spansBlocks() {
-            return builder != null;
+            return builder != null && builder.spansBlocks();
         }
     }
 
@@ -161,7 +165,8 @@ public final class FastReplace {
 
     /**
      * States a Replace group whose replace {@code builder} plans: a replace that spans several
-     * blocks, and what it hands back, is the builder's to say.
+     * blocks, or one that keeps what the item's own plan wouldn't, and what it hands back, is the
+     * builder's to say, and whether it {@linkplain ReplaceBuilder#spansBlocks spans blocks}.
      *
      * <p>Called at mod construction, on both sides, as {@link #group(Identifier, Predicate)} is.
      */

@@ -81,6 +81,9 @@ final class FastReplaceTests {
         // The builders' groups, each a column of two blocks. Smokers and blast furnaces face a way, which a builder's plan sets.
         FastReplace.group(id("gametest_column"), block -> block == Blocks.IRON_BLOCK || block == Blocks.GOLD_BLOCK
                 || block == Blocks.SMOKER || block == Blocks.BLAST_FURNACE, new ReplacesAColumn(ReplacesAColumn.Way.REPLACES));
+        // A builder whose replace is one block, which says so, so a Stretch goes through its group.
+        FastReplace.group(id("gametest_one_block"), block -> block == Blocks.QUARTZ_BLOCK || block == Blocks.QUARTZ_BRICKS,
+                new ReplacesOneBlock());
         FastReplace.group(id("gametest_gap"), block -> block == Blocks.COPPER_BLOCK || block == Blocks.LAPIS_BLOCK,
                 new ReplacesAColumn(ReplacesAColumn.Way.LEAVES_A_GAP));
         FastReplace.group(id("gametest_refuses"), block -> block == Blocks.EMERALD_BLOCK || block == Blocks.REDSTONE_BLOCK,

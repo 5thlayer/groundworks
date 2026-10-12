@@ -36,3 +36,4 @@ The library keeps no list of mods, so each part is scoped by what Consumers stat
 - Beltworks states its four groups and keeps its contents across a swap. The Pack's own replace items move onto the library's click and the shared charge, and `ReplaceHandoff` goes. Beltworks' ADR 0002 already says Fast Replace is no longer the Pack's.
 - A stale height no longer changes what a plain click on a grouped block does. It only shifts the sneak-click that places beside.
 - A **Stretch**'s refund now lands in the freed slot, where before it went where the game put it.
+- A builder is not only for a replace that spans blocks: a group whose builder replaces the aimed block alone, as a belt tile's tier swap does, says so through `ReplaceBuilder.spansBlocks()`, and a **Stretch** of the group goes through its blocks rather than round them, laying its own and handing back their drops (#39, #49).
