@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.10
+
 ### Players
 
 - A footprint is refused whole, placing nothing and charging nothing, when a claim mod guarding the place event protects any of its positions, not only the clicked one. A footprint reaching into spawn protection is refused the same way, and drawn refused. (#50)
