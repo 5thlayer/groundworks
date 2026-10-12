@@ -19,8 +19,9 @@ import net.minecraft.world.phys.HitResult;
 /**
  * The Dismantle's preview: while a dismantling tool is held with a live start or queued spans, the
  * pass a click would confirm outlined in red, every queued span and the span to the aim, or only the
- * starts where the pass would be refused. With nothing aimed at, the start is drawn alone. It takes
- * the frame, ahead of any Consumer's {@link PlacementPreviewEvent.Takeover}.
+ * starts where the pass would be refused. With nothing aimed at, or a block no family claims, which
+ * a click would pass on, the start is drawn alone. It takes the frame, ahead of any Consumer's
+ * {@link PlacementPreviewEvent.Takeover}.
  */
 final class DismantlePreview {
 
@@ -30,7 +31,9 @@ final class DismantlePreview {
     static void onTakeover(PlacementPreviewEvent.Takeover event) {
         ClientLevel level = event.getLevel();
         ItemStack stack = event.getStack();
+        // An aim outside every family is no aim, as a click there passes on.
         BlockPos aimed = event.getHitResult() instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                && Dismantles.aimsAtMember(level, hit.getBlockPos())
                 ? hit.getBlockPos()
                 : null;
         DismantlePass pass = Dismantles.passTo(level, stack, aimed);

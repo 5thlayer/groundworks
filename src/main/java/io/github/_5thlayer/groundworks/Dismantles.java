@@ -34,6 +34,10 @@ import org.jspecify.annotations.Nullable;
  * nothing stored, passes on to the tool's own use. The families are registered here, and Groundworks runs the gesture for all of
  * them alike.
  *
+ * <p>A click on a block no family claims is never the Dismantle's, whatever is stored: it passes on
+ * with no message and leaves the start and the queue as they are, so another mod's tool keeps its
+ * own use on its own blocks (ADR 0010). The rest of this is about clicks on members.
+ *
  * <p>A sneak-click on a member stores the start on the held stack. A sneak-click with a live start
  * queues the span from it to the clicked block and clears the start, or tells the player why not and
  * leaves the start where it is. A click with a live start or queued spans confirms the pass: the
@@ -217,9 +221,16 @@ public final class Dismantles {
         return family.message(refusal);
     }
 
+    /** What a click aims at: a block no family claims, or a member whose family refuses or accepts the held tool. */
+    enum Aim {
+        OUTSIDE,
+        MEMBER_REFUSING_TOOL,
+        MEMBER_ACCEPTING_TOOL
+    }
+
     /**
-     * What a click on a block does, by whether it sneaks, aims at a member, has a live start, and
-     * has spans queued.
+     * What a click on a block does, by whether it sneaks, what it aims at, whether there is a live
+     * start, and whether spans are queued.
      */
     enum Click {
         STORE,
@@ -227,12 +238,15 @@ public final class Dismantles {
         CONFIRM,
         PASS;
 
-        static Click of(boolean sneaking, boolean aimsAtMember, boolean liveStart, boolean queued) {
+        static Click of(boolean sneaking, Aim aim, boolean liveStart, boolean queued) {
+            if (aim == Aim.OUTSIDE) {
+                return PASS;
+            }
             if (sneaking) {
                 if (liveStart) {
                     return QUEUE;
                 }
-                return aimsAtMember ? STORE : PASS;
+                return aim == Aim.MEMBER_ACCEPTING_TOOL ? STORE : PASS;
             }
             return liveStart || queued ? CONFIRM : PASS;
         }
@@ -240,33 +254,46 @@ public final class Dismantles {
 
     /** A member a click names: its family, where it is and what stands there. */
     private record Member(DismantleFamily family, BlockPos pos, BlockState state) {
+
+        Aim aim(ItemStack held) {
+            return family.acceptsTool(held, state) ? Aim.MEMBER_ACCEPTING_TOOL : Aim.MEMBER_REFUSING_TOOL;
+        }
     }
 
-    /** The member a click names, if its family accepts the held tool for it. */
-    private static @Nullable Member memberAt(Level level, BlockPos clicked, ItemStack held) {
+    /** The member a click names, the first family's to claim the block it names. */
+    private static @Nullable Member memberAt(Level level, BlockPos clicked) {
         for (DismantleFamily family : FAMILIES) {
             BlockPos named = family.names(level, clicked);
             BlockState state = level.getBlockState(named);
             if (family.claims(state)) {
-                return family.acceptsTool(held, state) ? new Member(family, named.immutable(), state) : null;
+                return new Member(family, named.immutable(), state);
             }
         }
         return null;
     }
 
     /**
+     * Whether a click on {@code clicked} names a member of any family, and so may be the
+     * Dismantle's. The preview draws no span to an aim that isn't.
+     */
+    public static boolean aimsAtMember(Level level, BlockPos clicked) {
+        return memberAt(level, clicked) != null;
+    }
+
+    /**
      * A click on a block, or PASS where the Dismantle has nothing to say and the click goes on as
-     * it would. With a live start or a queued span every click on a block is the Dismantle's, as the
-     * preview shows the Dismantle whatever the aim. Only a tool a family has accepted stores
-     * anything, so with nothing stored a click on a block no family accepts the tool for passes.
+     * it would, as on a block no family claims, whatever is stored. On a member, with a live start
+     * or a queued span, the click is the Dismantle's. Only a tool a family has accepted stores anything,
+     * so with nothing stored a click on a member whose family doesn't accept the tool passes.
      */
     static InteractionResult useOn(Player player, InteractionHand hand, BlockPos pos) {
         ItemStack held = player.getItemInHand(hand);
         Level level = player.level();
-        Member member = memberAt(level, pos, held);
+        Member member = memberAt(level, pos);
         DismantleStart start = liveStart(level, held);
         List<QueuedSpan> queued = queued(held);
-        switch (Click.of(player.isShiftKeyDown(), member != null, start != null, !queued.isEmpty())) {
+        Aim aim = member == null ? Aim.OUTSIDE : member.aim(held);
+        switch (Click.of(player.isShiftKeyDown(), aim, start != null, !queued.isEmpty())) {
             case STORE -> {
                 if (!level.isClientSide()) {
                     if (!hasRoom(queued.size())) {
@@ -286,7 +313,7 @@ public final class Dismantles {
             }
             case CONFIRM -> {
                 if (!level.isClientSide()) {
-                    // A plain click with only queued spans confirms them wherever it aims.
+                    // A plain click with only queued spans confirms them on any member it aims at.
                     DismantlePass pass = passTo(level, held, start == null ? null : pos);
                     if (pass.isRefused()) {
                         DismantlePass.Planned refused = pass.refused();

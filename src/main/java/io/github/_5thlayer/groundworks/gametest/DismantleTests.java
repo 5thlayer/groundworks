@@ -3,14 +3,19 @@
 
 package io.github._5thlayer.groundworks.gametest;
 
+import java.util.List;
+
 import io.github._5thlayer.groundworks.Dismantles;
 import io.github._5thlayer.groundworks.Groundworks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -24,6 +29,8 @@ final class DismantleTests {
 
     private static final int FIRST = 1;
     private static final int SECOND = 3;
+    /** Where a lever stands between the rows, a block no family claims that answers a click of its own. */
+    private static final BlockPos LEVER = new BlockPos(0, 1, 2);
 
     private DismantleTests() {
     }
@@ -32,8 +39,14 @@ final class DismantleTests {
         tests.test("a_sneak_click_with_a_start_stored_queues_the_span_and_takes_nothing", 20, DismantleTests::queues);
         tests.test("a_click_with_a_start_in_progress_takes_up_the_queued_span_and_its_own", 20,
                 DismantleTests::confirmsWithAStart);
-        tests.test("a_click_with_no_start_takes_up_the_queued_spans_wherever_it_aims", 20,
+        tests.test("a_click_on_a_member_with_no_start_takes_up_the_queued_spans", 20,
                 DismantleTests::confirmsQueueOnly);
+        tests.test("a_sneak_click_off_every_family_with_a_start_stored_passes_on", 20,
+                DismantleTests::sneakOffEveryFamilyPasses);
+        tests.test("a_click_off_every_family_with_a_start_stored_passes_on_to_the_block", 20,
+                DismantleTests::clickOffEveryFamilyPasses);
+        tests.test("a_click_off_every_family_with_spans_queued_passes_on", 20,
+                DismantleTests::clickOffEveryFamilyKeepsTheQueue);
         tests.test("two_overlapping_spans_take_each_block_once", 20, DismantleTests::overlap);
         tests.test("a_queued_span_whose_start_is_gone_refuses_the_whole_pass", 20, DismantleTests::staleRefuses);
         tests.test("a_sneak_click_off_the_row_is_refused_and_keeps_the_start", 20, DismantleTests::offRow);
@@ -74,12 +87,49 @@ final class DismantleTests {
         click(helper, player, at(4, FIRST), true);
         click(helper, player, at(0, SECOND), true);
         click(helper, player, at(1, SECOND), true);
-        // Aimed at the floor, off both rows.
-        click(helper, player, new BlockPos(2, 0, 2), false);
+        // Aimed at a tile on the second row that neither span takes.
+        click(helper, player, at(3, SECOND), false);
         expectRow(helper, FIRST, 0, 4, false);
         expectRow(helper, SECOND, 0, 1, false);
         expectRow(helper, SECOND, 2, 4, true);
         expectEmptied(helper, player);
+        helper.succeed();
+    }
+
+    private static void sneakOffEveryFamilyPasses(GameTestHelper helper) {
+        ListeningPlayer player = rows(helper);
+        lever(helper);
+        click(helper, player, at(1, FIRST), true);
+        InteractionResult result = click(helper, player, LEVER, true);
+        helper.assertValueEqual(InteractionResult.PASS, result, "the click's result");
+        expectStartAt(helper, player, at(1, FIRST));
+        helper.assertValueEqual(List.of("message.groundworks.dismantle_started"), player.heard, "what the player heard");
+        helper.succeed();
+    }
+
+    private static void clickOffEveryFamilyPasses(GameTestHelper helper) {
+        ListeningPlayer player = rows(helper);
+        lever(helper);
+        click(helper, player, at(1, FIRST), true);
+        click(helper, player, LEVER, false);
+        helper.assertBlockProperty(LEVER, LeverBlock.POWERED, true);
+        expectStartAt(helper, player, at(1, FIRST));
+        expectRow(helper, FIRST, 0, 4, true);
+        helper.assertValueEqual(List.of("message.groundworks.dismantle_started"), player.heard, "what the player heard");
+        helper.succeed();
+    }
+
+    private static void clickOffEveryFamilyKeepsTheQueue(GameTestHelper helper) {
+        ListeningPlayer player = rows(helper);
+        click(helper, player, at(0, FIRST), true);
+        click(helper, player, at(4, FIRST), true);
+        // Aimed at the floor, off both rows.
+        InteractionResult result = click(helper, player, new BlockPos(2, 0, 2), false);
+        helper.assertValueEqual(InteractionResult.PASS, result, "the click's result");
+        helper.assertValueEqual(1, Dismantles.queued(held(player)).size(), "queued spans kept");
+        expectRow(helper, FIRST, 0, 4, true);
+        helper.assertValueEqual(List.of("message.groundworks.dismantle_started", "message.groundworks.dismantle_queued"),
+                player.heard, "what the player heard");
         helper.succeed();
     }
 
@@ -161,16 +211,27 @@ final class DismantleTests {
         return player;
     }
 
+    private static void lever(GameTestHelper helper) {
+        helper.setBlock(LEVER, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
+    }
+
     private static ItemStack held(ListeningPlayer player) {
         return player.getMainHandItem();
     }
 
-    private static void click(GameTestHelper helper, ListeningPlayer player, BlockPos pos, boolean sneaking) {
+    private static InteractionResult click(GameTestHelper helper, ListeningPlayer player, BlockPos pos, boolean sneaking) {
         BlockPos absolute = helper.absolutePos(pos);
         player.setShiftKeyDown(sneaking);
-        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
+        InteractionResult result = player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(),
+                InteractionHand.MAIN_HAND,
                 new BlockHitResult(Vec3.atCenterOf(absolute).relative(Direction.UP, 0.5), Direction.UP, absolute, false));
         player.setShiftKeyDown(false);
+        return result;
+    }
+
+    private static void expectStartAt(GameTestHelper helper, ListeningPlayer player, BlockPos pos) {
+        helper.assertValueEqual(helper.absolutePos(pos), held(player).get(Groundworks.DISMANTLE_START.get()).pos(),
+                "the start stays");
     }
 
     private static void expectRow(GameTestHelper helper, int z, int fromX, int toX, boolean standing) {

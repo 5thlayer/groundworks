@@ -6,7 +6,12 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ### Players
 
+- With a Dismantle start or a queued span stored on a tool, a click on a block no Dismantle family claims now passes on to the tool and the block, with no message, and keeps what is stored, so another mod's wrench works on its own machines again. Confirming queued spans takes a click on a member; a click on open floor no longer confirms them. (#48)
 - The game tests' datapacks, `gametest_packs/`, no longer ship in the jar. Nothing ever switched them on outside Groundworks' own game tests (libworks ADR 0004).
+
+### Consumers
+
+- `Dismantles.aimsAtMember(level, clicked)` says whether a click on `clicked` names a member of any Dismantle family, and so may be the Dismantle's; a click anywhere else passes on, whatever the held stack stores (ADR 0010). (#48)
 
 ## 0.5.7
 

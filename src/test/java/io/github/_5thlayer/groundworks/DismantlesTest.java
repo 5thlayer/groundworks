@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github._5thlayer.groundworks.Dismantles.Aim;
 import io.github._5thlayer.groundworks.Dismantles.Click;
 
 import net.minecraft.core.BlockPos;
@@ -182,39 +183,51 @@ class DismantlesTest {
     }
 
     @Test
-    void aSneakClickOnAMemberWithNoLiveStartStoresOne() {
-        assertEquals(Click.STORE, Click.of(true, true, false, false));
-        assertEquals(Click.STORE, Click.of(true, true, false, true));
+    void aSneakClickOnAMemberTheToolDismantlesWithNoLiveStartStoresOne() {
+        assertEquals(Click.STORE, Click.of(true, Aim.MEMBER_ACCEPTING_TOOL, false, false));
+        assertEquals(Click.STORE, Click.of(true, Aim.MEMBER_ACCEPTING_TOOL, false, true));
     }
 
     @Test
-    void aSneakClickWithALiveStartQueuesTheSpanWhateverItAims() {
-        assertEquals(Click.QUEUE, Click.of(true, true, true, false));
-        assertEquals(Click.QUEUE, Click.of(true, false, true, true));
+    void aSneakClickWithALiveStartQueuesTheSpanToAnyMember() {
+        assertEquals(Click.QUEUE, Click.of(true, Aim.MEMBER_ACCEPTING_TOOL, true, false));
+        assertEquals(Click.QUEUE, Click.of(true, Aim.MEMBER_REFUSING_TOOL, true, true));
     }
 
     @Test
-    void aSneakClickOnAnythingElseWithNoLiveStartPassesOn() {
-        assertEquals(Click.PASS, Click.of(true, false, false, false));
-        assertEquals(Click.PASS, Click.of(true, false, false, true));
+    void aSneakClickOnAMemberTheToolDoesNotDismantleWithNoLiveStartPassesOn() {
+        assertEquals(Click.PASS, Click.of(true, Aim.MEMBER_REFUSING_TOOL, false, false));
+        assertEquals(Click.PASS, Click.of(true, Aim.MEMBER_REFUSING_TOOL, false, true));
     }
 
     @Test
-    void aClickWithALiveStartConfirmsWhateverItAims() {
-        assertEquals(Click.CONFIRM, Click.of(false, true, true, false));
-        assertEquals(Click.CONFIRM, Click.of(false, false, true, true));
+    void aClickWithALiveStartConfirmsOnAnyMember() {
+        assertEquals(Click.CONFIRM, Click.of(false, Aim.MEMBER_ACCEPTING_TOOL, true, false));
+        assertEquals(Click.CONFIRM, Click.of(false, Aim.MEMBER_REFUSING_TOOL, true, true));
     }
 
     @Test
-    void aClickWithSpansQueuedConfirmsWhateverItAims() {
-        assertEquals(Click.CONFIRM, Click.of(false, false, false, true));
-        assertEquals(Click.CONFIRM, Click.of(false, true, false, true));
+    void aClickWithSpansQueuedConfirmsOnAnyMember() {
+        assertEquals(Click.CONFIRM, Click.of(false, Aim.MEMBER_REFUSING_TOOL, false, true));
+        assertEquals(Click.CONFIRM, Click.of(false, Aim.MEMBER_ACCEPTING_TOOL, false, true));
     }
 
     @Test
     void aClickWithNothingStoredPassesOn() {
-        assertEquals(Click.PASS, Click.of(false, true, false, false));
-        assertEquals(Click.PASS, Click.of(false, false, false, false));
+        assertEquals(Click.PASS, Click.of(false, Aim.MEMBER_ACCEPTING_TOOL, false, false));
+        assertEquals(Click.PASS, Click.of(false, Aim.MEMBER_REFUSING_TOOL, false, false));
+    }
+
+    /** Another mod's tool keeps its own use on its own blocks, a start stored or not (ADR 0010). */
+    @Test
+    void aClickOnABlockOutsideEveryFamilyPassesOnWhateverIsStored() {
+        for (boolean sneaking : new boolean[] {true, false}) {
+            for (boolean liveStart : new boolean[] {true, false}) {
+                for (boolean queued : new boolean[] {true, false}) {
+                    assertEquals(Click.PASS, Click.of(sneaking, Aim.OUTSIDE, liveStart, queued));
+                }
+            }
+        }
     }
 
     @Test
