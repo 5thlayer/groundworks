@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.11
+
 ### Players
 
 - A **Stretch** and a **Fast Replace** play the place sound a block makes where it stands, and the preview hides a face against a neighbour the way the world does, for a modded block whose sound or faces depend on its surroundings.
