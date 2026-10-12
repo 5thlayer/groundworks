@@ -4,6 +4,10 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- Cocoa hanging on a log a **Stretch** replaces now goes with it, dropping nothing, as a plant standing on a replaced block does. (#39)
+
 ## 0.5.8
 
 ### Players

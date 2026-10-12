@@ -25,6 +25,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CocoaBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -76,6 +77,7 @@ final class StretchReplaceTests {
                 StretchReplaceTests::plants);
         road.test("sugar_cane_on_a_replaced_block_goes_whole_with_no_drop_even_after_its_tick", 20,
                 StretchReplaceTests::sugarCane);
+        road.test("cocoa_on_the_side_of_a_replaced_log_goes_with_no_drop", 20, StretchReplaceTests::cocoa);
         road.test("a_stretch_whose_hand_back_has_no_room_is_refused_whole_and_changes_nothing", 20,
                 StretchReplaceTests::noRoom);
         road.test("a_creative_stretch_through_its_group_changes_no_inventory", 20, StretchReplaceTests::creative);
@@ -268,6 +270,26 @@ final class StretchReplaceTests {
             expectCount(helper, player, Items.SUGAR_CANE, 0);
             helper.succeed();
         });
+    }
+
+    /** A jungle log in the row at x 3, cocoa hanging on its south side: it has nothing to hang on once the log is stone bricks, and goes leaving no item. */
+    private static void cocoa(GameTestHelper helper) {
+        layRow(helper, Blocks.PODZOL);
+        BlockPos log = new BlockPos(3, 1, 2);
+        helper.setBlock(log, Blocks.JUNGLE_LOG);
+        BlockPos cocoa = log.south();
+        helper.setBlock(cocoa, Blocks.COCOA.defaultBlockState().setValue(CocoaBlock.FACING, Direction.NORTH));
+        ListeningPlayer player = holding(helper, Items.STONE_BRICKS);
+        start(helper, player, WEST_END);
+        click(helper, player, EAST_END, false);
+        expectRow(helper, Blocks.STONE_BRICKS);
+        if (!helper.getBlockState(cocoa).isAir()) {
+            helper.fail("the cocoa still hangs, as " + helper.getBlockState(cocoa), cocoa);
+        }
+        expectNoItems(helper);
+        expectCount(helper, player, Items.COCOA_BEANS, 0);
+        expectCount(helper, player, Items.JUNGLE_LOG, 1);
+        helper.succeed();
     }
 
     /** An inventory full of dirt takes back none of the podzol's: the plan and the click are refused, and nothing changes. */

@@ -28,6 +28,7 @@ import net.minecraft.world.level.block.BambooStalkBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CactusBlock;
+import net.minecraft.world.level.block.CocoaBlock;
 import net.minecraft.world.level.block.SugarCaneBlock;
 import net.minecraft.world.level.block.VegetationBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -416,10 +417,17 @@ public final class Stretches {
     // The state is reset before the charge, which may take the held stack's last item.
     private static void lay(Laying laying, Level level, ItemStack held, Player player, StretchState reset) {
         store(held, reset);
+        // A plant breaking with a replaced block touches it: standing on it, or hanging on it, as cocoa does.
+        Set<BlockPos> touching = new HashSet<>();
         Set<BlockPos> above = new HashSet<>();
-        laying.plan().replaces().forEach(pos -> above.add(pos.above()));
+        for (BlockPos pos : laying.plan().replaces()) {
+            above.add(pos.above());
+            for (Direction direction : Direction.values()) {
+                touching.add(pos.relative(direction));
+            }
+        }
         Silenced previous = silenced;
-        silenced = new Silenced(level, above);
+        silenced = new Silenced(level, touching);
         try {
             laying.charge().lay(level, player, laying.plan());
         } finally {
@@ -435,15 +443,15 @@ public final class Stretches {
 
     /**
      * Whether a block is a plant a stretch clears from the blocks it replaces: vegetation, a block
-     * a placement overwrites, such as a snow layer, or sugar cane, a cactus or bamboo.
+     * a placement overwrites, such as a snow layer, sugar cane, a cactus, bamboo, or cocoa.
      */
     private static boolean isPlant(BlockState state) {
         Block block = state.getBlock();
         return block instanceof VegetationBlock || block instanceof SugarCaneBlock || block instanceof CactusBlock
-                || block instanceof BambooStalkBlock || !state.isAir() && state.canBeReplaced();
+                || block instanceof BambooStalkBlock || block instanceof CocoaBlock || !state.isAir() && state.canBeReplaced();
     }
 
-    /** Where plants break with no drop while a stretch is laid: on the blocks it replaces, in its level. */
+    /** Where plants break with no drop while a stretch is laid: on and beside the blocks it replaces, in its level. */
     private record Silenced(Level level, Set<BlockPos> positions) {
     }
 
@@ -452,7 +460,7 @@ public final class Stretches {
 
     /**
      * Cancels the drops of a {@linkplain #isPlant plant} that a stretch being laid breaks by
-     * replacing the block it stood on, so it goes with no drop left on the road, as a placement
+     * replacing the block it stood or hung on, so it goes with no drop left on the road, as a placement
      * overwrites a plant in its way. Whether it can still stand is the plant's own to say, as it
      * breaks.
      */
