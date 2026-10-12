@@ -12,6 +12,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -32,6 +34,16 @@ final class ListeningPlayer extends FakePlayer {
     void standOn(GameTestHelper helper, BlockPos at) {
         Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(at));
         setPos(feet.x, feet.y, feet.z);
+    }
+
+    /** Fills every empty slot of the main inventory with dirt, leaving the off hand as it is. */
+    void fillInventory() {
+        var inventory = getInventory().getNonEquipmentItems();
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            if (inventory.get(slot).isEmpty()) {
+                inventory.set(slot, new ItemStack(Items.DIRT, 64));
+            }
+        }
     }
 
     @Override

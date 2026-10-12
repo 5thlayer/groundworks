@@ -3,6 +3,8 @@
 
 package io.github._5thlayer.groundworks.gametest;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.IntFunction;
 
 import io.github._5thlayer.groundworks.Groundworks;
@@ -10,9 +12,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -35,6 +40,11 @@ final class VanillaDismantleTests {
 
     private static final int LINE = 1;
     private static final int BESIDE = 2;
+    /**
+     * How far across from the player an item may lie and still be at their feet, well short of the
+     * line, two blocks away, where a block's own drop would lie.
+     */
+    private static final double AT_FEET = 1;
 
     private VanillaDismantleTests() {
     }
@@ -62,6 +72,40 @@ final class VanillaDismantleTests {
                         Blocks.RAIL));
         tests.test("a_pickaxe_takes_up_a_span_of_stone_walls", 20, helper ->
                 takesUp(helper, line(helper, Items.IRON_PICKAXE, x -> wallAlongX(x)), Blocks.COBBLESTONE_WALL));
+        tests.test("a_span_taken_with_no_room_drops_every_block_once_at_the_players_feet", 20, helper -> {
+            ListeningPlayer player = line(helper, Items.IRON_PICKAXE, x -> wallAlongX(x));
+            player.fillInventory();
+            click(helper, player, at(0, LINE), true);
+            click(helper, player, at(4, LINE), false);
+            expectLine(helper, LINE, Blocks.AIR);
+            helper.assertValueEqual(0, player.getInventory().countItem(Items.COBBLESTONE_WALL), "walls handed");
+            helper.getEntities(EntityType.ITEM).forEach(item -> {
+                double across = item.position().subtract(player.position()).horizontalDistance();
+                helper.assertTrue(across < AT_FEET, "an item dropped " + across + " blocks across from the player");
+            });
+            List<ItemStack> dropped = droppedItems(helper);
+            helper.assertValueEqual(5, dropped.stream().filter(stack -> stack.is(Items.COBBLESTONE_WALL))
+                    .mapToInt(ItemStack::getCount).sum(), "walls dropped");
+            helper.assertTrue(dropped.stream().allMatch(stack -> stack.is(Items.COBBLESTONE_WALL)),
+                    "only walls dropped: " + dropped);
+            helper.succeed();
+        });
+        // The player holds nothing but the pickaxe, which a Dismantle needs.
+        tests.test("a_creative_span_hands_over_and_drops_nothing_even_with_room", 20, helper -> {
+            ListeningPlayer player = line(helper, Items.IRON_PICKAXE, x -> wallAlongX(x));
+            player.setGameMode(GameType.CREATIVE);
+            List<ItemStack> before = slots(player);
+            click(helper, player, at(0, LINE), true);
+            click(helper, player, at(4, LINE), false);
+            expectLine(helper, LINE, Blocks.AIR);
+            List<ItemStack> after = slots(player);
+            for (int slot = 0; slot < before.size(); slot++) {
+                helper.assertTrue(ItemStack.matches(before.get(slot), after.get(slot)),
+                        "slot " + slot + " changed from " + before.get(slot) + " to " + after.get(slot));
+            }
+            helper.assertValueEqual(List.of(), droppedItems(helper), "items dropped");
+            helper.succeed();
+        });
         tests.test("a_pickaxe_takes_up_a_span_of_iron_bars", 20, helper ->
                 takesUp(helper, line(helper, Items.IRON_PICKAXE, x -> alongX(Blocks.IRON_BARS, x)), Blocks.IRON_BARS));
         tests.test("a_pickaxe_sneak_click_on_an_oak_fence_passes_on", 20, helper -> {
@@ -139,6 +183,20 @@ final class VanillaDismantleTests {
                 .setValue(BlockStateProperties.UP, false)
                 .setValue(BlockStateProperties.WEST_WALL, x > 0 ? WallSide.LOW : WallSide.NONE)
                 .setValue(BlockStateProperties.EAST_WALL, x < 4 ? WallSide.LOW : WallSide.NONE);
+    }
+
+    /** A copy of every slot, armour and the off hand included. */
+    private static List<ItemStack> slots(ListeningPlayer player) {
+        var inventory = player.getInventory();
+        List<ItemStack> slots = new ArrayList<>();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            slots.add(inventory.getItem(slot).copy());
+        }
+        return slots;
+    }
+
+    private static List<ItemStack> droppedItems(GameTestHelper helper) {
+        return helper.getEntities(EntityType.ITEM).stream().map(ItemEntity::getItem).toList();
     }
 
     private static BlockPos at(int x, int z) {

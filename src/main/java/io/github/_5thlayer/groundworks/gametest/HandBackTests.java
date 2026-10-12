@@ -42,7 +42,7 @@ final class HandBackTests {
     /** The last held item is charged, so what comes back goes into the held slot, and fits though every other slot is full. */
     private static void freesTheMainHand(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, InteractionHand.MAIN_HAND, 1);
-        fillInventory(player);
+        player.fillInventory();
         if (!HandBack.fits(player, InteractionHand.MAIN_HAND, lime())) {
             helper.fail("the lime terracotta did not fit in the slot the charge frees");
         }
@@ -55,7 +55,7 @@ final class HandBackTests {
     /** The off hand's last item is charged, so what comes back goes into the off hand, and fits with the main inventory full. */
     private static void freesTheOffHand(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, InteractionHand.OFF_HAND, 1);
-        fillInventory(player);
+        player.fillInventory();
         if (!HandBack.fits(player, InteractionHand.OFF_HAND, lime())) {
             helper.fail("the lime terracotta did not fit in the off hand the charge frees");
         }
@@ -79,7 +79,7 @@ final class HandBackTests {
     /** The charge leaves an item in the held slot and every other slot is full, so what comes back has nowhere to go. */
     private static void noRoom(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, InteractionHand.MAIN_HAND, 2);
-        fillInventory(player);
+        player.fillInventory();
         if (HandBack.fits(player, InteractionHand.MAIN_HAND, lime())) {
             helper.fail("the lime terracotta fit with no slot to go in");
         }
@@ -91,7 +91,7 @@ final class HandBackTests {
     private static void creative(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, InteractionHand.MAIN_HAND, 2);
         player.setGameMode(GameType.CREATIVE);
-        fillInventory(player);
+        player.fillInventory();
         if (!HandBack.fits(player, InteractionHand.MAIN_HAND, lime())) {
             helper.fail("what comes back to a creative player did not fit");
         }
@@ -111,15 +111,6 @@ final class HandBackTests {
         player.getInventory().setSelectedSlot(HELD_SLOT);
         player.setItemInHand(hand, new ItemStack(Items.PINK_GLAZED_TERRACOTTA, count));
         return player;
-    }
-
-    private static void fillInventory(ListeningPlayer player) {
-        var inventory = player.getInventory().getNonEquipmentItems();
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            if (inventory.get(slot).isEmpty()) {
-                inventory.set(slot, new ItemStack(Items.DIRT, 64));
-            }
-        }
     }
 
     private static void expectSlot(GameTestHelper helper, ItemStack there, Item item, int count) {

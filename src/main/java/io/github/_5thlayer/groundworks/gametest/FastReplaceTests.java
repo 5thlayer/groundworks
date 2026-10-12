@@ -428,7 +428,7 @@ final class FastReplaceTests {
     private static void noRoomToReturn(GameTestHelper helper) {
         helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
         ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
-        fillInventory(player);
+        player.fillInventory();
         expectRefusedWhole(helper, player, Refusal.FastReplace.NO_ROOM_TO_RETURN,
                 "message.groundworks.fast_replace_no_room_to_return");
         helper.succeed();
@@ -476,7 +476,7 @@ final class FastReplaceTests {
     private static void refusedFiresNoPlaceEvent(GameTestHelper helper) {
         helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
         ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
-        fillInventory(player);
+        player.fillInventory();
         whileClaimed(helper, () -> click(helper, player, false));
         expectUntouched(helper, Blocks.PINK_GLAZED_TERRACOTTA);
         if (!player.heard.equals(List.of("message.groundworks.fast_replace_no_room_to_return"))) {
@@ -502,7 +502,7 @@ final class FastReplaceTests {
         helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA);
         ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
         player.setGameMode(GameType.CREATIVE);
-        fillInventory(player);
+        player.fillInventory();
         replaceAsPlanned(helper, player, Blocks.LIME_GLAZED_TERRACOTTA);
         expectSlot(helper, player, HELD_SLOT, Items.LIME_GLAZED_TERRACOTTA, 2);
         if (player.getInventory().countItem(Items.PINK_GLAZED_TERRACOTTA) != 0) {
@@ -625,7 +625,7 @@ final class FastReplaceTests {
     private static void handsBackNothingAndNeedsNoRoom(GameTestHelper helper) {
         helper.setBlock(AIMED, Blocks.GLASS);
         ListeningPlayer player = holding(helper, new ItemStack(Items.STONE, 1));
-        fillInventory(player);
+        player.fillInventory();
         replaceAsPlanned(helper, player, Blocks.STONE);
         if (!player.getInventory().getItem(HELD_SLOT).isEmpty()) {
             helper.fail("the replace handed back " + player.getInventory().getItem(HELD_SLOT));
@@ -680,15 +680,6 @@ final class FastReplaceTests {
             body.run();
         } finally {
             RotateInPlaceTests.CLAIMED.remove(claimed);
-        }
-    }
-
-    private static void fillInventory(ListeningPlayer player) {
-        var inventory = player.getInventory().getNonEquipmentItems();
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            if (inventory.get(slot).isEmpty()) {
-                inventory.set(slot, new ItemStack(Items.DIRT, 64));
-            }
         }
     }
 
