@@ -57,7 +57,7 @@ _Avoid_: dismantle outline, highlight
 ### Rotating
 
 **Rotate**:
-One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the held item is rotatable -- its plan is drawn and the block it places has a facing, an axis or a rotation -- and otherwise **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
+One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the held item is rotatable -- its plan is drawn and the block it places has a facing, an axis or a rotation, or it is a **Key** whose **Assembly** is drawn -- and otherwise **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
 _Avoid_: rotate key, turn, wrench rotate
 
 **Reverse Rotate**:
@@ -112,15 +112,29 @@ _Avoid_: pathfinding, reroute, go-around
 
 **Footprint**:
 A block that stands on several positions, placed and broken whole: one **Origin** and a **Part** at each of its other positions, set by its shape. One item places it, facing the player, or nothing when any of its positions is taken, and the **Placement Preview** draws it whole. Breaking any of its blocks breaks the **Origin** as the player would, so what the origin drops comes back once, and takes every part with it. **Rotate in Place** on any of its blocks turns it whole about its **Origin**, which keeps what it holds, or refuses with its reason when the turned shape doesn't fit. Groundworks has none of its own: a **Consumer** declares each, by its shape, and its machines stand on one.
-_Avoid_: multiblock (a structure the player assembles block by block), machine (what a Consumer builds on a footprint)
+_Avoid_: multiblock (an **Assembly**), machine (what a Consumer builds on a footprint)
 
 **Origin**:
 The block of a **Footprint** that every other is placed relative to: it holds the block entity and the facing, and is the Consumer's own block.
-_Avoid_: anchor (a **Stretch**'s), controller, core
+_Avoid_: anchor (a **Stretch**'s), controller, core, key (an **Assembly**'s)
 
 **Part**:
 A block of a **Footprint** other than its **Origin**. It is not drawn, holds nothing and is never placed alone; it answers for its origin, to a click, to a lookup of energy, fluid or items, and to a look at it.
 _Avoid_: slave, dummy block
+
+### Assemblies
+
+**Assembly**:
+A shape of real blocks, each its own item, placed in one step from its **Key** and then standing block by block: breaking one breaks only that block, and nothing remembers they were placed together. It rests on the aimed face, facing the player, with its other blocks taken from the inventory, all or none, free in creative, or nothing when any of its positions is taken, and the **Placement Preview** draws it whole. A position may take any block of a tag, filled as uniformly as the inventory allows; one that already holds a block it takes keeps it, uncharged. A position may instead be one that stays empty, such as a portal's inside, refused when taken. A Key may have several Assemblies, such as a beacon's four pyramids, and the held stack keeps which one it places, chosen by **Next Assembly**. The Key is placed last, so vanilla's own rules, such as a golem's, see the finished shape. **Rotate in Place** turns its blocks one by one, never the whole. Each is declared as data, by a **Consumer** or a pack: vanilla's beacon pyramid, conduit frame, nether portal frame and iron and snow golems are Assemblies.
+_Avoid_: multiblock, structure (vanilla's villages and templates), kit
+
+**Key**:
+The block of an **Assembly** it is placed from: the held item that places it is the Key's own, and the shape is set in the Key's frame. Sneak-placing it places the Key alone, as vanilla would. It may be a block the shape uses at other positions too: a nether portal's frame is keyed by its obsidian, and is placed unlit.
+_Avoid_: core (a Consumer's own name, such as the Void Well's), origin (a **Footprint**'s), controller
+
+**Next Assembly**:
+One action on one key (`V` by default) that chooses the held **Key**'s next **Assembly**, or the Key alone, with its reverse on `Shift+V`; the **Placement Preview** redraws with it. A fresh stack starts on the Key's first Assembly, or on the Key alone when its declaration says so, as obsidian's does.
+_Avoid_: cycle size, next level
 
 ### Dismantling
 
