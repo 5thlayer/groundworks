@@ -4,7 +4,11 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
@@ -19,43 +23,70 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What laying a plan costs the player in the held item and hands back, and the laying itself: the
- * step a {@linkplain Stretches Stretch} lays through, kept apart from legs and anchors so that a
- * Fast Replace can lay through it too (ADR 0008). Its caller says what the cost is and what comes
- * back, and names its own refusals.
+ * What laying a plan costs the player in items and hands back, and the laying itself: the step a
+ * {@linkplain Stretches Stretch} lays through, kept apart from legs and anchors so that a Fast
+ * Replace can lay through it too (ADR 0008). Its caller says what the cost is and what comes back,
+ * and names its own refusals.
  *
- * <p>A player with infinite materials is charged nothing and handed nothing. The cost is taken
- * from the main inventory, the held stack first, and what comes back is handed back by the rules
- * a Consumer's own replace hands back by, {@link HandBack}'s.
+ * <p>The cost is one or several items with a count each: a Stretch's and a Fast Replace's is the
+ * held item alone. A player with infinite materials is charged nothing and handed nothing. The cost
+ * is taken from the main inventory, all of it or none, the held stack first, and what comes back is
+ * handed back by the rules a Consumer's own replace hands back by, {@link HandBack}'s.
  */
-record Charge(Item item, int cost, List<ItemStack> returned) {
+record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {
 
     Charge {
+        cost = Collections.unmodifiableMap(new LinkedHashMap<>(cost));
         returned = List.copyOf(returned);
     }
 
-    /** {@code cost} of the held item, handing {@code returned} back, or nothing to a player with infinite materials. */
+    /** {@code cost} of {@code item}, handing {@code returned} back, or nothing to a player with infinite materials. */
     static Charge of(@Nullable Player player, Item item, int cost, List<ItemStack> returned) {
-        if (player == null || player.hasInfiniteMaterials()) {
-            return new Charge(item, 0, List.of());
-        }
-        return new Charge(item, cost, returned);
+        return of(player, Map.of(item, cost), returned);
     }
 
-    /** Whether the main inventory holds the cost. */
+    /**
+     * {@code cost}, a count of each of its items in the order they are taken, handing {@code
+     * returned} back, or nothing to a player with infinite materials.
+     */
+    static Charge of(@Nullable Player player, Map<Item, Integer> cost, List<ItemStack> returned) {
+        if (player == null || player.hasInfiniteMaterials()) {
+            return new Charge(Map.of(), List.of());
+        }
+        return new Charge(cost, returned);
+    }
+
+    /** Whether the main inventory holds all of the cost. */
     boolean affordable(Player player) {
-        int held = 0;
+        return missing(player).isEmpty();
+    }
+
+    /** How many of each of the cost's items the main inventory lacks, in the cost's order: none when it affords it. */
+    Map<Item, Integer> missing(Player player) {
+        Map<Item, Integer> held = new HashMap<>();
         for (ItemStack slot : player.getInventory().getNonEquipmentItems()) {
-            if (slot.is(item)) {
-                held += slot.getCount();
+            if (!slot.isEmpty() && cost.containsKey(slot.getItem())) {
+                held.merge(slot.getItem(), slot.getCount(), Integer::sum);
             }
         }
-        return held >= cost;
+        return missing(cost, held);
+    }
+
+    /** How many of each of {@code cost}'s keys {@code held} lacks, in {@code cost}'s order. */
+    static <K> Map<K, Integer> missing(Map<K, Integer> cost, Map<K, Integer> held) {
+        Map<K, Integer> missing = new LinkedHashMap<>();
+        cost.forEach((key, count) -> {
+            int lacking = count - held.getOrDefault(key, 0);
+            if (lacking > 0) {
+                missing.put(key, lacking);
+            }
+        });
+        return missing;
     }
 
     /** Whether what comes back fits in the main inventory once the cost is taken, as {@link #lay} puts it. */
     boolean fits(Player player) {
-        return HandBack.fits(player, InteractionHand.MAIN_HAND, item, cost, returned);
+        return HandBack.fits(player, InteractionHand.MAIN_HAND, cost, returned);
     }
 
     /**
@@ -80,7 +111,7 @@ record Charge(Item item, int cost, List<ItemStack> returned) {
      * {@linkplain #fits fit} it.
      */
     void lay(Level level, Player player, PlacementPlan plan) {
-        boolean freed = HandBack.take(player, InteractionHand.MAIN_HAND, item, cost);
+        boolean freed = HandBack.take(player, InteractionHand.MAIN_HAND, cost);
         for (PlacementPlan.Placed placed : plan.blocks()) {
             level.setBlock(placed.pos(), placed.state(), Block.UPDATE_ALL);
         }

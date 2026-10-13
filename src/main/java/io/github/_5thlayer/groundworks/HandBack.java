@@ -5,6 +5,7 @@ package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
@@ -39,7 +40,7 @@ public final class HandBack {
         if (player == null || player.hasInfiniteMaterials()) {
             return true;
         }
-        return fits(player, hand, player.getItemInHand(hand).getItem(), 1, returned);
+        return fits(player, hand, Map.of(player.getItemInHand(hand).getItem(), 1), returned);
     }
 
     /**
@@ -50,12 +51,12 @@ public final class HandBack {
         if (player == null || player.hasInfiniteMaterials()) {
             return;
         }
-        boolean freed = take(player, hand, player.getItemInHand(hand).getItem(), 1);
+        boolean freed = take(player, hand, Map.of(player.getItemInHand(hand).getItem(), 1));
         give(player, hand, freed, returned);
     }
 
-    /** Whether {@code returned} fits once {@code cost} of {@code item} is {@linkplain #take taken}. */
-    static boolean fits(Player player, InteractionHand hand, Item item, int cost, List<ItemStack> returned) {
+    /** Whether {@code returned} fits once {@code cost}, a count of each of its items, is {@linkplain #take taken}. */
+    static boolean fits(Player player, InteractionHand hand, Map<Item, Integer> cost, List<ItemStack> returned) {
         if (returned.isEmpty()) {
             return true;
         }
@@ -65,7 +66,7 @@ public final class HandBack {
             slots.add(slot.copy());
         }
         int held = heldSlot(player, hand, slots, player.getItemInHand(hand).copy());
-        boolean freed = take(slots, held, item, cost);
+        boolean freed = take(slots, held, cost);
         for (ItemStack back : returned) {
             ItemStack rest = back.copy();
             if (freed && slots.get(held).isEmpty()) {
@@ -91,13 +92,14 @@ public final class HandBack {
     }
 
     /**
-     * Takes {@code cost} of {@code item} from the main inventory, the stack in {@code hand} first,
-     * and answers whether that took the held stack's last item, freeing its slot for what comes back.
+     * Takes {@code cost}, a count of each of its items, from the main inventory, the stack in {@code
+     * hand} first, and answers whether that took the held stack's last item, freeing its slot for
+     * what comes back.
      */
-    static boolean take(Player player, InteractionHand hand, Item item, int cost) {
+    static boolean take(Player player, InteractionHand hand, Map<Item, Integer> cost) {
         // The stacks themselves, so taking from them takes from the inventory.
         List<ItemStack> slots = new ArrayList<>(player.getInventory().getNonEquipmentItems());
-        return take(slots, heldSlot(player, hand, slots, player.getItemInHand(hand)), item, cost);
+        return take(slots, heldSlot(player, hand, slots, player.getItemInHand(hand)), cost);
     }
 
     /** Hands {@code returned} back, into the held slot first when {@code freed}. */
@@ -132,15 +134,17 @@ public final class HandBack {
         return slots.size() - 1;
     }
 
-    private static boolean take(List<ItemStack> slots, int held, Item item, int cost) {
-        boolean wasHeld = slots.get(held).is(item);
-        int toTake = cost - takeFrom(slots.get(held), item, cost);
-        for (ItemStack slot : slots) {
-            if (toTake == 0) {
-                break;
+    private static boolean take(List<ItemStack> slots, int held, Map<Item, Integer> cost) {
+        boolean wasHeld = !slots.get(held).isEmpty();
+        cost.forEach((item, count) -> {
+            int toTake = count - takeFrom(slots.get(held), item, count);
+            for (ItemStack slot : slots) {
+                if (toTake == 0) {
+                    break;
+                }
+                toTake -= takeFrom(slot, item, toTake);
             }
-            toTake -= takeFrom(slot, item, toTake);
-        }
+        });
         return wasHeld && slots.get(held).isEmpty();
     }
 
