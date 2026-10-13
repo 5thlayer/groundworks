@@ -9,6 +9,8 @@ Because I've been spoiled by the way other automation games and many Minecraft m
 
 **NeoForge, Minecraft 26.1.2 only.** Groundworks is early work, so please report any issues you find on [GitHub](https://github.com/5thlayer/groundworks/issues).
 
+To play Groundworks beside every other FactoryWorks mod, install the [FactoryWorks Showcase](https://www.curseforge.com/minecraft/modpacks/factoryworks-showcase) modpack from CurseForge.
+
 ## Features
 
 - **See it before you place it.** Hold a block whose placement depends on how you place it, such as stairs, slabs, logs, doors or rails, and a translucent preview shows exactly what a click would put down, in blue where it replaces something and in red where it would be refused.
