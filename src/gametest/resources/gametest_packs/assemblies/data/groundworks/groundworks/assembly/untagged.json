@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:glowstone",
+    "s": "minecraft:stone"
+  },
+  "layers": [
+    ["s"],
+    ["K"]
+  ]
+}

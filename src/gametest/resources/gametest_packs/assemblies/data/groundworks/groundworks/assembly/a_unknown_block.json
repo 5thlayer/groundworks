@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:lodestone",
+    "x": "minecraft:no_such_block"
+  },
+  "layers": [
+    ["x"],
+    ["K"]
+  ]
+}

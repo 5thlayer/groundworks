@@ -1,0 +1,12 @@
+{
+  "key": "P",
+  "legend": {
+    "P": "minecraft:carved_pumpkin",
+    "s": "minecraft:snow_block"
+  },
+  "layers": [
+    ["s"],
+    ["s"],
+    ["P"]
+  ]
+}

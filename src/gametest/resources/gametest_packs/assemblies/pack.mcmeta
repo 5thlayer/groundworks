@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Groundworks game tests: Assemblies keyed by lodestone and a carved pumpkin, one keyed by glowstone outside the tag, and two malformed ones",
+    "min_format": [101, 1],
+    "max_format": [101, 1]
+  }
+}

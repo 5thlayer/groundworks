@@ -85,8 +85,9 @@ public final class Placements {
      *
      * <p>While a {@linkplain Stretches Stretch} is being drawn with the main hand's stack, it is the
      * stretch that a click would lay. A sneak-click that would store a stretch's start places
-     * nothing, so it has no plan. Otherwise a plain click on a block of the held block's Replace
-     * group is a {@linkplain FastReplace Fast Replace}, drawn whether or not the item is.
+     * nothing, so it has no plan. Otherwise a held {@linkplain Assemblies Key} draws its Assembly,
+     * and a plain click on a block of the held block's Replace group is a {@linkplain FastReplace
+     * Fast Replace}, each drawn whether or not the item is.
      */
     @Nullable
     public static PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand,
@@ -99,6 +100,10 @@ public final class Placements {
             PlacementPlan stretch = Stretches.planFor(level, player, stack, hit);
             if (stretch != null) {
                 return stretch;
+            }
+            PlacementPlan assembly = Assemblies.planFor(level, player, stack, hit);
+            if (assembly != null) {
+                return assembly;
             }
         }
         PlacementPlan replace = FastReplace.planFor(level, player, hand, stack, hit);

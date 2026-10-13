@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
  * Why a {@link PlacementPlan} or a {@link DismantleSpan} would not go through.
  *
  * <p>Open, with no methods: the library names only {@link Vanilla#VANILLA} and its
- * {@link Dismantle}, {@link Stretch}, {@link FastReplace} and {@link Footprint} reasons, and each Consumer names its own reasons in an enum
+ * {@link Dismantle}, {@link Stretch}, {@link FastReplace}, {@link Footprint} and {@link Assembly} reasons, and each Consumer names its own reasons in an enum
  * that implements this. The renderer asks only whether a plan is refused, and a Consumer's checks keep comparing its
  * own enum values, which the compiler checks.
  *
@@ -85,6 +85,20 @@ public interface Refusal {
          * can't replace, has an entity in the way, or is one the player may not build at.
          */
         BLOCKED,
+    }
+
+    /** The library's own reasons for placing an {@linkplain io.github._5thlayer.groundworks.Assemblies Assembly}. */
+    enum Assembly implements Refusal {
+        /**
+         * A position the Assembly would put a block at holds one it doesn't take and a placement
+         * can't replace, has an entity in the way, or is outside the world. It is an {@link At}
+         * that position.
+         */
+        TAKEN,
+        /** The player may not build at some position the Assembly puts a block at. */
+        MAY_NOT_BUILD,
+        /** The main inventory lacks some of the blocks the Assembly takes. */
+        NOT_ENOUGH_ITEMS,
     }
 
     /**

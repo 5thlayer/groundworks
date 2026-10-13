@@ -40,6 +40,9 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * <p>Its {@linkplain FastReplace Replace groups} are the block tags under {@code
  * groundworks:replace_group/}, one group per tag, shipped with none: a pack developer fills them,
  * and a plain click with one of a tag's blocks on another replaces it.
+ *
+ * <p>Which blocks are an {@linkplain Assemblies Assembly}'s Key is the block tag {@link
+ * #ASSEMBLY_KEYS}; a Key places the Assemblies declared for it as data.
  */
 public final class VanillaConsumer {
 
@@ -58,6 +61,13 @@ public final class VanillaConsumer {
     /** The block items whose stretches the vanilla Consumer lays as a Column, straight up or down. */
     public static final TagKey<Item> STRETCHES_VERTICALLY =
             TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "stretches_vertically"));
+
+    /**
+     * The blocks that are an Assembly's Key, placing the {@linkplain Assemblies Assembly} declared
+     * for them. Read as the tag is now, so a datapack reload reaches the next plan.
+     */
+    public static final TagKey<Block> ASSEMBLY_KEYS =
+            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "assembly_keys"));
 
     private VanillaConsumer() {
     }

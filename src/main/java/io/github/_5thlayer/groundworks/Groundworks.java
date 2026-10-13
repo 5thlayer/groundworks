@@ -61,6 +61,7 @@ public final class Groundworks {
         COMPONENTS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, GroundworksConfig.SPEC);
         VanillaConsumer.register(modBus);
+        Assemblies.register(modBus);
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
         modBus.addListener(Footprint::forwardCapabilities);
@@ -71,6 +72,9 @@ public final class Groundworks {
             InteractionResult result = Dismantles.useOn(event.getEntity(), event.getHand(), event.getPos());
             if (result == InteractionResult.PASS) {
                 result = Stretches.useOn(event.getEntity(), event.getHand(), event.getHitVec());
+            }
+            if (result == InteractionResult.PASS) {
+                result = Assemblies.useOn(event.getEntity(), event.getHand(), event.getHitVec());
             }
             if (result == InteractionResult.PASS) {
                 result = FastReplace.useOn(event.getEntity(), event.getHand(), event.getHitVec());

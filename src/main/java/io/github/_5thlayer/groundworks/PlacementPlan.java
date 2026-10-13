@@ -22,8 +22,8 @@ import org.jspecify.annotations.Nullable;
  * at all is not a refusal, it is the absence of a plan, and callers express that with {@code null}
  * rather than an empty one -- see {@link Placements#planFor}.
  *
- * <p><b>A multiblock is one plan and refuses whole.</b> A footprint that places every part in one
- * gesture is one plan with one refusal; drawing one part red and the rest translucent would promise
+ * <p><b>A Footprint is one plan and refuses whole.</b> A footprint that places every part in one
+ * gesture is one plan with one refusal, and so is an {@linkplain Assemblies Assembly}; drawing one part red and the rest translucent would promise
  * a partial placement the game never performs.
  *
  * <p>{@code replaces} names the placed blocks that swap out what already stands there, drawn apart

@@ -1,0 +1,14 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:lodestone",
+    "s": "minecraft:stone",
+    "c": "minecraft:cobblestone"
+  },
+  "layers": [
+    ["c ",
+     "ss"],
+    ["  ",
+     "K "]
+  ]
+}

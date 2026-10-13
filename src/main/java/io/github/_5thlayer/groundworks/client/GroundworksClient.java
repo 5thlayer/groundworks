@@ -3,6 +3,7 @@
 
 package io.github._5thlayer.groundworks.client;
 
+import io.github._5thlayer.groundworks.Assemblies;
 import io.github._5thlayer.groundworks.Groundworks;
 
 import net.minecraft.client.KeyMapping;
@@ -11,6 +12,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -35,5 +37,7 @@ public final class GroundworksClient {
         NeoForge.EVENT_BUS.addListener(RotateKeys::onClientTick);
         modBus.addListener(RaiseKeys::onRegisterKeys);
         NeoForge.EVENT_BUS.addListener(RaiseKeys::onClientTick);
+        // A server's Assemblies are its own, so a later server without them draws none.
+        NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> Assemblies.forget());
     }
 }

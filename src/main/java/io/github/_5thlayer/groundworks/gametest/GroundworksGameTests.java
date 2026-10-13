@@ -155,6 +155,7 @@ public final class GroundworksGameTests {
         FastReplaceTests.register(tests);
         HandBackTests.register(tests);
         FootprintTests.register(tests);
+        AssemblyTests.register(tests);
     }
 
     private static Identifier id(String path) {
