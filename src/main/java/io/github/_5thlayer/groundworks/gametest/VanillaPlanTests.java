@@ -18,6 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ScaffoldingBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -26,7 +27,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * An opted-in vanilla block's Vanilla Plan is what the click places: the plan asked before the
  * click, as the preview asks it, names the block and state the click then puts down, and where
- * vanilla refuses the placement the plan is refused there and the click places nothing.
+ * vanilla refuses the placement the plan is refused there and the click places nothing. An item
+ * whose block needn't survive where it goes, as scaffolding's needn't, is planned where vanilla
+ * places it although it won't stand there.
  */
 final class VanillaPlanTests {
 
@@ -36,7 +39,7 @@ final class VanillaPlanTests {
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
-        tests.optIn(Blocks.POPPY);
+        tests.optIn(Blocks.POPPY, Blocks.SCAFFOLDING);
         for (Direction look : Direction.Plane.HORIZONTAL) {
             String looking = look.getSerializedName();
             tests.test("a_furnace_looking_" + looking + "_is_placed_as_planned", 20,
@@ -46,6 +49,8 @@ final class VanillaPlanTests {
         }
         // A poppy needs soil, so vanilla refuses it on the stone floor once it has a position.
         tests.test("a_poppy_on_stone_is_planned_refused_and_not_placed", 20, VanillaPlanTests::refusedAndNotPlaced);
+        // Scaffolding's item needn't survive: vanilla places it past a bridge's reach, and it falls.
+        tests.test("scaffolding_past_its_reach_is_placed_as_planned", 20, VanillaPlanTests::scaffoldingPastItsReach);
     }
 
     private static void placedAsPlanned(GameTestHelper helper, Block block, Direction look) {
@@ -89,6 +94,45 @@ final class VanillaPlanTests {
 
         helper.useBlock(FLOOR, player, hit);
         helper.assertBlockNotPresent(Blocks.POPPY, FLOOR.above());
+        helper.succeed();
+    }
+
+    /**
+     * A row of scaffolding at distances 0 to 6, the first on a stone block, clicked on top of its far
+     * end, puts the next at distance 7, where its state can't survive: vanilla places it all the
+     * same, since {@code ScaffoldingBlockItem#mustSurvive} is false, and it falls on its tick.
+     */
+    private static void scaffoldingPastItsReach(GameTestHelper helper) {
+        BlockPos support = new BlockPos(0, 1, 4);
+        helper.setBlock(support, Blocks.STONE);
+        BlockPos end = support.above();
+        for (int distance = 0; distance < ScaffoldingBlock.STABILITY_MAX_DISTANCE; distance++) {
+            end = support.above().east(distance);
+            helper.setBlock(end, Blocks.SCAFFOLDING.defaultBlockState()
+                    .setValue(ScaffoldingBlock.DISTANCE, distance)
+                    .setValue(ScaffoldingBlock.BOTTOM, distance > 0));
+        }
+        Player player = holding(helper, Blocks.SCAFFOLDING, Direction.EAST);
+        BlockHitResult hit = onTop(helper, end);
+        PlacementPlan plan = planFor(player, hit);
+        BlockPos beyond = end.east();
+        if (plan == null || plan.blocks().size() != 1) {
+            throw helper.assertionException(beyond, "the library plans " + plan + ", not one scaffolding");
+        }
+        if (plan.isRefused()) {
+            helper.fail("the library refuses scaffolding vanilla places, with " + plan.refusal(), beyond);
+        }
+        PlacementPlan.Placed planned = plan.blocks().getFirst();
+        if (!planned.pos().equals(helper.absolutePos(beyond))
+                || planned.state().getValue(ScaffoldingBlock.DISTANCE) != ScaffoldingBlock.STABILITY_MAX_DISTANCE) {
+            helper.fail("the plan is " + planned + ", not scaffolding past the bridge's reach", beyond);
+        }
+
+        helper.useBlock(end, player, hit);
+        var placed = helper.getLevel().getBlockState(planned.pos());
+        if (!placed.equals(planned.state())) {
+            helper.fail("the plan was " + planned.state() + ", the click placed " + placed, beyond);
+        }
         helper.succeed();
     }
 

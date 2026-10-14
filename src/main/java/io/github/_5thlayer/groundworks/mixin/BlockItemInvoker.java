@@ -10,7 +10,8 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 /**
  * Whether an item's block must survive where it is placed, which is protected, invoked: vanilla's
  * {@code BlockItem#canPlace} asks a block's survival only where it must, as scaffolding's needn't,
- * and an Assembly's Key is asked the same.
+ * and a {@linkplain io.github._5thlayer.groundworks.Placements#vanillaPlan vanilla plan} and an
+ * Assembly's Key are asked the same.
  */
 @Mixin(BlockItem.class)
 public interface BlockItemInvoker {
