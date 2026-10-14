@@ -5,7 +5,7 @@ Voidworks' Void Well became a 5×5×5 structure of real blocks a player assemble
 **Decision.** Groundworks places an **Assembly** in one step from its **Key**, and nothing more.
 
 - **It is declared as data**, not code: a JSON file under `data/<namespace>/groundworks/assembly/`, the shape as layers of strings with a legend, in the Key's frame. A letter of the legend names a block, or a tag with the default a creative player gets, or a position that must stay empty; one marks the Key. Vanilla's beacon pyramids, conduit frames, nether portal frame and iron and snow golems ship as data, and a pack adds its own the same way.
-- **Which Keys place an Assembly is one block tag**, `groundworks:assembly_keys`, shipped with vanilla's Keys, as ADR 0005 sets every reach of the vanilla Consumer.
+- **Which blocks are Keys is a statement**, `Assemblies.keys`, which a Consumer makes as it makes its Opt-in, several adding up. The vanilla Consumer makes it from one block tag, `groundworks:assembly_keys`, shipped with vanilla's Keys, as ADR 0005 sets every reach of the vanilla Consumer, so a pack or a Consumer such as Voidworks still makes a Key with a tag entry and no code (5thlayer/groundworks#64).
 - **Nothing remembers an Assembly once placed.** Its blocks stand block by block: breaking one breaks that block, **Rotate in Place** turns one block, and Groundworks never checks that it is whole. Whether it works is its Consumer's own rule, vanilla's beacon level or Voidworks' `WellStructure`, as it is for one the player built by hand.
 - **The Key goes down last**, after every other block, so vanilla's rules that watch for a finished shape, a golem's pumpkin, see one.
 - **It is paid whole from the inventory**, free in creative, and refused whole when a position is taken or the inventory falls short. A block the shape accepts already standing at its position stays, uncharged.
@@ -21,6 +21,6 @@ Voidworks' Void Well became a 5×5×5 structure of real blocks a player assemble
 
 ## Consequences
 
-- An API addition under ADR 0001's semver: the data format, `groundworks:assembly_keys`, and the **Next Assembly** key.
+- An API addition under ADR 0001's semver: the data format, `Assemblies.keys`, `groundworks:assembly_keys`, and the **Next Assembly** key.
 - **Rotate the Plan** counts a held Key's drawn Assembly as rotatable, even when the Key's own block has no facing, such as a beacon.
 - A Consumer whose structure is checked in code, as the Well is, states its shape twice, in its code and in its file, until it reads its own file.
