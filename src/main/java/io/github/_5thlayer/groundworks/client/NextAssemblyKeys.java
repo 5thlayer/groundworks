@@ -23,7 +23,7 @@ final class NextAssemblyKeys {
 
     private static final KeyMapping NEXT = new KeyMapping("key.groundworks.next_assembly",
             KeyConflictContext.IN_GAME, KeyModifier.NONE, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, GroundworksClient.KEYS);
-    private static final KeyMapping PREVIOUS = new KeyMapping("key.groundworks.previous_assembly",
+    private static final KeyMapping REVERSE_NEXT = new KeyMapping("key.groundworks.reverse_next_assembly",
             KeyConflictContext.IN_GAME, KeyModifier.SHIFT, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, GroundworksClient.KEYS);
 
     private NextAssemblyKeys() {
@@ -31,14 +31,14 @@ final class NextAssemblyKeys {
 
     static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.register(NEXT);
-        event.register(PREVIOUS);
+        event.register(REVERSE_NEXT);
     }
 
     static void onClientTick(ClientTickEvent.Post event) {
         while (NEXT.consumeClick()) {
             press(false);
         }
-        while (PREVIOUS.consumeClick()) {
+        while (REVERSE_NEXT.consumeClick()) {
             press(true);
         }
     }
