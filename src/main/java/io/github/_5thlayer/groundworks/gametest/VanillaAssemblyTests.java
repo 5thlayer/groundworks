@@ -62,6 +62,8 @@ final class VanillaAssemblyTests {
                 VanillaAssemblyTests::standingInsideThePyramid);
         tests.test("a_mob_inside_a_pyramids_footprint_refuses_it_and_nothing_is_placed", 20,
                 VanillaAssemblyTests::mobInsideThePyramid);
+        tests.test("another_player_inside_a_pyramids_footprint_refuses_it_and_nothing_is_placed", 20,
+                VanillaAssemblyTests::otherPlayerInsideThePyramid);
         tests.tallTest("a_conduit_places_its_sixteen_block_ring_underwater_and_activates", 200,
                 VanillaAssemblyTests::conduitRing);
         tests.tallTest("a_conduit_places_its_full_frame_underwater_after_next_assembly_and_activates", 200,
@@ -148,7 +150,7 @@ final class VanillaAssemblyTests {
         player.setGameMode(GameType.CREATIVE);
         stock(player, Items.DIAMOND_BLOCK, 1);
         click(helper, player, SPOT);
-        expectLevelOne(helper, Blocks.DIAMOND_BLOCK);
+        expectLevelOne(helper, Blocks.BEACON, Blocks.DIAMOND_BLOCK);
         expectHeld(helper, player, Map.of(Items.BEACON, 1, Items.DIAMOND_BLOCK, 1));
         helper.succeed();
     }
@@ -158,14 +160,14 @@ final class VanillaAssemblyTests {
         player.setGameMode(GameType.CREATIVE);
         stock(player, Items.STONE, 9);
         click(helper, player, SPOT);
-        expectLevelOne(helper, Blocks.IRON_BLOCK);
+        expectLevelOne(helper, Blocks.BEACON, Blocks.IRON_BLOCK);
         expectHeld(helper, player, Map.of(Items.BEACON, 1, Items.STONE, 9));
         helper.succeed();
     }
 
-    /** A level one pyramid on the spot: the beacon over its middle, every base block this one. */
-    private static void expectLevelOne(GameTestHelper helper, Block base) {
-        expectStanding(helper, Map.of(SPOT.above(), Blocks.BEACON));
+    /** A level one pyramid's positions on the spot: {@code key} where the beacon goes, {@code base} under it. */
+    private static void expectLevelOne(GameTestHelper helper, Block key, Block base) {
+        expectStanding(helper, Map.of(SPOT.above(), key));
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 expectStanding(helper, Map.of(SPOT.offset(dx, 0, dz), base));
@@ -221,27 +223,41 @@ final class VanillaAssemblyTests {
 
     /** A pig stands at the 3×3 base's near left corner; the player, clear of it, is refused all the same. */
     private static void mobInsideThePyramid(GameTestHelper helper) {
-        BlockPos corner = SPOT.west().north();
-        helper.spawnWithNoFreeWill(EntityType.PIG, corner);
+        helper.spawnWithNoFreeWill(EntityType.PIG, SPOT.west().north());
+        expectRefusedInTheWay(helper);
+        helper.succeed();
+    }
+
+    /** Another player stands at the base's near left corner: only the placing player's own body is let in. */
+    private static void otherPlayerInsideThePyramid(GameTestHelper helper) {
+        ListeningPlayer other = new ListeningPlayer(helper, SPOT.west().north());
+        other.enterTheLevel();
+        try {
+            expectRefusedInTheWay(helper);
+        } finally {
+            other.discard();
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A placing player, in the level and clear of the level one pyramid, is refused it for what
+     * stands in its way, placing nothing and charged nothing.
+     */
+    private static void expectRefusedInTheWay(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, PLAYER, Items.BEACON, 1);
         stock(player, Items.IRON_BLOCK, 9);
-        click(helper, player, SPOT);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (!helper.getBlockState(SPOT.offset(dx, 0, dz)).isAir()) {
-                    helper.fail("a refused pyramid placed " + helper.getBlockState(SPOT.offset(dx, 0, dz)),
-                            SPOT.offset(dx, 0, dz));
-                }
-            }
+        player.enterTheLevel();
+        try {
+            click(helper, player, SPOT);
+        } finally {
+            player.discard();
         }
-        if (!helper.getBlockState(SPOT.above()).isAir()) {
-            helper.fail("a refused pyramid placed its beacon", SPOT.above());
-        }
+        expectLevelOne(helper, Blocks.AIR, Blocks.AIR);
         expectHeld(helper, player, Map.of(Items.BEACON, 1, Items.IRON_BLOCK, 9));
         if (!player.heard.contains("message.groundworks.assembly_taken")) {
             helper.fail("the player heard " + player.heard + ", not that a position is taken");
         }
-        helper.succeed();
     }
 
     /** The ring stands upright across the player's view, the conduit two above the ground in its middle. */

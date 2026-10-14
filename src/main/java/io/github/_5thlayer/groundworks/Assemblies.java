@@ -34,6 +34,7 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -46,8 +47,8 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -246,9 +247,14 @@ public final class Assemblies {
             return plan.blocks().getLast().pos();
         }
 
+        /** The state the Key goes down in. */
+        BlockState keyState() {
+            return plan.blocks().getLast().state();
+        }
+
         /** The Key's name, as the player is told of it. */
         Component keyName() {
-            return plan.blocks().getLast().state().getBlock().getName();
+            return keyState().getBlock().getName();
         }
     }
 
@@ -471,13 +477,16 @@ public final class Assemblies {
     /**
      * Whether a block of the shape may go here: inside the world, on a block a placement replaces,
      * such as air, water or grass, and clear of entities, the placing player's own body aside,
-     * which the click lifts out of the shape.
+     * which the click lifts out of the shape; not what they ride, which stays where it is.
      */
     private static boolean fits(Level level, @Nullable Player player, BlockPos pos, BlockState there,
             BlockState state) {
-        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty());
+        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty()).move(pos);
         return level.isInWorldBounds(pos) && there.canBeReplaced()
-                && (shape.isEmpty() || level.isUnobstructed(player, shape.move(pos)));
+                && (shape.isEmpty() || level.getEntities(player, shape.bounds(), EntitySelector.NO_SPECTATORS.and(
+                        entity -> !entity.isRemoved() && entity.blocksBuilding
+                                && Shapes.joinIsNotEmpty(shape, Shapes.create(entity.getBoundingBox()), BooleanOp.AND)))
+                        .isEmpty());
     }
 
     /**
@@ -539,7 +548,7 @@ public final class Assemblies {
         // The plan let the player's own body stand in the shape: they are lifted clear of it, and
         // of the Key, which vanilla places only clear of them.
         Vec3 stood = player.position();
-        Vec3 clear = liftedClear(level, player, laying.key(), laying.plan().blocks().getLast().state());
+        Vec3 clear = liftedClear(level, player, laying.key(), laying.keyState());
         if (clear != null && !clear.equals(stood)) {
             player.teleportTo(clear.x, clear.y, clear.z);
         }
