@@ -104,9 +104,13 @@ public final class Assemblies {
 
     /** The Assemblies whose Key is this block, by their ids, as this side has them. */
     static List<AssemblyShape> keyedBy(Level level, Block key) {
-        Identifier id = BuiltInRegistries.BLOCK.getKey(key);
-        return (level.isClientSide() ? client : server).entrySet().stream()
-                .filter(entry -> entry.getValue().keyBlock().equals(id))
+        return keyedBy(level.isClientSide(), BuiltInRegistries.BLOCK.getKey(key));
+    }
+
+    /** The Assemblies whose Key is the block of this id, by their ids, as the client or the server has them. */
+    static List<AssemblyShape> keyedBy(boolean onClient, Identifier key) {
+        return (onClient ? client : server).entrySet().stream()
+                .filter(entry -> entry.getValue().keyBlock().equals(key))
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(Identifier::toString)))
                 .map(Map.Entry::getValue)
                 .toList();
