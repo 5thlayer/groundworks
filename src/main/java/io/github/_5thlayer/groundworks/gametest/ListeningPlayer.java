@@ -18,10 +18,11 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 
-/** A server player of its own, standing in the test, keeping the translation key of every message it is sent. */
+/** A server player of its own, standing in the test, keeping every message it is sent and its translation key. */
 final class ListeningPlayer extends FakePlayer {
 
     final List<String> heard = new ArrayList<>();
+    final List<Component> messages = new ArrayList<>();
 
     /** A survival player standing on the block at {@code at}, within reach of the blocks near it. */
     ListeningPlayer(GameTestHelper helper, BlockPos at) {
@@ -48,6 +49,7 @@ final class ListeningPlayer extends FakePlayer {
 
     @Override
     public void sendSystemMessage(Component message, boolean actionBar) {
+        messages.add(message);
         if (message.getContents() instanceof TranslatableContents translatable) {
             heard.add(translatable.getKey());
         }

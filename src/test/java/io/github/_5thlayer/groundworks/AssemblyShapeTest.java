@@ -217,6 +217,13 @@ class AssemblyShapeTest {
     }
 
     @Test
+    void whatIsMissingIsInTheOrderTheFillCountsItNamedBlocksFirstThenEachTagsShortfall() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, STONE, COBBLE, BASE, KEY), Map.of(), MEMBERS, false);
+        assertEquals(List.of(STONE_BLOCK, Identifier.withDefaultNamespace("cobblestone"),
+                Identifier.withDefaultNamespace("lodestone"), IRON), List.copyOf(fill.missing().keySet()));
+    }
+
+    @Test
     void creativeFillsEachTagPositionWithItsDefaultAndMissesNothing() {
         AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, STONE), Map.of(GOLD, 9), MEMBERS, true);
         assertEquals(List.of(IRON, IRON, STONE_BLOCK), fill.blocks());

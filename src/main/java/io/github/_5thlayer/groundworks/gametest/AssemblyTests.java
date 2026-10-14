@@ -3,6 +3,7 @@
 
 package io.github._5thlayer.groundworks.gametest;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -14,6 +15,8 @@ import io.github._5thlayer.groundworks.Refusal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -134,9 +137,8 @@ final class AssemblyTests {
         click(helper, player);
         expectNothingPlaced(helper);
         expectHeld(helper, player, Map.of(Items.LODESTONE, 1, Items.STONE, 1));
-        if (!player.heard.contains("message.groundworks.assembly_not_enough_items")) {
-            helper.fail("the player heard " + player.heard + ", not what is missing");
-        }
+        // In the order the shape counts them: the cobblestone comes before the stone.
+        expectMissingNamed(helper, player, List.of("1 block.minecraft.cobblestone", "1 block.minecraft.stone"));
         helper.succeed();
     }
 
@@ -287,9 +289,8 @@ final class AssemblyTests {
             helper.fail("a refused Assembly placed " + helper.getBlockState(FORWARD_RIGHT), FORWARD_RIGHT);
         }
         expectHeld(helper, player, Map.of(Items.TARGET, 1, Items.IRON_BLOCK, 2, Items.GOLD_BLOCK, 1));
-        if (!player.heard.contains("message.groundworks.assembly_not_enough_items")) {
-            helper.fail("the player heard " + player.heard + ", not what is missing");
-        }
+        // Two iron and one gold cover three of the four: the fourth is missing as the tag's default.
+        expectMissingNamed(helper, player, List.of("1 block.minecraft.iron_block"));
         helper.succeed();
     }
 
@@ -438,6 +439,34 @@ final class AssemblyTests {
             if (!helper.getBlockState(pos).isAir()) {
                 helper.fail("a refused Assembly placed " + helper.getBlockState(pos), pos);
             }
+        }
+    }
+
+    /**
+     * That the player was told the Assembly is short and of what, each as its count and its name's
+     * translation key, in the order the message names them.
+     */
+    private static void expectMissingNamed(GameTestHelper helper, ListeningPlayer player, List<String> named) {
+        Component told = player.messages.stream()
+                .filter(message -> message.getContents() instanceof TranslatableContents translatable
+                        && translatable.getKey().equals("message.groundworks.assembly_not_enough_items"))
+                .findFirst()
+                .orElse(null);
+        if (told == null) {
+            helper.fail("the player heard " + player.heard + ", not what is missing");
+            return;
+        }
+        List<String> found = new ArrayList<>();
+        Component list = (Component) ((TranslatableContents) told.getContents()).getArgs()[0];
+        for (Component item : list.getSiblings()) {
+            if (item.getContents() instanceof TranslatableContents translatable && translatable.getArgs().length == 2
+                    && translatable.getArgs()[1] instanceof Component name
+                    && name.getContents() instanceof TranslatableContents nameKey) {
+                found.add(translatable.getArgs()[0] + " " + nameKey.getKey());
+            }
+        }
+        if (!found.equals(named)) {
+            helper.fail("the player was told " + found + " is missing, not " + named);
         }
     }
 

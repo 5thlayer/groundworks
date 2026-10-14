@@ -4,6 +4,7 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -260,13 +261,14 @@ public final class AssemblyShape {
     /**
      * Which block each position gets, in their order, and what the inventory lacks for them.
      *
-     * @param missing how many of each block the inventory lacks, none when it covers them all
+     * @param missing how many of each block the inventory lacks, in the order the fill counted
+     *     them, none when it covers them all
      */
     public record Fill(List<Identifier> blocks, Map<Identifier, Integer> missing) {
 
         public Fill {
             blocks = List.copyOf(blocks);
-            missing = Map.copyOf(missing);
+            missing = Collections.unmodifiableMap(new LinkedHashMap<>(missing));
         }
     }
 
