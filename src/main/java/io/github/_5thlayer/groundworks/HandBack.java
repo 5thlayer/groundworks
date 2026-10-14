@@ -134,8 +134,13 @@ public final class HandBack {
         return slots.size() - 1;
     }
 
+    /**
+     * Takes {@code cost} from {@code slots}, the {@code held} one first, and answers whether that
+     * emptied the held slot: only the cost is taken, so a held stack there before and gone after
+     * gave its last item to it.
+     */
     private static boolean take(List<ItemStack> slots, int held, Map<Item, Integer> cost) {
-        boolean wasHeld = !slots.get(held).isEmpty();
+        boolean heldBefore = !slots.get(held).isEmpty();
         cost.forEach((item, count) -> {
             int toTake = count - takeFrom(slots.get(held), item, count);
             for (ItemStack slot : slots) {
@@ -145,7 +150,7 @@ public final class HandBack {
                 toTake -= takeFrom(slot, item, toTake);
             }
         });
-        return wasHeld && slots.get(held).isEmpty();
+        return heldBefore && slots.get(held).isEmpty();
     }
 
     private static int takeFrom(ItemStack slot, Item item, int toTake) {

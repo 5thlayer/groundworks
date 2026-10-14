@@ -141,8 +141,9 @@ public final class AssemblyShape {
     private final Declaration declaration;
     private final Identifier keyBlock;
     private final List<Part> parts;
-    /** The Key's layer counted from the bottom, and the layers below and above it. */
+    /** The Key's layer, counted from the bottom layer, which is 0. */
     private final int keyLayer;
+    /** How many layers the shape has. */
     private final int layerCount;
 
     private AssemblyShape(Declaration declaration, Identifier keyBlock, List<Part> parts, int keyLayer) {

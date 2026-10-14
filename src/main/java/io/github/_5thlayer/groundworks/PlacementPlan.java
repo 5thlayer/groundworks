@@ -23,8 +23,8 @@ import org.jspecify.annotations.Nullable;
  * rather than an empty one -- see {@link Placements#planFor}.
  *
  * <p><b>A Footprint is one plan and refuses whole.</b> A footprint that places every part in one
- * gesture is one plan with one refusal, and so is an {@linkplain Assemblies Assembly}; drawing one part red and the rest translucent would promise
- * a partial placement the game never performs.
+ * gesture is one plan with one refusal, and so is an {@linkplain Assemblies Assembly}; drawing one
+ * part red and the rest translucent would promise a partial placement the game never performs.
  *
  * <p>{@code replaces} names the placed blocks that swap out what already stands there, drawn apart
  * from the rest, and is empty for an ordinary placement. A plan may replace some of its blocks and
