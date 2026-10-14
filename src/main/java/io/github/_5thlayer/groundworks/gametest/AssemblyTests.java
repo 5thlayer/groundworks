@@ -18,12 +18,17 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -92,12 +97,18 @@ final class AssemblyTests {
                 AssemblyTests::clearsEmptyPositions);
         withPack.test("an_assembly_with_an_empty_position_taken_is_refused_whole_and_places_nothing", 20,
                 AssemblyTests::refusedWhenEmptyTaken);
+        withPack.test("an_assembly_keeps_the_water_of_a_waterlogged_plant_at_an_empty_position", 20,
+                AssemblyTests::keepsTheWaterOfAPlant);
+        withPack.test("an_assembly_clearing_tall_grass_drops_nothing_and_leaves_no_half", 20,
+                AssemblyTests::clearsTallGrassWithoutDrops);
 
         var withChoices = tests.withPack(CHOICES_PACK);
         withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
                 AssemblyTests::nextStepsAndWraps);
         withChoices.test("reverse_next_assembly_steps_back", 20, AssemblyTests::reverseStepsBack);
         withChoices.test("a_stack_remembers_its_assembly_across_clicks", 20, AssemblyTests::remembersItsChoice);
+        withChoices.test("any_one_declaration_starting_alone_starts_the_key_alone", 20,
+                AssemblyTests::anyOneStartsAlone);
     }
 
     private static void placedWhole(GameTestHelper helper) {
@@ -329,7 +340,13 @@ final class AssemblyTests {
     }
 
     private static void expectPlanned(GameTestHelper helper, ListeningPlayer player, int blocks, String what) {
-        PlacementPlan plan = plan(helper, player);
+        expectPlanned(helper, player, blocks, what, SPOT);
+    }
+
+    private static void expectPlanned(GameTestHelper helper, ListeningPlayer player, int blocks, String what,
+                                      BlockPos spot) {
+        PlacementPlan plan = Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND,
+                player.getMainHandItem(), onTheFloor(helper, spot));
         if (plan == null || plan.isRefused() || plan.blocks().size() != blocks) {
             helper.fail("the plan was " + plan + ", not " + what);
         }
@@ -399,11 +416,60 @@ final class AssemblyTests {
         helper.succeed();
     }
 
+    /** Seagrass holds water: cleared from an empty position, it leaves its water source. */
+    private static void keepsTheWaterOfAPlant(GameTestHelper helper) {
+        helper.setBlock(FORWARD, Blocks.SEAGRASS);
+        ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, Blocks.BOOKSHELF, RIGHT, Blocks.STONE));
+        BlockState forward = helper.getBlockState(FORWARD);
+        if (!forward.is(Blocks.WATER) || !forward.getFluidState().isSource()) {
+            helper.fail("the empty position holds " + forward + ", not the plant's water", FORWARD);
+        }
+        helper.succeed();
+    }
+
+    /** Its lower half at an empty position: both halves go, and nothing drops. */
+    private static void clearsTallGrassWithoutDrops(GameTestHelper helper) {
+        helper.setBlock(FORWARD, Blocks.TALL_GRASS.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.LOWER));
+        helper.setBlock(FORWARD.above(),
+                Blocks.TALL_GRASS.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER));
+        ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, Blocks.BOOKSHELF, RIGHT, Blocks.STONE));
+        for (BlockPos pos : List.of(FORWARD, FORWARD.above())) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("the tall grass left " + helper.getBlockState(pos), pos);
+            }
+        }
+        if (!helper.getEntities(EntityType.ITEM).isEmpty()) {
+            helper.fail("clearing the tall grass dropped " + helper.getEntities(EntityType.ITEM));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The fletching table's first declaration by id starts on its Assembly, its second on the Key
+     * alone: the second is enough, so a fresh stack places the Key alone, and Next Assembly wraps
+     * to the first.
+     */
+    private static void anyOneStartsAlone(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.FLETCHING_TABLE, 2);
+        player.setGameMode(GameType.CREATIVE);
+        click(helper, player);
+        expectAlone(helper, Blocks.FLETCHING_TABLE);
+        Assemblies.press(player, false);
+        expectPlanned(helper, player, 2, "the fletching table's first Assembly", OTHER_SPOT);
+        helper.succeed();
+    }
+
     /** The plinth's base holds so many of one block and so many of another, and nothing else. */
     private static void expectBase(GameTestHelper helper, Block one, int ones, Block other, int others) {
         long found = BASE.stream().filter(pos -> helper.getBlockState(pos).is(one)).count();
         long foundOther = BASE.stream().filter(pos -> helper.getBlockState(pos).is(other)).count();
-        if (found != ones || foundOther != others || ones + others != BASE.size()) {
+        if (found != ones || foundOther != others || found + foundOther != BASE.size()) {
             helper.fail("the base holds " + BASE.stream().map(helper::getBlockState).toList() + ", not " + ones + " "
                     + one + " and " + others + " " + other);
         }

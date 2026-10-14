@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:fletching_table",
+    "s": "minecraft:stone"
+  },
+  "layers": [
+    ["s"],
+    ["K"]
+  ]
+}
