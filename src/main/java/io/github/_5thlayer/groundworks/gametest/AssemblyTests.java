@@ -6,6 +6,8 @@ package io.github._5thlayer.groundworks.gametest;
 import java.util.List;
 import java.util.Map;
 
+import io.github._5thlayer.groundworks.Assemblies;
+import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.Placements;
 import io.github._5thlayer.groundworks.Refusal;
@@ -32,6 +34,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
+ *
+ * <p>Next Assembly runs on the {@code assembly_choices} pack: a lodestone stands on one stone, its
+ * first Assembly, or on two, its second, and an obsidian on one stone, starting on the Key alone.
  */
 final class AssemblyTests {
 
@@ -40,6 +45,10 @@ final class AssemblyTests {
     private static final BlockPos KEY = SPOT.above();
     private static final BlockPos FORWARD = SPOT.east();
     private static final BlockPos RIGHT = SPOT.south();
+
+    /** Next Assembly's pack, and a second spot, clear of the first's Assembly, for a second click. */
+    private static final String CHOICES_PACK = "assembly_choices";
+    private static final BlockPos OTHER_SPOT = SPOT.north(2);
 
     /** Where a main-inventory slot is, out of the hotbar. */
     private static final int MAIN_SLOT = 20;
@@ -64,6 +73,13 @@ final class AssemblyTests {
         withPack.test("sneak_placing_a_key_places_it_alone", 20, AssemblyTests::sneakPlacesTheKeyAlone);
         withPack.test("a_key_outside_the_tag_places_as_vanilla", 20, AssemblyTests::untaggedKeyPlacesAsVanilla);
         withPack.test("breaking_one_block_of_an_assembly_breaks_only_it", 20, AssemblyTests::breaksOneBlock);
+
+        var withChoices = tests.withPack(CHOICES_PACK);
+        withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
+                AssemblyTests::nextStepsAndWraps);
+        withChoices.test("reverse_next_assembly_steps_back", 20, AssemblyTests::reverseStepsBack);
+        withChoices.test("a_stack_remembers_its_assembly_across_clicks", 20, AssemblyTests::remembersItsChoice);
+        withChoices.test("a_key_starting_alone_places_alone_until_next_assembly", 20, AssemblyTests::startsAlone);
     }
 
     private static void placedWhole(GameTestHelper helper) {
@@ -215,6 +231,78 @@ final class AssemblyTests {
         helper.succeed();
     }
 
+    private static void nextStepsAndWraps(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.LODESTONE, 1);
+        player.setGameMode(GameType.CREATIVE);
+        expectPlanned(helper, player, 2, "the short tower, the first Assembly");
+        Assemblies.press(player, false);
+        expectPlanned(helper, player, 3, "the tall tower, the second Assembly");
+        Assemblies.press(player, false);
+        expectKeyAlone(helper, player);
+        Assemblies.press(player, false);
+        expectPlanned(helper, player, 2, "the short tower again");
+        if (player.getMainHandItem().has(Groundworks.ASSEMBLY_CHOICE.get())) {
+            helper.fail("a stack stepped back to its start still stores a choice");
+        }
+        helper.succeed();
+    }
+
+    private static void reverseStepsBack(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.LODESTONE, 1);
+        player.setGameMode(GameType.CREATIVE);
+        Assemblies.press(player, true);
+        expectKeyAlone(helper, player);
+        Assemblies.press(player, true);
+        expectPlanned(helper, player, 3, "the tall tower");
+        Assemblies.press(player, true);
+        expectPlanned(helper, player, 2, "the short tower");
+        helper.succeed();
+    }
+
+    private static void remembersItsChoice(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.LODESTONE, 2);
+        stock(player, MAIN_SLOT, Items.STONE, 4);
+        Assemblies.press(player, false);
+        click(helper, player, SPOT);
+        click(helper, player, OTHER_SPOT);
+        for (BlockPos spot : List.of(SPOT, OTHER_SPOT)) {
+            expectStanding(helper, Map.of(spot, Blocks.STONE, spot.above(), Blocks.STONE,
+                    spot.above(2), Blocks.LODESTONE));
+        }
+        expectHeld(helper, player, Map.of(Items.LODESTONE, 0, Items.STONE, 0));
+        helper.succeed();
+    }
+
+    private static void startsAlone(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.OBSIDIAN, 2);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        click(helper, player, SPOT);
+        expectStanding(helper, Map.of(SPOT, Blocks.OBSIDIAN));
+        if (!helper.getBlockState(SPOT.above()).isAir()) {
+            helper.fail("a fresh obsidian came with " + helper.getBlockState(SPOT.above()), SPOT.above());
+        }
+        Assemblies.press(player, false);
+        click(helper, player, OTHER_SPOT);
+        expectStanding(helper, Map.of(OTHER_SPOT, Blocks.STONE, OTHER_SPOT.above(), Blocks.OBSIDIAN));
+        expectHeld(helper, player, Map.of(Items.OBSIDIAN, 0, Items.STONE, 0));
+        helper.succeed();
+    }
+
+    /** No Assembly drawn: the lodestone alone has no plan of its own, as it is drawn by no Opt-in. */
+    private static void expectKeyAlone(GameTestHelper helper, ListeningPlayer player) {
+        PlacementPlan plan = plan(helper, player);
+        if (plan != null && plan.blocks().size() != 1) {
+            helper.fail("the plan was " + plan + ", not the Key alone");
+        }
+    }
+
+    private static void expectPlanned(GameTestHelper helper, ListeningPlayer player, int blocks, String what) {
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.isRefused() || plan.blocks().size() != blocks) {
+            helper.fail("the plan was " + plan + ", not " + what);
+        }
+    }
+
     private static void expectTower(GameTestHelper helper) {
         expectStanding(helper, Map.of(SPOT, Blocks.STONE, RIGHT, Blocks.STONE, FORWARD, Blocks.COBBLESTONE,
                 KEY, Blocks.LODESTONE));
@@ -267,7 +355,12 @@ final class AssemblyTests {
     }
 
     private static void click(GameTestHelper helper, ListeningPlayer player) {
-        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND, onTheFloor(helper));
+        click(helper, player, SPOT);
+    }
+
+    private static void click(GameTestHelper helper, ListeningPlayer player, BlockPos spot) {
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
+                onTheFloor(helper, spot));
     }
 
     private static ListeningPlayer holding(GameTestHelper helper, Item key, int count) {
@@ -280,7 +373,12 @@ final class AssemblyTests {
 
     /** The top of the floor block under {@link #SPOT}. */
     private static BlockHitResult onTheFloor(GameTestHelper helper) {
-        BlockPos floor = helper.absolutePos(SPOT.below());
+        return onTheFloor(helper, SPOT);
+    }
+
+    /** The top of the floor block under this spot. */
+    private static BlockHitResult onTheFloor(GameTestHelper helper, BlockPos spot) {
+        BlockPos floor = helper.absolutePos(spot.below());
         return new BlockHitResult(Vec3.atCenterOf(floor).relative(Direction.UP, 0.5), Direction.UP, floor, false);
     }
 }

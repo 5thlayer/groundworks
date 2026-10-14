@@ -57,6 +57,10 @@ public final class Groundworks {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<StoredStretch>> STRETCH =
             COMPONENTS.register("stretch", StoredStretch::componentType);
 
+    /** The held Key's {@linkplain AssemblyChoice choice} of Assembly, persistent and synced to the client, which draws it. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<AssemblyChoice>> ASSEMBLY_CHOICE =
+            COMPONENTS.register("assembly_choice", AssemblyChoice::componentType);
+
     public Groundworks(IEventBus modBus, ModContainer container) {
         COMPONENTS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, GroundworksConfig.SPEC);
@@ -64,6 +68,7 @@ public final class Groundworks {
         Assemblies.register(modBus);
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
+        modBus.addListener(NextAssemblyPayload::register);
         modBus.addListener(Footprint::forwardCapabilities);
         GroundworksGameTests.register(modBus);
         // An event rather than an item's own use: the tools that dismantle, the items that

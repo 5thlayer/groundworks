@@ -58,8 +58,8 @@ import org.slf4j.Logger;
  *
  * <p>A held block item is a Key when its block is in {@link VanillaConsumer#ASSEMBLY_KEYS} and a
  * declaration names it. Its plan is the whole shape, resting on the aimed face and facing the
- * player, the Key last; a sneak places the Key alone, as vanilla does, and so does a Key whose
- * declaration starts it alone.
+ * player, the Key last; a sneak places the Key alone, as vanilla does, and so does a stack whose
+ * {@linkplain AssemblyChoice choice}, stepped by Next Assembly, is the Key alone.
  */
 public final class Assemblies {
 
@@ -106,17 +106,57 @@ public final class Assemblies {
                 .toList();
     }
 
-    /** The Assembly the held stack places, or {@code null} for the Key alone. */
-    private static @Nullable AssemblyShape chosen(Level level, ItemStack stack) {
+    /**
+     * The Assemblies this stack's Key places, by their ids, or none where the stack is no Key: its
+     * item places no block in {@link VanillaConsumer#ASSEMBLY_KEYS}, or none is declared for it.
+     */
+    private static List<AssemblyShape> choicesOf(Level level, ItemStack stack) {
         if (!(stack.getItem() instanceof BlockItem item)
                 || !item.getBlock().defaultBlockState().is(VanillaConsumer.ASSEMBLY_KEYS)) {
+            return List.of();
+        }
+        return keyedBy(level, item.getBlock());
+    }
+
+    /**
+     * Where a fresh stack of this Key starts: on the Key alone, the choice after its Assemblies,
+     * where any of its declarations says so, so a pack adding one for a Key that starts alone
+     * leaves it starting alone; otherwise on its first Assembly.
+     */
+    private static int start(List<AssemblyShape> assemblies) {
+        return assemblies.stream().anyMatch(AssemblyShape::startsAlone) ? assemblies.size() : 0;
+    }
+
+    /** The Assembly the held stack places, or {@code null} for the Key alone or for no Key. */
+    static @Nullable AssemblyShape chosen(Level level, ItemStack stack) {
+        List<AssemblyShape> assemblies = choicesOf(level, stack);
+        if (assemblies.isEmpty()) {
             return null;
         }
-        List<AssemblyShape> assemblies = keyedBy(level, item.getBlock());
-        if (assemblies.isEmpty() || assemblies.getFirst().startsAlone()) {
-            return null;
+        int choice = AssemblyChoice.current(stack.get(Groundworks.ASSEMBLY_CHOICE.get()), start(assemblies),
+                assemblies.size() + 1);
+        return choice < assemblies.size() ? assemblies.get(choice) : null;
+    }
+
+    /**
+     * A press of Next Assembly, or of its reverse, decided on the server: the main hand's Key steps
+     * to its next choice, or its previous, through its Assemblies and the Key alone and round. A
+     * stack that is no Key is left as it is.
+     */
+    public static void press(Player player, boolean reverse) {
+        ItemStack held = player.getMainHandItem();
+        List<AssemblyShape> assemblies = choicesOf(player.level(), held);
+        if (assemblies.isEmpty()) {
+            return;
         }
-        return assemblies.getFirst();
+        AssemblyChoice next = AssemblyChoice.next(held.get(Groundworks.ASSEMBLY_CHOICE.get()), start(assemblies),
+                assemblies.size() + 1, reverse);
+        // The start is no component, so a stack stepped back to it stacks again with a fresh one.
+        if (next == null) {
+            held.remove(Groundworks.ASSEMBLY_CHOICE.get());
+        } else {
+            held.set(Groundworks.ASSEMBLY_CHOICE.get(), next);
+        }
     }
 
     /**

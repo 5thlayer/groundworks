@@ -46,8 +46,9 @@ import net.minecraft.resources.Identifier;
  *   <li>{@code legend}: what each letter stands for, a block's id.
  *   <li>{@code key}: the letter that marks the Key, which the shape holds exactly once and the
  *       legend names a block for: the block whose item places the Assembly.
- *   <li>{@code starts_alone}: whether a fresh stack of the Key places the Key alone; false when left
- *       out.
+ *   <li>{@code starts_alone}: whether a fresh stack of the Key places the Key alone until Next
+ *       Assembly steps it on; false when left out. One of a Key's declarations saying so is
+ *       enough; otherwise a fresh stack starts on the Key's first Assembly by id.
  * </ul>
  *
  * <p>The frame is the {@linkplain FootprintShape Footprint}'s (ADR 0009), with the Key as its

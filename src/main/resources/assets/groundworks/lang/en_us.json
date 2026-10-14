@@ -37,6 +37,8 @@
   "key.groundworks.reverse_rotate": "Reverse Rotate",
   "key.groundworks.raise": "Raise",
   "key.groundworks.lower": "Lower",
+  "key.groundworks.next_assembly": "Next Assembly",
+  "key.groundworks.previous_assembly": "Previous Assembly",
   "groundworks.configuration.planOptInNamespaces": "Namespaces opted in for a Vanilla Plan",
   "message.groundworks.stretch_no_anchor_in_a_column": "A column has no anchors. Click without sneaking to lay it.",
   "message.groundworks.footprint_turn_blocked": "No room to turn it here.",
