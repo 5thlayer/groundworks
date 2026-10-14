@@ -1,0 +1,11 @@
+{
+  "key": "P",
+  "legend": {
+    "P": "minecraft:carved_pumpkin",
+    "c": {"tag": "minecraft:copper", "default": "minecraft:copper_block"}
+  },
+  "layers": [
+    ["c"],
+    ["P"]
+  ]
+}

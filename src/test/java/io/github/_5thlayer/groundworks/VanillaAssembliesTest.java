@@ -37,7 +37,6 @@ class VanillaAssembliesTest {
     private static final Identifier BEACON_BASE = Identifier.withDefaultNamespace("beacon_base_blocks");
     private static final Identifier CONDUIT_FRAME = Identifier.fromNamespaceAndPath("groundworks", "conduit_frame_blocks");
     private static final BlockPos SPOT = new BlockPos(0, 64, 0);
-
     @Test
     void aBeaconPyramidIsEveryLayerABeaconChecksUpToItsLevel() {
         for (int level = 1; level <= 4; level++) {
@@ -121,6 +120,19 @@ class VanillaAssembliesTest {
         Map<BlockPos, AssemblyShape.Legend> shape = shape("golem/snow", Identifier.withDefaultNamespace("carved_pumpkin"));
         assertEquals(Set.of(new BlockPos(0, -1, 0), new BlockPos(0, -2, 0)), offsets(shape, legend -> isBlock(legend, "snow_block")));
         assertEquals(3, shape.size());
+    }
+
+    /**
+     * Vanilla's {@code aisle("^", "#")}, the {@code #} any of {@code minecraft:copper}, with no air
+     * checked. Its id sorts after the iron and snow golems', so Next Assembly reaches it third, as
+     * {@code VanillaAssemblyTests} places it.
+     */
+    @Test
+    void aCopperGolemIsOneCopperBlockUnderItsPumpkin() {
+        Map<BlockPos, AssemblyShape.Legend> shape = shape("golem/z_copper", Identifier.withDefaultNamespace("carved_pumpkin"));
+        assertEquals(Set.of(new BlockPos(0, -1, 0)),
+                offsets(shape, legend -> isTag(legend, Identifier.withDefaultNamespace("copper"), "copper_block")));
+        assertEquals(2, shape.size());
     }
 
     /** A 2×3 inside, the smallest {@code PortalShape} lights, framed by ten obsidian with no corners. */

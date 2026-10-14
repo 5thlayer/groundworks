@@ -47,6 +47,8 @@ final class VanillaAssemblyTests {
         tests.test("a_carved_pumpkin_places_an_iron_golem_which_spawns", 20, VanillaAssemblyTests::ironGolem);
         tests.test("a_carved_pumpkin_places_a_snow_golem_after_next_assembly_which_spawns", 20,
                 VanillaAssemblyTests::snowGolem);
+        tests.test("a_carved_pumpkin_places_a_copper_golem_after_two_next_assemblies_which_spawns", 20,
+                VanillaAssemblyTests::copperGolem);
         tests.tallTest("a_beacon_places_its_level_four_pyramid_all_iron_and_reaches_level_four", 300,
                 VanillaAssemblyTests::beaconPyramid);
         tests.tallTest("a_conduit_places_its_sixteen_block_ring_underwater_and_activates", 200,
@@ -77,6 +79,24 @@ final class VanillaAssemblyTests {
             helper.fail("no snow golem spawned from the placed body and pumpkin");
         }
         expectHeld(helper, player, Map.of(Items.CARVED_PUMPKIN, 0, Items.SNOW_BLOCK, 0));
+        helper.succeed();
+    }
+
+    /**
+     * Third after the iron and snow golems. The body is any copper block, here the exposed copper
+     * the player holds, which vanilla turns into an exposed copper chest under the golem.
+     */
+    private static void copperGolem(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, PLAYER, Items.CARVED_PUMPKIN, 1);
+        stock(player, Items.EXPOSED_COPPER, 1);
+        Assemblies.press(player, false);
+        Assemblies.press(player, false);
+        click(helper, player, SPOT);
+        if (helper.getEntities(EntityType.COPPER_GOLEM).isEmpty()) {
+            helper.fail("no copper golem spawned from the placed body and pumpkin");
+        }
+        expectStanding(helper, Map.of(SPOT, Blocks.EXPOSED_COPPER_CHEST));
+        expectHeld(helper, player, Map.of(Items.CARVED_PUMPKIN, 0, Items.EXPOSED_COPPER, 0));
         helper.succeed();
     }
 
