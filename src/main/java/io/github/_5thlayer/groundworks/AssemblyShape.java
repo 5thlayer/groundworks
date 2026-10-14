@@ -55,10 +55,11 @@ import net.minecraft.resources.Identifier;
  *       letters. A space is not part of the shape: the world there is left alone.
  *   <li>{@code legend}: what each letter stands for: a block's id, of a block with an item to pay
  *       for it with, so not fire or water, as a tag's default is too; a block tag, any of whose
- *       blocks the position takes, with the {@code default} a creative player gets, filled as
- *       {@linkplain #fill uniformly} as the inventory allows; or {@code "empty"}, a position that
- *       must hold nothing a placement can't clear: a block a placement overwrites, such as grass,
- *       is cleared, a fluid stays, and any other block refuses the placement.
+ *       blocks the position takes, with the {@code default} it gets where the inventory can't
+ *       give one, filled as {@linkplain #fill uniformly} as the inventory allows; or {@code
+ *       "empty"}, a position that must hold nothing a placement can't clear: a block a placement
+ *       overwrites, such as grass, is cleared, a fluid stays, and any other block refuses the
+ *       placement.
  *   <li>{@code key}: the letter that marks the Key, which the shape holds exactly once and the
  *       legend names a block for: the block whose item places the Assembly.
  *   <li>{@code starts_alone}: whether a fresh stack of the Key places the Key alone until Next
@@ -92,7 +93,7 @@ public final class AssemblyShape {
         record Block(Identifier id) implements Laid {
         }
 
-        /** Any block of a block tag, by the tag's id, and the block a creative player gets. */
+        /** Any block of a block tag, by the tag's id, and the block it gets where the inventory gives none. */
         record Tag(Identifier tag, Identifier defaultBlock) implements Laid {
         }
 
@@ -309,8 +310,9 @@ public final class AssemblyShape {
      * they get.
      *
      * @param members the blocks of each tag, by the tag's id, in the tag's order
-     * @param free whether the player is charged nothing, as in creative: each tag position gets its
-     *     default and nothing is missing
+     * @param free whether the player is charged nothing, as in creative: nothing is taken and
+     *     nothing is missing, and every position of a tag gets the member held most of, members held
+     *     alike in the tag's order, or its default where no member is held
      */
     public static Fill fill(List<? extends Legend.Laid> positions, Map<Identifier, Integer> held,
             Function<Identifier, List<Identifier>> members, boolean free) {
@@ -330,13 +332,16 @@ public final class AssemblyShape {
             }
         }
         tagged.forEach((tag, at) -> {
-            if (free) {
-                at.forEach(i -> blocks[i] = tag.defaultBlock());
-                return;
-            }
             List<Identifier> mostHeldFirst = members.apply(tag.tag()).stream()
                     .sorted(Comparator.comparingInt((Identifier member) -> left.getOrDefault(member, 0)).reversed())
                     .toList();
+            if (free) {
+                // Creative's blocks never run out: every position takes the member held most of.
+                Identifier block = mostHeldFirst.isEmpty() || left.getOrDefault(mostHeldFirst.getFirst(), 0) <= 0
+                        ? tag.defaultBlock() : mostHeldFirst.getFirst();
+                at.forEach(i -> blocks[i] = block);
+                return;
+            }
             int next = 0;
             for (int i : at) {
                 while (next < mostHeldFirst.size() && left.getOrDefault(mostHeldFirst.get(next), 0) <= 0) {

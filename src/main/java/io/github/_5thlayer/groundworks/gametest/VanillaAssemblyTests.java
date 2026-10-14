@@ -17,6 +17,7 @@ import net.minecraft.world.inventory.BeaconMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BeaconBlockEntity;
@@ -53,6 +54,10 @@ final class VanillaAssemblyTests {
                 VanillaAssemblyTests::copperGolem);
         tests.tallTest("a_beacon_places_its_level_four_pyramid_all_iron_and_reaches_level_four", 300,
                 VanillaAssemblyTests::beaconPyramid);
+        tests.test("a_beacon_places_its_level_one_pyramid_of_the_diamond_held_in_creative_charging_nothing", 20,
+                VanillaAssemblyTests::diamondPyramidInCreative);
+        tests.test("a_beacon_places_its_level_one_pyramid_of_iron_in_creative_holding_no_base_block", 20,
+                VanillaAssemblyTests::ironPyramidInCreative);
         tests.tallTest("a_player_inside_a_level_three_pyramids_footprint_places_it_and_is_lifted_on_top_unhurt", 300,
                 VanillaAssemblyTests::standingInsideThePyramid);
         tests.test("a_mob_inside_a_pyramids_footprint_refuses_it_and_nothing_is_placed", 20,
@@ -135,6 +140,37 @@ final class VanillaAssemblyTests {
             int levels = ((BeaconMenu) entity.createMenu(0, player.getInventory(), player)).getLevels();
             helper.assertValueEqual(4, levels, "the beacon's level");
         });
+    }
+
+    /** One diamond block in the inventory: all nine base blocks are diamond, and the player keeps it and the beacon. */
+    private static void diamondPyramidInCreative(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, PLAYER, Items.BEACON, 1);
+        player.setGameMode(GameType.CREATIVE);
+        stock(player, Items.DIAMOND_BLOCK, 1);
+        click(helper, player, SPOT);
+        expectLevelOne(helper, Blocks.DIAMOND_BLOCK);
+        expectHeld(helper, player, Map.of(Items.BEACON, 1, Items.DIAMOND_BLOCK, 1));
+        helper.succeed();
+    }
+
+    private static void ironPyramidInCreative(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, PLAYER, Items.BEACON, 1);
+        player.setGameMode(GameType.CREATIVE);
+        stock(player, Items.STONE, 9);
+        click(helper, player, SPOT);
+        expectLevelOne(helper, Blocks.IRON_BLOCK);
+        expectHeld(helper, player, Map.of(Items.BEACON, 1, Items.STONE, 9));
+        helper.succeed();
+    }
+
+    /** A level one pyramid on the spot: the beacon over its middle, every base block this one. */
+    private static void expectLevelOne(GameTestHelper helper, Block base) {
+        expectStanding(helper, Map.of(SPOT.above(), Blocks.BEACON));
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                expectStanding(helper, Map.of(SPOT.offset(dx, 0, dz), base));
+            }
+        }
     }
 
     /**

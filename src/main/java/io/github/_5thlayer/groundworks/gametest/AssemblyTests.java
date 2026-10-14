@@ -103,7 +103,9 @@ final class AssemblyTests {
                 AssemblyTests::uniformFill);
         withPack.test("an_assembly_short_of_blocks_for_its_tag_positions_is_refused_and_takes_nothing", 20,
                 AssemblyTests::tagPositionsShort);
-        withPack.test("an_assemblys_tag_positions_take_their_default_in_creative", 20,
+        withPack.test("an_assemblys_tag_positions_all_take_the_member_held_most_of_in_creative", 20,
+                AssemblyTests::tagMostHeldInCreative);
+        withPack.test("an_assemblys_tag_positions_take_their_default_in_creative_holding_no_member", 20,
                 AssemblyTests::tagDefaultsInCreative);
         withPack.test("an_assembly_keeps_a_block_its_tag_takes_standing_uncharged", 20,
                 AssemblyTests::keepsATaggedBlock);
@@ -420,14 +422,27 @@ final class AssemblyTests {
         }
     }
 
+    /** Fewer gold blocks than the base has positions, but more than iron: all four are gold, and nothing is charged. */
+    private static void tagMostHeldInCreative(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.TARGET, 1);
+        player.setGameMode(GameType.CREATIVE);
+        stock(player, MAIN_SLOT, Items.GOLD_BLOCK, 2);
+        stock(player, OTHER_MAIN_SLOT, Items.IRON_BLOCK, 1);
+        click(helper, player);
+        expectBase(helper, Blocks.GOLD_BLOCK, 4, Blocks.IRON_BLOCK, 0);
+        expectStanding(helper, Map.of(KEY, Blocks.TARGET));
+        expectHeld(helper, player, Map.of(Items.TARGET, 1, Items.GOLD_BLOCK, 2, Items.IRON_BLOCK, 1));
+        helper.succeed();
+    }
+
     private static void tagDefaultsInCreative(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, Items.TARGET, 1);
         player.setGameMode(GameType.CREATIVE);
-        stock(player, MAIN_SLOT, Items.GOLD_BLOCK, 9);
+        stock(player, MAIN_SLOT, Items.STONE, 9);
         click(helper, player);
         expectBase(helper, Blocks.IRON_BLOCK, 4, Blocks.GOLD_BLOCK, 0);
         expectStanding(helper, Map.of(KEY, Blocks.TARGET));
-        expectHeld(helper, player, Map.of(Items.TARGET, 1, Items.GOLD_BLOCK, 9));
+        expectHeld(helper, player, Map.of(Items.TARGET, 1, Items.STONE, 9));
         helper.succeed();
     }
 

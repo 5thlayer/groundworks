@@ -309,7 +309,8 @@ public final class Assemblies {
 
         legends.add(new AssemblyShape.Legend.Block(shape.keyBlock()));
         boolean free = player == null || player.hasInfiniteMaterials();
-        AssemblyShape.Fill fill = AssemblyShape.fill(legends, free ? Map.of() : held(player), Assemblies::members, free);
+        AssemblyShape.Fill fill = AssemblyShape.fill(legends, player == null ? Map.of() : held(player), Assemblies::members,
+                free);
 
         Rotation turn = turnFrom(facing);
         List<PlacementPlan.Placed> others = new ArrayList<>(wanting.size());

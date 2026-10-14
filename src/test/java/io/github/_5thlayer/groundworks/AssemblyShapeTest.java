@@ -226,10 +226,24 @@ class AssemblyShapeTest {
     }
 
     @Test
-    void aFreeFillGivesEachTagPositionItsDefaultAndMissesNothing() {
-        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, STONE), Map.of(GOLD, 9), MEMBERS, true);
+    void aFreeFillGivesEveryTagPositionTheMemberHeldMostOfHoweverFewAndMissesNothing() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, BASE, STONE),
+                Map.of(IRON, 1, GOLD, 2), MEMBERS, true);
+        assertEquals(List.of(GOLD, GOLD, GOLD, STONE_BLOCK), fill.blocks());
+        assertEquals(Map.of(), fill.missing());
+    }
+
+    @Test
+    void aFreeFillGivesTagPositionsTheirDefaultWhenNoMemberIsHeld() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, STONE), Map.of(STONE_BLOCK, 9), MEMBERS, true);
         assertEquals(List.of(IRON, IRON, STONE_BLOCK), fill.blocks());
         assertEquals(Map.of(), fill.missing());
+    }
+
+    @Test
+    void aFreeFillBreaksATieInTheTagsOrder() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE), Map.of(EMERALD, 4, GOLD, 4), MEMBERS, true);
+        assertEquals(List.of(GOLD, GOLD), fill.blocks());
     }
 
     private static List<BlockPos> positionsOf(List<AssemblyShape.At> at) {
