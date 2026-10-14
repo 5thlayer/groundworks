@@ -105,6 +105,12 @@ record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {
         return true;
     }
 
+    /** Takes the cost and hands back what comes back, putting nothing down. */
+    void pay(Player player) {
+        HandBack.give(player, InteractionHand.MAIN_HAND, HandBack.take(player, InteractionHand.MAIN_HAND, cost),
+                returned);
+    }
+
     /**
      * Takes the cost, puts down the plan's blocks in its order, and hands back what comes back. The
      * caller has refused the plan already if it doesn't {@linkplain #affordable afford} or

@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * over the base's near left block; its gate is a bookshelf with stone to the player's right and the
  * two positions forward of them kept empty. Its porch is a crafting table with stairs forward of it
  * and the position to their right kept empty; its cactus stands on sand with cobblestone to its
- * right, beside which vanilla won't place it.
+ * right, beside which it would not stand.
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
@@ -108,8 +108,8 @@ final class AssemblyTests {
                 AssemblyTests::takenPointsAtTheFirst);
         withPack.test("an_assemblys_oriented_blocks_turn_with_it", 20, AssemblyTests::orientedBlocksTurn);
         withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
-        withPack.test("an_assembly_whose_key_fails_to_place_leaves_nothing_and_takes_nothing", 20,
-                AssemblyTests::keyFailsLeavesNothing);
+        withPack.test("an_assembly_whose_key_would_not_stand_on_it_is_refused_whole_and_places_nothing", 20,
+                AssemblyTests::keyWouldNotStandRefused);
 
         var withChoices = tests.withPack(CHOICES_PACK);
         withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
@@ -504,22 +504,30 @@ final class AssemblyTests {
     }
 
     /**
-     * The cactus stands on its sand, already there, with cobblestone to its right: drawn, it
-     * survives, but laid after the cobblestone it can't, so vanilla's placement of it fails, and the
-     * cobblestone laid before it must go again, given back.
+     * The cactus stands on its sand, already there, with cobblestone to its right: it would survive
+     * where it goes now, but not once the cobblestone stands beside it, so the plan, the preview's
+     * and the click's, is refused whole at the Key, and nothing is laid or taken.
      */
-    private static void keyFailsLeavesNothing(GameTestHelper helper) {
+    private static void keyWouldNotStandRefused(GameTestHelper helper) {
         helper.setBlock(SPOT, Blocks.SAND);
         ListeningPlayer player = holding(helper, Items.CACTUS, 1);
         stock(player, MAIN_SLOT, Items.COBBLESTONE, 1);
+        PlacementPlan plan = plan(helper, player);
+        Refusal wouldNotStand = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, helper.absolutePos(KEY));
+        if (plan == null || !wouldNotStand.equals(plan.refusal())) {
+            helper.fail("the plan was " + plan + ", not refused where the cactus would go");
+        }
         click(helper, player);
         for (BlockPos pos : List.of(KEY, KEY.south())) {
             if (!helper.getBlockState(pos).isAir()) {
-                helper.fail("a failed Assembly left " + helper.getBlockState(pos), pos);
+                helper.fail("a refused Assembly placed " + helper.getBlockState(pos), pos);
             }
         }
         expectStanding(helper, Map.of(SPOT, Blocks.SAND));
         expectHeld(helper, player, Map.of(Items.CACTUS, 1, Items.COBBLESTONE, 1));
+        if (!player.heard.contains("message.groundworks.assembly_key_would_not_stand")) {
+            helper.fail("the player heard " + player.heard + ", not that the Key would not stand");
+        }
         helper.succeed();
     }
 
