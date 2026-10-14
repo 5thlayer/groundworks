@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:smithing_table",
+    "f": "minecraft:fire"
+  },
+  "layers": [
+    ["f"],
+    ["K"]
+  ]
+}

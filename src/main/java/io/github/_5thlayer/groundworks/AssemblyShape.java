@@ -53,7 +53,8 @@ import net.minecraft.resources.Identifier;
  *       forward and its last the nearest, and each row's first letter is on the player's left and
  *       its last on their right. Every layer has as many rows as every other, and every row as many
  *       letters. A space is not part of the shape: the world there is left alone.
- *   <li>{@code legend}: what each letter stands for: a block's id; a block tag, any of whose
+ *   <li>{@code legend}: what each letter stands for: a block's id, of a block with an item to pay
+ *       for it with, so not fire or water, as a tag's default is too; a block tag, any of whose
  *       blocks the position takes, with the {@code default} a creative player gets, filled as
  *       {@linkplain #fill uniformly} as the inventory allows; or {@code "empty"}, a position that
  *       must hold nothing a placement can't clear: a block a placement overwrites, such as grass,

@@ -101,6 +101,7 @@ final class AssemblyTests {
                 AssemblyTests::keepsTheWaterOfAPlant);
         withPack.test("an_assembly_clearing_tall_grass_drops_nothing_and_leaves_no_half", 20,
                 AssemblyTests::clearsTallGrassWithoutDrops);
+        withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
 
         var withChoices = tests.withPack(CHOICES_PACK);
         withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
@@ -447,6 +448,15 @@ final class AssemblyTests {
         if (!helper.getEntities(EntityType.ITEM).isEmpty()) {
             helper.fail("clearing the tall grass dropped " + helper.getEntities(EntityType.ITEM));
         }
+        helper.succeed();
+    }
+
+    /** Fire has no item to pay for it with, so its declaration is skipped and the smithing table goes alone. */
+    private static void noItemNotLoaded(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.SMITHING_TABLE, 1);
+        player.setGameMode(GameType.CREATIVE);
+        click(helper, player);
+        expectAlone(helper, Blocks.SMITHING_TABLE);
         helper.succeed();
     }
 

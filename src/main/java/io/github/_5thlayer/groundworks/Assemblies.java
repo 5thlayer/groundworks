@@ -34,6 +34,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -413,8 +414,8 @@ public final class Assemblies {
 
     /**
      * Reads the declarations with the server's data: each file alone, one that doesn't parse logged
-     * with its id and skipped by the reader, and one naming a block the game lacks logged and
-     * skipped here.
+     * with its id and skipped by the reader, and one naming a block the game lacks, or a block with
+     * no item to pay for it with, such as fire or water, logged and skipped here.
      */
     private static final class Loader extends SimpleJsonResourceReloadListener<AssemblyShape> {
 
@@ -429,10 +430,17 @@ public final class Assemblies {
                 List<Identifier> unknown = shape.blocks().stream()
                         .filter(block -> !BuiltInRegistries.BLOCK.containsKey(block))
                         .toList();
-                if (unknown.isEmpty()) {
-                    loaded.put(id, shape);
-                } else {
+                List<Identifier> unpaid = shape.blocks().stream()
+                        .filter(block -> BuiltInRegistries.BLOCK.getOptional(block)
+                                .map(found -> found.asItem() == Items.AIR).orElse(false))
+                        .toList();
+                if (!unknown.isEmpty()) {
                     LOGGER.error("Couldn't load assembly '{}': it names blocks the game lacks, {}", id, unknown);
+                } else if (!unpaid.isEmpty()) {
+                    LOGGER.error("Couldn't load assembly '{}': it names blocks with no item to pay for them with, {}",
+                            id, unpaid);
+                } else {
+                    loaded.put(id, shape);
                 }
             });
             server = Map.copyOf(loaded);
