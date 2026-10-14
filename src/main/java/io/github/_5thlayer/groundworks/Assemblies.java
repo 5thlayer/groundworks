@@ -211,9 +211,9 @@ public final class Assemblies {
             return plan.blocks().getLast().pos();
         }
 
-        /** The Key's state, as the plan draws it. */
-        BlockState keyState() {
-            return plan.blocks().getLast().state();
+        /** The Key's name, as the player is told of it. */
+        Component keyName() {
+            return plan.blocks().getLast().state().getBlock().getName();
         }
     }
 
@@ -424,12 +424,14 @@ public final class Assemblies {
         for (BlockPos pos : laying.cleared()) {
             level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
-        laying.charge().lay(level, player, PlacementPlan.accepted(laying.others()));
         // Vanilla's placement, so the Key's own rules run as it goes down, a golem's pumpkin's. It
-        // is placed from a copy, so charging the other blocks, which may take the hand's last
-        // item, never empties the stack it is placed from, and it is charged once it stands.
+        // is placed from a copy taken before anything is charged, so charging the other blocks,
+        // which may take the hand's last item, never empties the stack it is placed from, and it
+        // is charged once it stands.
         BlockItem item = (BlockItem) held.getItem();
-        BlockPlaceContext context = new BlockPlaceContext(level, player, hand, held.copyWithCount(1), hit);
+        ItemStack key = held.copyWithCount(1);
+        laying.charge().lay(level, player, PlacementPlan.accepted(laying.others()));
+        BlockPlaceContext context = new BlockPlaceContext(level, player, hand, key, hit);
         if (item.place(BlockPlaceContext.at(context, laying.key(), hit.getDirection())).consumesAction()) {
             Charge.of(player, item, 1, List.of()).pay(player);
             return InteractionResult.SUCCESS;
@@ -440,8 +442,7 @@ public final class Assemblies {
         // more of its new neighbours, as a door's wants room above it, may still be refused here,
         // with the rest laid (#65). Nothing is undone, which can't be done whole: what stands was
         // paid for, the Key, unplaced, isn't, and the player is told just that.
-        tell(player, Component.translatable("message.groundworks.assembly_key_not_placed",
-                laying.keyState().getBlock().getName()));
+        tell(player, Component.translatable("message.groundworks.assembly_key_not_placed", laying.keyName()));
         return InteractionResult.SUCCESS;
     }
 
@@ -450,7 +451,7 @@ public final class Assemblies {
         return switch (refusal instanceof Refusal.At at ? at.reason() : refusal) {
             case Refusal.Assembly.TAKEN -> Component.translatable("message.groundworks.assembly_taken");
             case Refusal.Assembly.KEY_WOULD_NOT_STAND -> Component.translatable(
-                    "message.groundworks.assembly_key_would_not_stand", laying.keyState().getBlock().getName());
+                    "message.groundworks.assembly_key_would_not_stand", laying.keyName());
             case Refusal.Assembly.MAY_NOT_BUILD -> Component.translatable("message.groundworks.assembly_may_not_build");
             case Refusal.Assembly.NOT_ENOUGH_ITEMS -> Component.translatable(
                     "message.groundworks.assembly_not_enough_items", missing(laying.missing()));

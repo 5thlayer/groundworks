@@ -141,10 +141,13 @@ final class VanillaAssemblyTests {
 
     /**
      * Its plane runs across the player's view: the Key and the obsidian to the player's right make
-     * its bottom, and its inside is two wide and three tall over them.
+     * its bottom, and its inside is two wide and three tall over them. The hand's last obsidian goes
+     * on the frame's other blocks, and the Key, placed all the same, is charged from the rest of the
+     * inventory once it stands.
      */
     private static void portalFrame(GameTestHelper helper) {
-        ListeningPlayer player = holding(helper, TALL_PLAYER, Items.OBSIDIAN, 11);
+        ListeningPlayer player = holding(helper, TALL_PLAYER, Items.OBSIDIAN, 2);
+        stock(player, Items.OBSIDIAN, 9);
         BlockPos alone = TALL_SPOT.south(4);
         click(helper, player, alone);
         expectStanding(helper, Map.of(alone, Blocks.OBSIDIAN));
