@@ -72,4 +72,18 @@ class PlacementPlanTest {
         blocks.add(at(1, 0, 0));
         assertEquals(1, plan.blocks().size());
     }
+
+    @Test
+    void aPlanBuiltWithoutClearsClearsNothing() {
+        PlacementPlan plan = new PlacementPlan(List.of(at(0, 0, 0)), List.of(), null);
+        assertEquals(List.of(), plan.clears());
+    }
+
+    @Test
+    void aPlanClearingKeepsWhatItClearsApartFromWhatItPlaces() {
+        PlacementPlan plan = new PlacementPlan(List.of(at(0, 0, 0)), List.of(), List.of(new BlockPos(1, 0, 0)), null);
+        assertEquals(List.of(new BlockPos(1, 0, 0)), plan.clears());
+        assertEquals(List.of(at(0, 0, 0)), plan.blocks());
+        assertFalse(plan.isReplace());
+    }
 }

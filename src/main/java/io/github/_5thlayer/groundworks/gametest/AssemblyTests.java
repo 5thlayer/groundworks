@@ -103,6 +103,8 @@ final class AssemblyTests {
                 AssemblyTests::keepsATaggedBlock);
         withPack.test("an_assembly_clears_grass_from_its_empty_positions_and_keeps_water", 20,
                 AssemblyTests::clearsEmptyPositions);
+        withPack.test("an_assemblys_plan_names_the_grass_it_clears_and_not_air_or_water", 20,
+                AssemblyTests::planNamesWhatItClears);
         withPack.test("an_assembly_with_an_empty_position_taken_is_refused_whole_and_places_nothing", 20,
                 AssemblyTests::refusedWhenEmptyTaken);
         withPack.test("an_assembly_keeps_the_water_of_a_waterlogged_plant_at_an_empty_position", 20,
@@ -408,8 +410,9 @@ final class AssemblyTests {
 
     /** The grass is cleared, as a golem's arms' space must be; the water stays, as a conduit's inside does. */
     private static void clearsEmptyPositions(GameTestHelper helper) {
-        helper.setBlock(FORWARD, Blocks.SHORT_GRASS);
+        grassAt(helper, FORWARD);
         helper.setBlock(FORWARD_RIGHT, Blocks.WATER);
+        expectStanding(helper, Map.of(FORWARD, Blocks.SHORT_GRASS));
         ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
         stock(player, MAIN_SLOT, Items.STONE, 1);
         click(helper, player);
@@ -419,6 +422,32 @@ final class AssemblyTests {
         }
         expectHeld(helper, player, Map.of(Items.BOOKSHELF, 0, Items.STONE, 0));
         helper.succeed();
+    }
+
+    /** What the preview marks: the grass the click clears, not the air nor the water it leaves alone. */
+    private static void planNamesWhatItClears(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        expectClears(helper, player, List.of(), "nothing, over air");
+        grassAt(helper, FORWARD);
+        helper.setBlock(FORWARD_RIGHT, Blocks.WATER);
+        expectClears(helper, player, List.of(FORWARD), "the grass alone, the water kept");
+        helper.succeed();
+    }
+
+    /** Grass on dirt, which stays standing as the blocks round it change, as it wouldn't on the platform's stone. */
+    private static void grassAt(GameTestHelper helper, BlockPos pos) {
+        helper.setBlock(pos.below(), Blocks.DIRT);
+        helper.setBlock(pos, Blocks.SHORT_GRASS);
+    }
+
+    private static void expectClears(GameTestHelper helper, ListeningPlayer player, List<BlockPos> cleared,
+                                     String what) {
+        PlacementPlan plan = plan(helper, player);
+        List<BlockPos> expected = cleared.stream().map(helper::absolutePos).toList();
+        if (plan == null || plan.isRefused() || !plan.clears().equals(expected)) {
+            helper.fail("the plan was " + plan + ", clearing not " + what);
+        }
     }
 
     private static void refusedWhenEmptyTaken(GameTestHelper helper) {
@@ -460,11 +489,14 @@ final class AssemblyTests {
 
     /** Its lower half at an empty position: both halves go, and nothing drops. */
     private static void clearsTallGrassWithoutDrops(GameTestHelper helper) {
+        // On dirt, or the platform's stone pops it before the click.
+        helper.setBlock(FORWARD.below(), Blocks.DIRT);
         helper.setBlock(FORWARD, Blocks.TALL_GRASS.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.LOWER));
         helper.setBlock(FORWARD.above(),
                 Blocks.TALL_GRASS.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER));
         ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
         stock(player, MAIN_SLOT, Items.STONE, 1);
+        expectClears(helper, player, List.of(FORWARD, FORWARD.above()), "both halves of the tall grass");
         click(helper, player);
         expectStanding(helper, Map.of(SPOT, Blocks.BOOKSHELF, RIGHT, Blocks.STONE));
         for (BlockPos pos : List.of(FORWARD, FORWARD.above())) {

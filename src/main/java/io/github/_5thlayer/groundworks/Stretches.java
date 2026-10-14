@@ -178,7 +178,7 @@ public final class Stretches {
             }
             blocks.add(new PlacementPlan.Placed(placed.pos(), state));
         }
-        return new PlacementPlan(blocks, plan.replaces(), plan.refusal());
+        return new PlacementPlan(blocks, plan.replaces(), plan.clears(), plan.refusal());
     }
 
     /** Where a reshape in the preview schedules its ticks: nowhere, since the preview changes nothing. */
@@ -301,7 +301,7 @@ public final class Stretches {
                 refusal = Refusal.Stretch.NO_ROOM_TO_RETURN;
             }
         }
-        return new Laying(new PlacementPlan(plan.blocks(), replaces, refusal), charge);
+        return new Laying(new PlacementPlan(plan.blocks(), replaces, plan.clears(), refusal), charge);
     }
 
     /**

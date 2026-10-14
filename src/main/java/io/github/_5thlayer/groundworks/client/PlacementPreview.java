@@ -40,6 +40,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import net.neoforged.neoforge.common.NeoForge;
@@ -47,7 +48,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The Placement Preview, after Factorio's build preview: the blocks a held item would place, drawn translucent where they would
- * land, blue where they replace and red where placing would be refused.
+ * land, blue where they replace and red where placing would be refused, with an amber outline round
+ * each block the placement would clear.
  *
  * <p>It draws a {@link PlacementPlan} and decides nothing itself. The renderer asks the same
  * question the click does, so the preview cannot promise a placement the game will not perform.
@@ -81,6 +83,7 @@ final class PlacementPreview {
     private static @Nullable Key key;
     private static @Nullable PlacementPlan cached;
     private static Map<BlockPos, Set<Direction>> shown = Map.of();
+    private static Map<BlockPos, VoxelShape> clearing = Map.of();
     private static @Nullable HeightGuide guide;
 
     private PlacementPreview() {
@@ -155,6 +158,7 @@ final class PlacementPreview {
             key = new Key(stack.copy(), now.aimed(), now.face(), now.facing(), now.sneaking());
             cached = Placements.planFor(level, player, InteractionHand.MAIN_HAND, stack, hit);
             shown = cached == null ? Map.of() : shownFaces(level, cached);
+            clearing = cached == null ? Map.of() : ClearMark.shapes(level, cached);
             // A stretch's height is its leg's rise, drawn in the plan itself, not a move of the aimed spot.
             guide = cached == null || Stretches.storedOn(level, stack) != null
                     ? null
@@ -167,6 +171,7 @@ final class PlacementPreview {
         key = null;
         cached = null;
         shown = Map.of();
+        clearing = Map.of();
         guide = null;
     }
 
@@ -216,6 +221,7 @@ final class PlacementPreview {
                     });
             poseStack.popPose();
         }
+        Outline.draw(event, clearing, ClearMark.COLOUR);
     }
 
     /**

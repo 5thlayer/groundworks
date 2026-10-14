@@ -44,6 +44,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.bus.api.IEventBus;
@@ -218,15 +220,15 @@ public final class Assemblies {
     }
 
     /**
-     * An Assembly's plan, its Key last, and what it costs.
+     * An Assembly's plan, its Key last, its {@linkplain PlacementPlan#clears clears} the empty
+     * positions holding a block a placement overwrites, cleared before the rest is laid, and what it
+     * costs.
      *
-     * @param cleared the empty positions holding a block a placement overwrites, cleared before the
-     *     rest is laid
      * @param charge what the blocks before the Key cost; the Key is charged once it is placed
      * @param missing what the main inventory lacks for the plan, by the fill's count, none when it
      *     affords it
      */
-    private record Laying(PlacementPlan plan, List<BlockPos> cleared, Charge charge, Map<Item, Integer> missing) {
+    private record Laying(PlacementPlan plan, Charge charge, Map<Item, Integer> missing) {
 
         /** The blocks laid before the Key, in the plan's order. */
         List<PlacementPlan.Placed> others() {
@@ -297,6 +299,8 @@ public final class Assemblies {
             }
         }
 
+        clearedWithTheirOtherHalves(level, cleared, positions);
+
         legends.add(new AssemblyShape.Legend.Block(shape.keyBlock()));
         boolean free = player == null || player.hasInfiniteMaterials();
         AssemblyShape.Fill fill = AssemblyShape.fill(legends, free ? Map.of() : held(player), Assemblies::members, free);
@@ -344,8 +348,7 @@ public final class Assemblies {
         } else if (!missing.isEmpty()) {
             refusal = Refusal.Assembly.NOT_ENOUGH_ITEMS;
         }
-        PlacementPlan plan = refusal == null ? PlacementPlan.accepted(blocks) : PlacementPlan.refused(blocks, refusal);
-        return new Laying(plan, cleared, charge, missing);
+        return new Laying(new PlacementPlan(blocks, List.of(), cleared, refusal), charge, missing);
     }
 
     /**
@@ -378,6 +381,31 @@ public final class Assemblies {
             case EAST -> Rotation.COUNTERCLOCKWISE_90;
             default -> Rotation.NONE;
         };
+    }
+
+    /**
+     * Adds to the cleared positions the other half of each double plant cleared, tall grass's, which
+     * goes with it, so the preview marks it too; where that half stands at one of the shape's own
+     * positions, the shape already says what becomes of it.
+     */
+    private static void clearedWithTheirOtherHalves(Level level, List<BlockPos> cleared,
+            List<AssemblyShape.At> positions) {
+        Set<BlockPos> shaped = new HashSet<>();
+        positions.forEach(at -> shaped.add(at.pos()));
+        for (BlockPos pos : List.copyOf(cleared)) {
+            BlockState there = level.getBlockState(pos);
+            if (!there.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
+                continue;
+            }
+            DoubleBlockHalf half = there.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF);
+            BlockPos other = half == DoubleBlockHalf.LOWER ? pos.above() : pos.below();
+            BlockState otherState = level.getBlockState(other);
+            if (!shaped.contains(other) && otherState.is(there.getBlock())
+                    && otherState.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != half
+                    && otherState != emptied(otherState)) {
+                cleared.add(other);
+            }
+        }
     }
 
     /** What an empty position holds once cleared: nothing, or the fluid that was there. */
@@ -442,13 +470,13 @@ public final class Assemblies {
             return InteractionResult.SUCCESS;
         }
         // A claim mod's guard on the place event, at every position it changes: the click's own event never fires.
-        for (BlockPos pos : changed(laying.cleared(), plan.blocks())) {
+        for (BlockPos pos : changed(plan.clears(), plan.blocks())) {
             if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, pos), Direction.UP)) {
                 tell(player, message(laying, Refusal.Assembly.MAY_NOT_BUILD));
                 return InteractionResult.SUCCESS;
             }
         }
-        for (BlockPos pos : laying.cleared()) {
+        for (BlockPos pos : plan.clears()) {
             level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
         // Vanilla's placement, so the Key's own rules run as it goes down, a golem's pumpkin's. It

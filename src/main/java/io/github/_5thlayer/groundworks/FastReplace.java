@@ -422,7 +422,7 @@ public final class FastReplace {
 
     /** The same plan, refused for {@code reason}. */
     private static PlacementPlan refused(PlacementPlan plan, Refusal reason) {
-        return new PlacementPlan(plan.blocks(), plan.replaces(), reason);
+        return new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), reason);
     }
 
     /**

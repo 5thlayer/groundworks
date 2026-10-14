@@ -29,8 +29,15 @@ import org.jspecify.annotations.Nullable;
  * <p>{@code replaces} names the placed blocks that swap out what already stands there, drawn apart
  * from the rest, and is empty for an ordinary placement. A plan may replace some of its blocks and
  * place the rest.
+ *
+ * <p>{@code clears} names the positions the plan would empty without placing there, as an Assembly's
+ * empty positions lose the grass standing in them, so the preview marks them apart from the
+ * blocks; none of them is among {@code blocks}, and it is empty for a plan that clears nothing. A
+ * position the clearing leaves as it is, air or a fluid that stays, is not named. A refused plan
+ * still names them, as it does its blocks, and clears nothing.
  */
-public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, @Nullable Refusal refusal) {
+public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
+                            @Nullable Refusal refusal) {
 
     /** One block the plan would put down. */
     public record Placed(BlockPos pos, BlockState state) {
@@ -39,6 +46,12 @@ public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, @Nulla
     public PlacementPlan {
         blocks = List.copyOf(blocks);
         replaces = List.copyOf(replaces);
+        clears = List.copyOf(clears);
+    }
+
+    /** A plan that clears nothing. */
+    public PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, @Nullable Refusal refusal) {
+        this(blocks, replaces, List.of(), refusal);
     }
 
     /** A plan that would go through. */

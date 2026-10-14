@@ -17,7 +17,7 @@ _Avoid_: client (collides with the game's client side), dependent, integration
 ### Plans
 
 **Placement Plan**:
-What a held item would do at an aimed spot: the blocks it would put down (each a position and a blockstate), the positions among them it replaces, and a **Refusal** or none. Placing executes a plan and the preview draws one, so both ask one rule. A refused plan still carries its blocks, because a refusal is drawn where they would have gone; no plan at all means nothing to draw.
+What a held item would do at an aimed spot: the blocks it would put down (each a position and a blockstate), the positions among them it replaces, the positions apart from them it clears, as an **Assembly** clears the grass from its empty positions, and a **Refusal** or none. Placing executes a plan and the preview draws one, so both ask one rule. A refused plan still carries its blocks, because a refusal is drawn where they would have gone; no plan at all means nothing to draw.
 _Avoid_: ghost, build plan, preview state, placement context (vanilla's own type, one input to a plan)
 
 **Refusal**:
@@ -51,7 +51,7 @@ A **Consumer**'s drawing that shows whatever the aim, even while a **Takeover** 
 _Avoid_: always hook, indicator
 
 **Outline**:
-A red outline round given block positions, which Groundworks and **Consumers** use to mark what a **Takeover** would take up, such as a **Dismantle**'s span.
+A red outline round given block positions, which Groundworks and **Consumers** use to mark what a **Takeover** would take up, such as a **Dismantle**'s span. The **Placement Preview** draws one in amber round each block a **Placement Plan** clears, in the shape of the block that goes.
 _Avoid_: dismantle outline, highlight
 
 ### Rotating
