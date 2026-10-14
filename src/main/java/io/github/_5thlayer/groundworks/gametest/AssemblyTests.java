@@ -36,18 +36,21 @@ import org.jspecify.annotations.Nullable;
 /**
  * Assemblies, from the {@code assemblies} test pack: its tower, keyed by lodestone, stands
  * cobblestone forward of the Key's column, one stone under the Key and one to the player's right.
- * Its glowstone Assembly's Key is
- * not in {@code groundworks:assembly_keys}, and two malformed declarations are skipped. Its plinth,
- * keyed by a target, is a 2×2 base of beacon base blocks, iron by default, with the target over the
- * base's near left block; its gate is a bookshelf with stone to the player's right and the two
- * positions forward of them kept empty.
+ * Its glowstone Assembly's Key is not in {@code groundworks:assembly_keys}, and two malformed
+ * declarations are skipped, as is the smithing table's, which names fire, a block with no item. Its
+ * plinth, keyed by a target, is a 2×2 base of beacon base blocks, iron by default, with the target
+ * over the base's near left block; its gate is a bookshelf with stone to the player's right and the
+ * two positions forward of them kept empty. Its porch is a crafting table with stairs forward of it
+ * and the position to their right kept empty; its cactus stands on sand with cobblestone to its
+ * right, beside which vanilla won't place it.
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
  *
  * <p>Next Assembly runs on the {@code assembly_choices} pack: a lodestone stands on one stone, its
- * first Assembly, or on two, its second. The Key placed last and a Key starting alone are proved on
- * vanilla's own Assemblies, a golem and a nether portal, in {@link VanillaAssemblyTests}.
+ * first Assembly, or on two, its second; a fletching table has two declarations, the second by id
+ * starting alone. The Key placed last is proved on vanilla's own Assemblies, a golem, in {@link
+ * VanillaAssemblyTests}.
  */
 final class AssemblyTests {
 
@@ -105,6 +108,8 @@ final class AssemblyTests {
                 AssemblyTests::takenPointsAtTheFirst);
         withPack.test("an_assemblys_oriented_blocks_turn_with_it", 20, AssemblyTests::orientedBlocksTurn);
         withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
+        withPack.test("an_assembly_whose_key_fails_to_place_leaves_nothing_and_takes_nothing", 20,
+                AssemblyTests::keyFailsLeavesNothing);
 
         var withChoices = tests.withPack(CHOICES_PACK);
         withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
@@ -495,6 +500,26 @@ final class AssemblyTests {
         player.setGameMode(GameType.CREATIVE);
         click(helper, player);
         expectAlone(helper, Blocks.SMITHING_TABLE);
+        helper.succeed();
+    }
+
+    /**
+     * The cactus stands on its sand, already there, with cobblestone to its right: drawn, it
+     * survives, but laid after the cobblestone it can't, so vanilla's placement of it fails, and the
+     * cobblestone laid before it must go again, given back.
+     */
+    private static void keyFailsLeavesNothing(GameTestHelper helper) {
+        helper.setBlock(SPOT, Blocks.SAND);
+        ListeningPlayer player = holding(helper, Items.CACTUS, 1);
+        stock(player, MAIN_SLOT, Items.COBBLESTONE, 1);
+        click(helper, player);
+        for (BlockPos pos : List.of(KEY, KEY.south())) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("a failed Assembly left " + helper.getBlockState(pos), pos);
+            }
+        }
+        expectStanding(helper, Map.of(SPOT, Blocks.SAND));
+        expectHeld(helper, player, Map.of(Items.CACTUS, 1, Items.COBBLESTONE, 1));
         helper.succeed();
     }
 

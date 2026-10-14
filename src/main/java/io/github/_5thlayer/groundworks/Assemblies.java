@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.Set;
 
 import com.mojang.logging.LogUtils;
@@ -355,7 +356,9 @@ public final class Assemblies {
     /**
      * A click on a block with the main hand holding a Key whose Assembly is drawn: the whole of it
      * placed, the Key last through vanilla's own placement, or nothing, with the player told why.
-     * PASS where no Assembly is drawn, and the click goes on as it would.
+     * Where vanilla refuses the Key on the shape laid round it, as a cactus refuses beside a block,
+     * the rest is taken down again and paid back, so nothing of it stays. PASS where no Assembly is
+     * drawn, and the click goes on as it would.
      */
     static InteractionResult useOn(Player player, InteractionHand hand, BlockHitResult hit) {
         if (hand != InteractionHand.MAIN_HAND) {
@@ -384,6 +387,8 @@ public final class Assemblies {
                 return InteractionResult.SUCCESS;
             }
         }
+        SequencedMap<BlockPos, BlockState> before = new LinkedHashMap<>();
+        changed.forEach(pos -> before.put(pos, level.getBlockState(pos)));
         for (BlockPos pos : laying.cleared()) {
             level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
@@ -392,10 +397,15 @@ public final class Assemblies {
         BlockPlaceContext context = new BlockPlaceContext(level, player, hand, key.copy(), hit);
         BlockItem item = (BlockItem) key.getItem();
         // Vanilla's placement, so the Key's own rules run as it goes down, a golem's pumpkin's.
-        if (!item.place(BlockPlaceContext.at(context, laying.key(), hit.getDirection())).consumesAction()
-                && !player.hasInfiniteMaterials()) {
-            player.getInventory().placeItemBackInInventory(key);
+        if (item.place(BlockPlaceContext.at(context, laying.key(), hit.getDirection())).consumesAction()) {
+            return InteractionResult.SUCCESS;
         }
+        // Refused whole after all: what was laid goes, the last laid first, and what it cost comes back.
+        before.sequencedEntrySet().reversed().forEach(entry -> level.setBlock(entry.getKey(), entry.getValue(),
+                Block.UPDATE_ALL));
+        laying.charge().cost().forEach((paid, count) -> player.getInventory().placeItemBackInInventory(
+                paid == key.getItem() ? key.copyWithCount(count) : new ItemStack(paid, count)));
+        tell(player, message(laying, new Refusal.At(Refusal.Assembly.TAKEN, laying.key())));
         return InteractionResult.SUCCESS;
     }
 
