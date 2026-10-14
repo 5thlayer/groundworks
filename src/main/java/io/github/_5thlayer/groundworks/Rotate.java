@@ -93,6 +93,15 @@ public final class Rotate {
         return stack.getItem() instanceof BlockItem item && Placements.isDrawn(item) && orients(item.getBlock());
     }
 
+    /**
+     * Whether a press turns this stack in this level: {@linkplain #isRotatable(ItemStack) as a
+     * block's} or, held as a Key with an {@linkplain Assemblies Assembly} drawn, as that Assembly,
+     * which turns about its Key whether or not the Key's own block has a facing.
+     */
+    public static boolean isRotatable(Level level, ItemStack stack) {
+        return isRotatable(stack) || Assemblies.chosen(level, stack) != null;
+    }
+
     private static boolean orients(Block block) {
         for (Property<?> property : block.getStateDefinition().getProperties()) {
             if (isOrientation(property)) {
@@ -119,7 +128,7 @@ public final class Rotate {
      */
     public static void press(Player player, @Nullable BlockPos aimed, boolean reverse) {
         ItemStack held = player.getMainHandItem();
-        switch (RotatePress.decide(isRotatable(held) ? turnOf(held) : null, reverse,
+        switch (RotatePress.decide(isRotatable(player.level(), held) ? turnOf(held) : null, reverse,
                 aimed == null || !mayReach(player, aimed) ? null : new AimedInWorld(player, aimed, reverse))) {
             case RotatePress.PlanTurned<BlockState>(QuarterTurn turn) -> setTurn(held, turn);
             case RotatePress.TurnedInPlace<BlockState>(BlockState turned) -> turnInPlace(player.level(), aimed, turned);
