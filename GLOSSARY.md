@@ -129,7 +129,7 @@ A shape of real blocks, each its own item, placed in one step from its **Key** a
 _Avoid_: multiblock, structure (vanilla's villages and templates), kit
 
 **Key**:
-The block of an **Assembly** it is placed from: the held item that places it is the Key's own, and the shape is set in the Key's frame. Sneak-placing it places the Key alone, as vanilla would. It may be a block the shape uses at other positions too: a nether portal's frame is keyed by its obsidian, and is placed unlit.
+The block of an **Assembly** it is placed from: the held item that places it is the Key's own, and the shape is set in the Key's frame. A block is a Key only where a **Consumer** has stated it one, as the vanilla Consumer does through a tag. Sneak-placing it places the Key alone, as vanilla would. It may be a block the shape uses at other positions too: a nether portal's frame is keyed by its obsidian, and is placed unlit.
 _Avoid_: core (a Consumer's own name, such as the Void Well's), origin (a **Footprint**'s), controller
 
 **Next Assembly**:
