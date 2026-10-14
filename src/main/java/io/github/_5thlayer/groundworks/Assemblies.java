@@ -6,6 +6,7 @@ package io.github._5thlayer.groundworks;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -211,16 +212,16 @@ public final class Assemblies {
         Direction facing = context.getHorizontalDirection().getOpposite();
         List<AssemblyShape.At> positions = shape.positions(context.getClickedPos(), hit.getDirection(), facing);
 
-        // Which positions want a block, which want clearing, and the first taken.
+        // Which positions want a block, which want clearing, and which are taken.
         List<AssemblyShape.At> wanting = new ArrayList<>(positions.size());
         List<BlockPos> cleared = new ArrayList<>();
-        BlockPos taken = null;
+        Set<BlockPos> taken = new HashSet<>();
         for (AssemblyShape.At at : positions.subList(0, positions.size() - 1)) {
             BlockState there = level.getBlockState(at.pos());
             switch (at.legend()) {
                 case AssemblyShape.Legend.Empty empty -> {
                     if (!there.canBeReplaced()) {
-                        taken = taken == null ? at.pos() : taken;
+                        taken.add(at.pos());
                     } else if (there != emptied(there)) {
                         cleared.add(at.pos());
                     }
@@ -262,8 +263,8 @@ public final class Assemblies {
             BlockState state = block.get().defaultBlockState().rotate(level, pos, turn);
             others.add(new PlacementPlan.Placed(pos, state));
             cost.merge(block.get().asItem(), 1, Integer::sum);
-            if (taken == null && !fits(level, pos, level.getBlockState(pos), state)) {
-                taken = pos;
+            if (!fits(level, pos, level.getBlockState(pos), state)) {
+                taken.add(pos);
             }
         }
         Map<Item, Integer> missing = new LinkedHashMap<>();
@@ -273,8 +274,8 @@ public final class Assemblies {
         BlockPos keyPos = positions.getLast().pos();
         PlacementPlan alone = Placements.vanillaPlan(keyItem, BlockPlaceContext.at(context, keyPos, hit.getDirection()));
         BlockState keyState = alone == null ? keyItem.getBlock().defaultBlockState() : alone.blocks().getFirst().state();
-        if (taken == null && (alone == null || alone.isRefused() || !alone.blocks().getFirst().pos().equals(keyPos))) {
-            taken = keyPos;
+        if (alone == null || alone.isRefused() || !alone.blocks().getFirst().pos().equals(keyPos)) {
+            taken.add(keyPos);
         }
         // The Key is charged with the rest, last, and placed from a copy of the stack, so charging
         // the other blocks never empties the hand it is placed from.
@@ -285,9 +286,11 @@ public final class Assemblies {
         blocks.add(new PlacementPlan.Placed(keyPos, keyState));
         Set<BlockPos> all = new LinkedHashSet<>(cleared);
         blocks.forEach(placed -> all.add(placed.pos()));
+        // The refusal points at the first position taken in the plan's order, whatever made it taken.
+        Optional<BlockPos> firstTaken = positions.stream().map(AssemblyShape.At::pos).filter(taken::contains).findFirst();
         Refusal refusal = null;
-        if (taken != null) {
-            refusal = new Refusal.At(Refusal.Assembly.TAKEN, taken);
+        if (firstTaken.isPresent()) {
+            refusal = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
         } else if (player != null && !Charge.mayBuildAll(level, player, all)) {
             refusal = Refusal.Assembly.MAY_NOT_BUILD;
         } else if (!missing.isEmpty()) {

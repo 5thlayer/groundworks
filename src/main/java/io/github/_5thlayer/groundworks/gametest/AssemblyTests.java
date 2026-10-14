@@ -101,6 +101,8 @@ final class AssemblyTests {
                 AssemblyTests::keepsTheWaterOfAPlant);
         withPack.test("an_assembly_clearing_tall_grass_drops_nothing_and_leaves_no_half", 20,
                 AssemblyTests::clearsTallGrassWithoutDrops);
+        withPack.test("an_assembly_refused_for_taken_positions_points_at_the_first_in_its_order", 20,
+                AssemblyTests::takenPointsAtTheFirst);
         withPack.test("an_assemblys_oriented_blocks_turn_with_it", 20, AssemblyTests::orientedBlocksTurn);
         withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
 
@@ -448,6 +450,20 @@ final class AssemblyTests {
         }
         if (!helper.getEntities(EntityType.ITEM).isEmpty()) {
             helper.fail("clearing the tall grass dropped " + helper.getEntities(EntityType.ITEM));
+        }
+        helper.succeed();
+    }
+
+    /** The porch's stairs come before its empty position: both taken, the refusal points at the stairs'. */
+    private static void takenPointsAtTheFirst(GameTestHelper helper) {
+        helper.setBlock(FORWARD, Blocks.DIRT);
+        helper.setBlock(FORWARD_RIGHT, Blocks.DIRT);
+        ListeningPlayer player = holding(helper, Items.CRAFTING_TABLE, 1);
+        player.setGameMode(GameType.CREATIVE);
+        PlacementPlan plan = plan(helper, player);
+        Refusal taken = new Refusal.At(Refusal.Assembly.TAKEN, helper.absolutePos(FORWARD));
+        if (plan == null || !taken.equals(plan.refusal())) {
+            helper.fail("the plan was " + plan + ", not refused where the stairs go");
         }
         helper.succeed();
     }
