@@ -101,6 +101,7 @@ final class AssemblyTests {
                 AssemblyTests::keepsTheWaterOfAPlant);
         withPack.test("an_assembly_clearing_tall_grass_drops_nothing_and_leaves_no_half", 20,
                 AssemblyTests::clearsTallGrassWithoutDrops);
+        withPack.test("an_assemblys_oriented_blocks_turn_with_it", 20, AssemblyTests::orientedBlocksTurn);
         withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
 
         var withChoices = tests.withPack(CHOICES_PACK);
@@ -447,6 +448,27 @@ final class AssemblyTests {
         }
         if (!helper.getEntities(EntityType.ITEM).isEmpty()) {
             helper.fail("clearing the tall grass dropped " + helper.getEntities(EntityType.ITEM));
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The porch's stairs face up the page as declared, away from the player: looking east, they
+     * face east, drawn and placed.
+     */
+    private static void orientedBlocksTurn(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.CRAFTING_TABLE, 1);
+        player.setGameMode(GameType.CREATIVE);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.blocks().stream().noneMatch(placed -> placed.pos().equals(helper.absolutePos(FORWARD))
+                && placed.state().is(Blocks.OAK_STAIRS)
+                && placed.state().getValue(StairBlock.FACING) == Direction.EAST)) {
+            helper.fail("the plan was " + plan + ", not the stairs facing east");
+        }
+        click(helper, player);
+        BlockState stairs = helper.getBlockState(FORWARD);
+        if (!stairs.is(Blocks.OAK_STAIRS) || stairs.getValue(StairBlock.FACING) != Direction.EAST) {
+            helper.fail("found " + stairs + ", not stairs facing east", FORWARD);
         }
         helper.succeed();
     }

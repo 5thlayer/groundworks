@@ -1,0 +1,12 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:crafting_table",
+    "t": "minecraft:oak_stairs",
+    "o": "empty"
+  },
+  "layers": [
+    ["to",
+     "K "]
+  ]
+}

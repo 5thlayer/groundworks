@@ -72,6 +72,10 @@ import net.minecraft.resources.Identifier;
  * the cobblestone stands forward of the Key's column, one base block under the Key and one to the
  * player's right of it, and the position to the Key's right stays empty.
  *
+ * <p>Each block takes its default state, turned with the shape: as declared it faces as it would
+ * placed by a player looking up the page, so stairs, which face north by default, face away from
+ * the player, forward.
+ *
  * <p>The block ids and tags are not checked here, since this is read with no registries: whoever
  * loads it does.
  */

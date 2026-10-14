@@ -38,6 +38,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -249,6 +250,7 @@ public final class Assemblies {
         boolean free = player == null || player.hasInfiniteMaterials();
         AssemblyShape.Fill fill = AssemblyShape.fill(legends, free ? Map.of() : held(player), Assemblies::members, free);
 
+        Rotation turn = turnFrom(facing);
         List<PlacementPlan.Placed> others = new ArrayList<>(wanting.size());
         Map<Item, Integer> cost = new LinkedHashMap<>();
         for (int i = 0; i < wanting.size(); i++) {
@@ -257,7 +259,7 @@ public final class Assemblies {
                 return null;
             }
             BlockPos pos = wanting.get(i).pos();
-            BlockState state = block.get().defaultBlockState();
+            BlockState state = block.get().defaultBlockState().rotate(level, pos, turn);
             others.add(new PlacementPlan.Placed(pos, state));
             cost.merge(block.get().asItem(), 1, Integer::sum);
             if (taken == null && !fits(level, pos, level.getBlockState(pos), state)) {
@@ -293,6 +295,20 @@ public final class Assemblies {
         }
         PlacementPlan plan = refusal == null ? PlacementPlan.accepted(blocks) : PlacementPlan.refused(blocks, refusal);
         return new Laying(plan, others, cleared, charge, missing, keyPos);
+    }
+
+    /**
+     * How a shape's blocks turn for a Key facing this way: a declaration is drawn with the player
+     * looking up the page, north, so with the Key facing south, and a block's default state, as
+     * stairs face north, faces up the page, away from the player.
+     */
+    private static Rotation turnFrom(Direction facing) {
+        return switch (facing) {
+            case WEST -> Rotation.CLOCKWISE_90;
+            case NORTH -> Rotation.CLOCKWISE_180;
+            case EAST -> Rotation.COUNTERCLOCKWISE_90;
+            default -> Rotation.NONE;
+        };
     }
 
     /** What an empty position holds once cleared: nothing, or the fluid that was there. */
