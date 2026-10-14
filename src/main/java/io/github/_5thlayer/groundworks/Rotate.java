@@ -94,12 +94,13 @@ public final class Rotate {
     }
 
     /**
-     * Whether a press turns this stack in this level: {@linkplain #isRotatable(ItemStack) as a
+     * Whether a press turns this stack held by this player: {@linkplain #isRotatable(ItemStack) as a
      * block's} or, held as a Key with an {@linkplain Assemblies Assembly} drawn, as that Assembly,
-     * which turns about its Key whether or not the Key's own block has a facing.
+     * which turns about its Key whether or not the Key's own block has a facing. A sneaking player's
+     * Key places alone, so only its block's facing counts.
      */
-    public static boolean isRotatable(Level level, ItemStack stack) {
-        return isRotatable(stack) || Assemblies.chosen(level, stack) != null;
+    public static boolean isRotatable(Player player, ItemStack stack) {
+        return isRotatable(stack) || Assemblies.placed(player.level(), player, stack) != null;
     }
 
     private static boolean orients(Block block) {
@@ -128,7 +129,7 @@ public final class Rotate {
      */
     public static void press(Player player, @Nullable BlockPos aimed, boolean reverse) {
         ItemStack held = player.getMainHandItem();
-        switch (RotatePress.decide(isRotatable(player.level(), held) ? turnOf(held) : null, reverse,
+        switch (RotatePress.decide(isRotatable(player, held) ? turnOf(held) : null, reverse,
                 aimed == null || !mayReach(player, aimed) ? null : new AimedInWorld(player, aimed, reverse))) {
             case RotatePress.PlanTurned<BlockState>(QuarterTurn turn) -> setTurn(held, turn);
             case RotatePress.TurnedInPlace<BlockState>(BlockState turned) -> turnInPlace(player.level(), aimed, turned);

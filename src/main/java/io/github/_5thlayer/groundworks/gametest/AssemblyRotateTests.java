@@ -5,6 +5,7 @@ package io.github._5thlayer.groundworks.gametest;
 
 import java.util.Map;
 
+import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.Placements;
 import io.github._5thlayer.groundworks.Rotate;
@@ -17,6 +18,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -43,6 +46,8 @@ final class AssemblyRotateTests {
         withPack.test("rotate_turns_a_drawn_assembly_about_its_key_even_when_the_key_has_no_facing", 20,
                 AssemblyRotateTests::rotateTurns);
         withPack.test("reverse_rotate_turns_a_drawn_assembly_the_other_way", 20, AssemblyRotateTests::reverseRotateTurns);
+        withPack.test("rotate_while_sneaking_with_a_key_with_no_facing_rotates_in_place", 20,
+                AssemblyRotateTests::sneakingRotatesInPlace);
     }
 
     private static void rotateTurns(GameTestHelper helper) {
@@ -55,6 +60,25 @@ final class AssemblyRotateTests {
         ListeningPlayer player = holdingTheTowerKey(helper);
         Rotate.press(player, null, true);
         expectPlanAndPlaced(helper, player, SPOT.north(), SPOT.east());
+    }
+
+    /**
+     * Sneaking, the lodestone places alone, which has no facing: the press turns the aimed stairs
+     * in place rather than a plan no click places.
+     */
+    private static void sneakingRotatesInPlace(GameTestHelper helper) {
+        helper.setBlock(SPOT, Blocks.OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.NORTH));
+        ListeningPlayer player = holdingTheTowerKey(helper);
+        player.setShiftKeyDown(true);
+        Rotate.press(player, helper.absolutePos(SPOT), false);
+        BlockState stairs = helper.getBlockState(SPOT);
+        if (!stairs.is(Blocks.OAK_STAIRS) || stairs.getValue(StairBlock.FACING) != Direction.EAST) {
+            helper.fail("found " + stairs + ", not the stairs turned to face east", SPOT);
+        }
+        if (player.getMainHandItem().has(Groundworks.QUARTER_TURN.get())) {
+            helper.fail("the press turned the held lodestone's plan");
+        }
+        helper.succeed();
     }
 
     /** The preview's plan and the click's placement both stand the tower turned, cobblestone forward, stone right. */

@@ -149,6 +149,15 @@ public final class Assemblies {
     }
 
     /**
+     * The Assembly a click with the held stack places, or {@code null} where it places none: the
+     * stack is no Key, its choice is the Key alone, or the player sneaks, which places the Key alone
+     * as vanilla does.
+     */
+    static @Nullable AssemblyShape placed(Level level, @Nullable Player player, ItemStack stack) {
+        return player != null && player.isShiftKeyDown() ? null : chosen(level, stack);
+    }
+
+    /**
      * A press of Next Assembly, or of its reverse, decided on the server: the main hand's Key steps
      * to its next choice, or its previous, through its Assemblies and the Key alone and round. A
      * stack that is no Key is left as it is.
@@ -191,10 +200,7 @@ public final class Assemblies {
     }
 
     private static @Nullable Laying laying(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
-        if (player != null && player.isShiftKeyDown()) {
-            return null;
-        }
-        AssemblyShape shape = chosen(level, stack);
+        AssemblyShape shape = placed(level, player, stack);
         if (shape == null) {
             return null;
         }
