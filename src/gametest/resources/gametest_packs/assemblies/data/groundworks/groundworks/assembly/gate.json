@@ -1,0 +1,12 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:bookshelf",
+    "s": "minecraft:stone",
+    "o": "empty"
+  },
+  "layers": [
+    ["oo",
+     "Ks"]
+  ]
+}

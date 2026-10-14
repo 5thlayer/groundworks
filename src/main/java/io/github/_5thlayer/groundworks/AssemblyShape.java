@@ -4,10 +4,14 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -26,12 +30,17 @@ import net.minecraft.resources.Identifier;
  * <pre>{@code
  * {
  *   "key": "K",
- *   "legend": {"K": "minecraft:lodestone", "s": "minecraft:stone", "c": "minecraft:cobblestone"},
+ *   "legend": {
+ *     "K": "minecraft:lodestone",
+ *     "s": {"tag": "minecraft:beacon_base_blocks", "default": "minecraft:iron_block"},
+ *     "c": "minecraft:cobblestone",
+ *     "o": "empty"
+ *   },
  *   "layers": [
  *     ["c ",
  *      "ss"],
  *     ["  ",
- *      "K "]
+ *      "Ko"]
  *   ],
  *   "starts_alone": false
  * }
@@ -43,7 +52,11 @@ import net.minecraft.resources.Identifier;
  *       forward and its last the nearest, and each row's first letter is on the player's left and
  *       its last on their right. Every layer has as many rows as every other, and every row as many
  *       letters. A space is not part of the shape: the world there is left alone.
- *   <li>{@code legend}: what each letter stands for, a block's id.
+ *   <li>{@code legend}: what each letter stands for: a block's id; a block tag, any of whose
+ *       blocks the position takes, with the {@code default} a creative player gets, filled as
+ *       {@linkplain #fill uniformly} as the inventory allows; or {@code "empty"}, a position that
+ *       must hold nothing a placement can't clear: a block a placement overwrites, such as grass,
+ *       is cleared, a fluid stays, and any other block refuses the placement.
  *   <li>{@code key}: the letter that marks the Key, which the shape holds exactly once and the
  *       legend names a block for: the block whose item places the Assembly.
  *   <li>{@code starts_alone}: whether a fresh stack of the Key places the Key alone until Next
@@ -54,11 +67,11 @@ import net.minecraft.resources.Identifier;
  * <p>The frame is the {@linkplain FootprintShape Footprint}'s (ADR 0009), with the Key as its
  * origin: forward is {@code x}, the player's left is {@code z}, up is {@code y}, and a placement
  * turns it by the way the Key faces as {@link FootprintShape.Local#inWorld} does. So in the example
- * the cobblestone stands forward of the Key's column, one stone under the Key and one to the
- * player's right of it.
+ * the cobblestone stands forward of the Key's column, one base block under the Key and one to the
+ * player's right of it, and the position to the Key's right stays empty.
  *
- * <p>The block ids are not checked here, since this is read with no registries: whoever loads it
- * does.
+ * <p>The block ids and tags are not checked here, since this is read with no registries: whoever
+ * loads it does.
  */
 public final class AssemblyShape {
 
@@ -67,6 +80,15 @@ public final class AssemblyShape {
 
         /** A block, by its id. */
         record Block(Identifier id) implements Legend {
+        }
+
+        /** Any block of a block tag, by the tag's id, and the block a creative player gets. */
+        record Tag(Identifier tag, Identifier defaultBlock) implements Legend {
+        }
+
+        /** A position that holds nothing once placed, fluids aside. */
+        enum Empty implements Legend {
+            INSTANCE
         }
     }
 
@@ -78,8 +100,22 @@ public final class AssemblyShape {
     private record Part(FootprintShape.Local offset, Legend legend) {
     }
 
-    private static final Codec<Legend> LEGEND_CODEC = Identifier.CODEC.xmap(Legend.Block::new,
-            legend -> ((Legend.Block) legend).id());
+    private static final String EMPTY = "empty";
+
+    /** A block's id, or {@code "empty"}. */
+    private static final Codec<Legend> NAMED_CODEC = Codec.STRING.comapFlatMap(
+            name -> name.equals(EMPTY) ? DataResult.success(Legend.Empty.INSTANCE)
+                    : Identifier.read(name).map(Legend.Block::new),
+            legend -> legend instanceof Legend.Block block ? block.id().toString() : EMPTY);
+
+    private static final Codec<Legend.Tag> TAG_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Identifier.CODEC.fieldOf("tag").forGetter(Legend.Tag::tag),
+            Identifier.CODEC.fieldOf("default").forGetter(Legend.Tag::defaultBlock)
+    ).apply(instance, Legend.Tag::new));
+
+    private static final Codec<Legend> LEGEND_CODEC = Codec.either(NAMED_CODEC, TAG_CODEC).xmap(
+            either -> either.map(Function.identity(), Function.identity()),
+            legend -> legend instanceof Legend.Tag tag ? Either.right(tag) : Either.left(legend));
 
     private record Declaration(String key, Map<String, Legend> legend, List<List<String>> layers, boolean startsAlone) {
 
@@ -187,10 +223,17 @@ public final class AssemblyShape {
         return declaration.startsAlone();
     }
 
-    /** Every block id the legend names, which whoever loads the shape checks. */
+    /** Every block id the legend names, a tag's default among them, which whoever loads the shape checks. */
     public List<Identifier> blocks() {
         return declaration.legend().values().stream()
-                .map(legend -> ((Legend.Block) legend).id())
+                .<Identifier>mapMulti((legend, ids) -> {
+                    switch (legend) {
+                        case Legend.Block block -> ids.accept(block.id());
+                        case Legend.Tag tag -> ids.accept(tag.defaultBlock());
+                        case Legend.Empty empty -> {
+                        }
+                    }
+                })
                 .distinct()
                 .toList();
     }
@@ -212,5 +255,79 @@ public final class AssemblyShape {
         }
         at.add(new At(key, new Legend.Block(keyBlock)));
         return at;
+    }
+
+    /**
+     * Which block each position gets, in their order, and what the inventory lacks for them.
+     *
+     * @param missing how many of each block the inventory lacks, none when it covers them all
+     */
+    public record Fill(List<Identifier> blocks, Map<Identifier, Integer> missing) {
+
+        public Fill {
+            blocks = List.copyOf(blocks);
+            missing = Map.copyOf(missing);
+        }
+    }
+
+    /**
+     * The uniform fill: which block each of {@code positions} gets, each a {@link Legend.Block} or
+     * a {@link Legend.Tag}, from what the inventory {@code held} holds of each block.
+     *
+     * <p>A named block is taken first. Then each tag's positions, in their order, are filled from
+     * what is left, from the member held most of first, then the next, so a tag's positions are all
+     * one block when the inventory holds enough of it; members held alike go in the tag's order.
+     * What the inventory can't cover is missing, a tag's positions counted as its default, which
+     * they get. {@code creative} gives each tag position its default and misses nothing.
+     *
+     * @param members the blocks of each tag, by the tag's id, in the tag's order
+     */
+    public static Fill fill(List<Legend> positions, Map<Identifier, Integer> held,
+            Function<Identifier, List<Identifier>> members, boolean creative) {
+        Identifier[] blocks = new Identifier[positions.size()];
+        Map<Identifier, Integer> left = new HashMap<>(held);
+        Map<Identifier, Integer> missing = new LinkedHashMap<>();
+        Map<Legend.Tag, List<Integer>> tagged = new LinkedHashMap<>();
+        for (int i = 0; i < blocks.length; i++) {
+            switch (positions.get(i)) {
+                case Legend.Block block -> {
+                    blocks[i] = block.id();
+                    if (!creative) {
+                        take(block.id(), left, missing);
+                    }
+                }
+                case Legend.Tag tag -> tagged.computeIfAbsent(tag, t -> new ArrayList<>()).add(i);
+                case Legend.Empty empty -> throw new IllegalArgumentException("an empty position takes no block");
+            }
+        }
+        tagged.forEach((tag, at) -> {
+            if (creative) {
+                at.forEach(i -> blocks[i] = tag.defaultBlock());
+                return;
+            }
+            List<Identifier> mostHeldFirst = members.apply(tag.tag()).stream()
+                    .sorted(Comparator.comparingInt((Identifier member) -> left.getOrDefault(member, 0)).reversed())
+                    .toList();
+            int next = 0;
+            for (int i : at) {
+                while (next < mostHeldFirst.size() && left.getOrDefault(mostHeldFirst.get(next), 0) <= 0) {
+                    next++;
+                }
+                Identifier block = next < mostHeldFirst.size() ? mostHeldFirst.get(next) : tag.defaultBlock();
+                blocks[i] = block;
+                take(block, left, missing);
+            }
+        });
+        return new Fill(List.of(blocks), missing);
+    }
+
+    /** One of {@code block} from what is {@code left}, or one more {@code missing}. */
+    private static void take(Identifier block, Map<Identifier, Integer> left, Map<Identifier, Integer> missing) {
+        int count = left.getOrDefault(block, 0);
+        if (count > 0) {
+            left.put(block, count - 1);
+        } else {
+            missing.merge(block, 1, Integer::sum);
+        }
     }
 }
