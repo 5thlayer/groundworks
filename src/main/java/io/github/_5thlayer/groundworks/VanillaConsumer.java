@@ -41,7 +41,7 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * groundworks:replace_group/}, one group per tag, shipped with none: a pack developer fills them,
  * and a plain click with one of a tag's blocks on another replaces it.
  *
- * <p>Which blocks are an {@linkplain Assemblies Assembly}'s Key is the block tag {@link
+ * <p>Its {@linkplain Assemblies#keys statement of Assembly Keys} is the block tag {@link
  * #ASSEMBLY_KEYS}; a Key places the Assemblies declared for it as data.
  */
 public final class VanillaConsumer {
@@ -83,6 +83,7 @@ public final class VanillaConsumer {
         Placements.optIn(VanillaConsumer::optsIn);
         // Read as the tag is now, so a datapack reload reaches the next press.
         Rotate.turnsInPlace(block -> block.defaultBlockState().is(ROTATES_IN_PLACE));
+        Assemblies.keys(block -> block.defaultBlockState().is(ASSEMBLY_KEYS));
         modBus.addListener(FMLCommonSetupEvent.class, event -> {
             Stretches.register(new VanillaLegs());
             Dismantles.register(new VanillaFamilies());

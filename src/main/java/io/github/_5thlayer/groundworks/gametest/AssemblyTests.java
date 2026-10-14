@@ -36,7 +36,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Assemblies, from the {@code assemblies} test pack: its tower, keyed by lodestone, stands
  * cobblestone forward of the Key's column, one stone under the Key and one to the player's right.
- * Its glowstone Assembly's Key is not in {@code groundworks:assembly_keys}, and two malformed
+ * Its glowstone Assembly's Key is not in {@code groundworks:assembly_keys}; its cartography table's
+ * is a Key stated in code alone, as a Consumer mod may state one. Two malformed
  * declarations are skipped, as is the smithing table's, which names fire, a block with no item, and
  * a target's declaration naming a tag the game lacks; the loom's names a tag with no blocks, and loads. Its
  * plinth, keyed by a target, is a 2×2 base of beacon base blocks, iron by default, with the target
@@ -76,6 +77,7 @@ final class AssemblyTests {
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
+        tests.keys(Blocks.CARTOGRAPHY_TABLE);
         var withPack = tests.withPack(PACK);
         withPack.test("an_assembly_is_placed_whole_resting_on_the_face_facing_the_player_with_its_key_last", 20,
                 AssemblyTests::placedWhole);
@@ -89,6 +91,7 @@ final class AssemblyTests {
         withPack.test("an_assembly_keeps_a_block_of_its_own_standing_uncharged", 20, AssemblyTests::keepsItsOwnBlock);
         withPack.test("sneak_placing_a_key_places_it_alone", 20, AssemblyTests::sneakPlacesTheKeyAlone);
         withPack.test("a_key_outside_the_tag_places_as_vanilla", 20, AssemblyTests::untaggedKeyPlacesAsVanilla);
+        withPack.test("a_key_stated_only_in_code_places_its_assembly", 20, AssemblyTests::keyStatedInCode);
         withPack.test("breaking_one_block_of_an_assembly_breaks_only_it", 20, AssemblyTests::breaksOneBlock);
         withPack.test("an_assemblys_tag_positions_are_filled_from_the_block_held_most_of_first", 20,
                 AssemblyTests::uniformFill);
@@ -248,6 +251,15 @@ final class AssemblyTests {
         click(helper, player);
         expectAlone(helper, Blocks.GLOWSTONE);
         expectHeld(helper, player, Map.of(Items.GLOWSTONE, 1, Items.STONE, 1));
+        helper.succeed();
+    }
+
+    private static void keyStatedInCode(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.CARTOGRAPHY_TABLE, 2);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, Blocks.STONE, KEY, Blocks.CARTOGRAPHY_TABLE));
+        expectHeld(helper, player, Map.of(Items.CARTOGRAPHY_TABLE, 1, Items.STONE, 0));
         helper.succeed();
     }
 

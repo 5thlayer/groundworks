@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Predicate;
 
 import com.mojang.logging.LogUtils;
 import io.github._5thlayer.groundworks.mixin.BlockItemInvoker;
@@ -64,12 +66,13 @@ import org.slf4j.Logger;
  * logged with its id and skipped, and a {@code /reload} reads them all again. A Key's Assemblies
  * are ordered by their ids.
  *
- * <p>A held block item is a Key when its block is in {@link VanillaConsumer#ASSEMBLY_KEYS} and a
- * declaration names it. Its plan is the whole shape, resting on the aimed face and facing the
- * player, the Key last, its tag positions {@linkplain AssemblyShape#fill filled} from the main
- * inventory, and its empty positions cleared of what a placement overwrites, fluids aside; a sneak
- * places the Key alone, as vanilla does, and so does a stack whose {@linkplain AssemblyChoice
- * choice}, stepped by Next Assembly, is the Key alone.
+ * <p>A held block item is a Key when a Consumer has {@linkplain #keys stated} its block is one, as
+ * the {@linkplain VanillaConsumer vanilla Consumer} does for its tag, and a declaration names it.
+ * Its plan is the whole shape, resting on the aimed face and facing the player, the Key last, its
+ * tag positions {@linkplain AssemblyShape#fill filled} from the main inventory, and its empty
+ * positions cleared of what a placement overwrites, fluids aside; a sneak places the Key alone, as
+ * vanilla does, and so does a stack whose {@linkplain AssemblyChoice choice}, stepped by Next
+ * Assembly, is the Key alone.
  */
 public final class Assemblies {
 
@@ -81,7 +84,31 @@ public final class Assemblies {
     /** The declarations the server sent this client, by id: apart from the server's, which in single player shares these statics. */
     private static volatile Map<Identifier, AssemblyShape> client = Map.of();
 
+    private static final List<Predicate<? super Block>> KEYS = new CopyOnWriteArrayList<>();
+
     private Assemblies() {
+    }
+
+    /**
+     * States that the blocks this matches are Keys, each placing the Assemblies declared for it. A
+     * block is a Key when any Consumer's statement says so; one no statement names places as
+     * vanilla does, whatever is declared for it.
+     *
+     * <p>Called at mod construction, on both sides, since the plan is asked of on both. Mods are
+     * constructed in parallel, so this may be called from several threads at once.
+     */
+    public static void keys(Predicate<? super Block> blocks) {
+        KEYS.add(blocks);
+    }
+
+    /** Whether some Consumer has stated this block is a Key. */
+    public static boolean isKey(Block block) {
+        for (Predicate<? super Block> blocks : KEYS) {
+            if (blocks.test(block)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static void register(IEventBus modBus) {
@@ -122,11 +149,10 @@ public final class Assemblies {
 
     /**
      * The Assemblies this stack's Key places, by their ids, or none where the stack is no Key: its
-     * item places no block in {@link VanillaConsumer#ASSEMBLY_KEYS}, or none is declared for it.
+     * item places no block a Consumer has {@linkplain #keys stated} a Key, or none is declared for it.
      */
     private static List<AssemblyShape> choicesOf(Level level, ItemStack stack) {
-        if (!(stack.getItem() instanceof BlockItem item)
-                || !item.getBlock().defaultBlockState().is(VanillaConsumer.ASSEMBLY_KEYS)) {
+        if (!(stack.getItem() instanceof BlockItem item) || !isKey(item.getBlock())) {
             return List.of();
         }
         return keyedBy(level, item.getBlock());

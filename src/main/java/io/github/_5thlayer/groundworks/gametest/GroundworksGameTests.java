@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import com.mojang.serialization.MapCodec;
+import io.github._5thlayer.groundworks.Assemblies;
 import io.github._5thlayer.groundworks.Dismantles;
 import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.Placements;
@@ -42,12 +43,13 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  *
  * <p>The tests use vanilla blocks. The {@linkplain io.github._5thlayer.groundworks.VanillaConsumer
  * vanilla Consumer} opts in those its shipped tag holds; the tests opt in the few others they need,
- * such as cobblestone, a block with no orientation, and state their own Rotate in Place. That
- * {@linkplain Placements#optIn Opt-in} and {@linkplain Rotate#turnsInPlace Rotate in Place
- * statement} are made while the tests are registered, which happens only when game tests are
- * enabled, so a production server never has them. They are the ones not made at mod construction
- * as ADR 0001 has it, and they hold on the server alone, which is all a game-test server has. A dev
- * client, which enables game tests too, draws these blocks.
+ * such as cobblestone, a block with no orientation, and state their own Rotate in Place and a Key
+ * of their own. That {@linkplain Placements#optIn Opt-in}, {@linkplain Rotate#turnsInPlace Rotate
+ * in Place statement} and {@linkplain Assemblies#keys statement of Keys} are made while the tests
+ * are registered, which happens only when game tests are enabled, so a production server never has
+ * them. They are the ones not made at mod construction as ADR 0001 has it, and they hold on the
+ * server alone, which is all a game-test server has. A dev client, which enables game tests too,
+ * draws these blocks.
  *
  * <p>A test that needs a pack developer's datapack runs in a batch of its own {@linkplain
  * WithTestPack with that pack switched on}.
@@ -117,6 +119,9 @@ public final class GroundworksGameTests {
     /** The blocks the tests state Rotate in Place turns. */
     private static final Set<Block> TURNED_IN_PLACE = ConcurrentHashMap.newKeySet();
 
+    /** The blocks the tests state are Assembly Keys. */
+    private static final Set<Block> STATED_KEYS = ConcurrentHashMap.newKeySet();
+
     /** The tests are registered on each registry load, and their Opt-in, statement and claim guard are made on the first. */
     private static final AtomicBoolean FIRST_REGISTRATION_DONE = new AtomicBoolean();
 
@@ -143,6 +148,7 @@ public final class GroundworksGameTests {
         if (FIRST_REGISTRATION_DONE.compareAndSet(false, true)) {
             Placements.optIn(TEST_BLOCKS::contains);
             Rotate.turnsInPlace(TURNED_IN_PLACE::contains);
+            Assemblies.keys(STATED_KEYS::contains);
             RotateInPlaceTests.guardClaims();
         }
         // Registered rather than borrowed, since the event hands out no lookup for vanilla's.
@@ -180,6 +186,10 @@ public final class GroundworksGameTests {
 
         void turnsInPlace(Block... blocks) {
             TURNED_IN_PLACE.addAll(List.of(blocks));
+        }
+
+        void keys(Block... blocks) {
+            STATED_KEYS.addAll(List.of(blocks));
         }
 
         /**

@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:cartography_table",
+    "s": "minecraft:stone"
+  },
+  "layers": [
+    ["s"],
+    ["K"]
+  ]
+}
