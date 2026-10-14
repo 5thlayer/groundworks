@@ -27,6 +27,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.WallTorchBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
@@ -45,7 +46,10 @@ import org.jspecify.annotations.Nullable;
  * two positions forward of them kept empty. Its porch is a crafting table with stairs forward of it
  * and the position to their right kept empty; its cactus stands on sand with cobblestone to its
  * right, beside which it would not stand; its oak door has stone over it, where vanilla's
- * placement wants the door's upper half.
+ * placement wants the door's upper half. Its sconce is a torch over nothing with stone forward of
+ * it, on cobblestone; its golem trap is a note block with cobblestone to the player's left and an
+ * iron golem's body and pumpkin to its right, the golem's leg beside it and the position beside
+ * the leg's far side kept empty.
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
@@ -120,8 +124,11 @@ final class AssemblyTests {
                 AssemblyTests::emptyTagLoads);
         withPack.test("an_assembly_whose_key_would_not_stand_on_it_is_refused_whole_and_places_nothing", 20,
                 AssemblyTests::keyWouldNotStandRefused);
-        withPack.test("an_assembly_whose_key_vanilla_refuses_after_the_rest_is_laid_keeps_the_rest_and_charges_no_key",
-                20, AssemblyTests::keyRefusedByVanillaLeavesTheRest);
+        withPack.test("an_assembly_whose_key_would_have_no_room_once_laid_is_refused_whole_and_places_nothing", 20,
+                AssemblyTests::keyWithNoRoomRefused);
+        withPack.test("an_assemblys_key_hangs_on_a_wall_the_shape_builds", 20, AssemblyTests::keyHangsOnItsWall);
+        withPack.test("an_assembly_whose_key_vanilla_refuses_once_the_rest_is_laid_takes_back_what_still_stands",
+                20, AssemblyTests::keyRefusedTakesBackTheRest);
 
         var withChoices = tests.withPack(CHOICES_PACK);
         withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
@@ -609,24 +616,84 @@ final class AssemblyTests {
     }
 
     /**
-     * The door's Key stands on the floor, and its stone goes where the door's upper half would: the
-     * door survives on the world as laid, so the plan is accepted, but vanilla's placement wants
-     * room above it, which the stone, laid first, has taken. The stone stays, paid for; the door is
-     * neither placed nor charged, and the player is told so.
+     * The door's Key stands on the floor, and its stone goes where the door's upper half would:
+     * vanilla's placement, asked of the world as it will stand, finds no room above it, so the plan
+     * is refused whole at the Key and nothing is laid or taken.
      */
-    private static void keyRefusedByVanillaLeavesTheRest(GameTestHelper helper) {
+    private static void keyWithNoRoomRefused(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, Items.OAK_DOOR, 1);
         stock(player, MAIN_SLOT, Items.STONE, 1);
         PlacementPlan plan = plan(helper, player);
-        if (plan == null || plan.isRefused() || plan.blocks().size() != 2) {
-            helper.fail("the plan was " + plan + ", not the door and its stone accepted");
+        Refusal taken = new Refusal.At(Refusal.Assembly.TAKEN, helper.absolutePos(SPOT));
+        if (plan == null || !taken.equals(plan.refusal())) {
+            helper.fail("the plan was " + plan + ", not refused where the door would go");
         }
         click(helper, player);
-        expectStanding(helper, Map.of(KEY, Blocks.STONE));
-        if (!helper.getBlockState(SPOT).isAir()) {
-            helper.fail("found " + helper.getBlockState(SPOT) + " where vanilla refused the door", SPOT);
+        for (BlockPos pos : List.of(SPOT, KEY)) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("a refused Assembly placed " + helper.getBlockState(pos), pos);
+            }
         }
-        expectHeld(helper, player, Map.of(Items.OAK_DOOR, 1, Items.STONE, 0));
+        expectHeld(helper, player, Map.of(Items.OAK_DOOR, 1, Items.STONE, 1));
+        if (!player.heard.contains("message.groundworks.assembly_taken")) {
+            helper.fail("the player heard " + player.heard + ", not that a position is taken");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The sconce's torch goes over nothing, against the stone the shape lays forward of it: on the
+     * world as it stands it has nothing to hang on, but on the world as it will stand it hangs on
+     * the stone, facing back at the player, drawn and placed.
+     */
+    private static void keyHangsOnItsWall(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.TORCH, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        stock(player, OTHER_MAIN_SLOT, Items.COBBLESTONE, 1);
+        PlacementPlan plan = plan(helper, player);
+        BlockState hung = Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.WEST);
+        if (plan == null || plan.isRefused() || !plan.blocks().getLast().equals(
+                new PlacementPlan.Placed(helper.absolutePos(KEY), hung))) {
+            helper.fail("the plan was " + plan + ", not the sconce with its torch on the stone");
+        }
+        click(helper, player);
+        expectStanding(helper, Map.of(FORWARD, Blocks.COBBLESTONE, FORWARD.above(), Blocks.STONE));
+        if (!helper.getBlockState(KEY).equals(hung)) {
+            helper.fail("found " + helper.getBlockState(KEY) + ", not the torch on the stone", KEY);
+        }
+        expectHeld(helper, player, Map.of(Items.TORCH, 0, Items.STONE, 0, Items.COBBLESTONE, 0));
+        helper.succeed();
+    }
+
+    /**
+     * The golem trap lays an iron golem's body and pumpkin beside its note block, with cobblestone
+     * on the note block's far side: the pumpkin, laid before the Key, spawns the golem, which
+     * stands in the note block's way, as the plan, which plans no entity, couldn't know. The note
+     * block isn't placed, so the cobblestone, still standing, is taken back and not charged, and
+     * the grass the laying cleared is put back; the golem's blocks, gone into the golem, are charged.
+     */
+    private static void keyRefusedTakesBackTheRest(GameTestHelper helper) {
+        grassAt(helper, SPOT.south(2));
+        ListeningPlayer player = holding(helper, Items.NOTE_BLOCK, 1);
+        stock(player, MAIN_SLOT, Items.IRON_BLOCK, 4);
+        stock(player, OTHER_MAIN_SLOT, Items.CARVED_PUMPKIN, 1);
+        stock(player, MAIN_SLOT + 1, Items.COBBLESTONE, 1);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.isRefused()) {
+            helper.fail("the plan was " + plan + ", not the golem trap accepted");
+        }
+        click(helper, player);
+        if (helper.getEntities(EntityType.IRON_GOLEM).isEmpty()) {
+            helper.fail("no golem spawned from the trap");
+        }
+        for (BlockPos pos : List.of(SPOT, SPOT.north())) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("found " + helper.getBlockState(pos) + " where the trap was taken back", pos);
+            }
+        }
+        expectStanding(helper, Map.of(SPOT.south(2), Blocks.SHORT_GRASS));
+        expectHeld(helper, player, Map.of(Items.NOTE_BLOCK, 1, Items.IRON_BLOCK, 0, Items.CARVED_PUMPKIN, 0,
+                Items.COBBLESTONE, 1));
         if (!player.heard.contains("message.groundworks.assembly_key_not_placed")) {
             helper.fail("the player heard " + player.heard + ", not that the Key couldn't be placed");
         }

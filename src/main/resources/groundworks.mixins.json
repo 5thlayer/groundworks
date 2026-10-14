@@ -6,6 +6,7 @@
     "BlockItemInvoker",
     "BlockPlaceContextHeightMixin",
     "BlockPlaceContextMixin",
+    "LevelInvoker",
     "UseOnContextInvoker",
     "UseOnContextMixin"
   ],

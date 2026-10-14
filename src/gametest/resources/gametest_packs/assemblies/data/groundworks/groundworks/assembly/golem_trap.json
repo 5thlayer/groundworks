@@ -1,0 +1,15 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:note_block",
+    "i": "minecraft:iron_block",
+    "p": "minecraft:carved_pumpkin",
+    "c": "minecraft:cobblestone",
+    "e": "empty"
+  },
+  "layers": [
+    ["cKie"],
+    [" iii"],
+    ["  p "]
+  ]
+}

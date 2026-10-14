@@ -224,11 +224,12 @@ public final class Assemblies {
      * positions holding a block a placement overwrites, cleared before the rest is laid, and what it
      * costs.
      *
-     * @param charge what the blocks before the Key cost; the Key is charged once it is placed
+     * @param cost what the blocks before the Key cost, by the fill; the Key is charged once it is
+     *     placed, and they with it
      * @param missing what the main inventory lacks for the plan, by the fill's count, none when it
      *     affords it
      */
-    private record Laying(PlacementPlan plan, Charge charge, Map<Item, Integer> missing) {
+    private record Laying(PlacementPlan plan, Map<Item, Integer> cost, Map<Item, Integer> missing) {
 
         /** The blocks laid before the Key, in the plan's order. */
         List<PlacementPlan.Placed> others() {
@@ -326,47 +327,71 @@ public final class Assemblies {
                 .ifPresent(block -> missing.merge(block.asItem(), count, Integer::sum)));
 
         BlockPos keyPos = positions.getLast().pos();
-        PlacementPlan alone = Placements.vanillaPlan(keyItem, BlockPlaceContext.at(context, keyPos, hit.getDirection()));
-        BlockState keyState = alone == null ? keyItem.getBlock().defaultBlockState() : alone.blocks().getFirst().state();
-        if (alone == null || alone.isRefused() || !alone.blocks().getFirst().pos().equals(keyPos)) {
+        Map<BlockPos, BlockState> laid = new HashMap<>();
+        cleared.forEach(pos -> laid.put(pos, emptied(level.getBlockState(pos))));
+        others.forEach(placed -> laid.put(placed.pos(), placed.state()));
+        BlockPlaceContext onTheLaid = new BlockPlaceContext(new PlannedLevel(level, laid), player,
+                InteractionHand.MAIN_HAND, stack, hit);
+        KeyPlacing key = keyPlacing(keyItem, BlockPlaceContext.at(onTheLaid, keyPos, hit.getDirection()));
+        if (key.refusal() == Refusal.Assembly.TAKEN) {
             taken.add(keyPos);
         }
-        // The Key is charged apart, once it is placed, though the fill counted it with the rest.
-        Charge charge = Charge.of(player, cost, List.of());
 
         List<PlacementPlan.Placed> blocks = new ArrayList<>(others);
-        blocks.add(new PlacementPlan.Placed(keyPos, keyState));
+        blocks.add(new PlacementPlan.Placed(keyPos, key.state()));
         // The refusal points at the first position taken in the plan's order, whatever made it taken.
         Optional<BlockPos> firstTaken = positions.stream().map(AssemblyShape.At::pos).filter(taken::contains).findFirst();
         Refusal refusal = null;
         if (firstTaken.isPresent()) {
             refusal = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
-        } else if (!standsOn(level, cleared, others, keyItem, keyState, keyPos)) {
+        } else if (key.refusal() == Refusal.Assembly.KEY_WOULD_NOT_STAND) {
             refusal = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, keyPos);
         } else if (player != null && !Charge.mayBuildAll(level, player, changed(cleared, blocks))) {
             refusal = Refusal.Assembly.MAY_NOT_BUILD;
         } else if (!missing.isEmpty()) {
             refusal = Refusal.Assembly.NOT_ENOUGH_ITEMS;
         }
-        return new Laying(new PlacementPlan(blocks, List.of(), cleared, refusal), charge, missing);
+        // The Key is charged apart, once it is placed, though the fill counted it with the rest.
+        return new Laying(new PlacementPlan(blocks, List.of(), cleared, refusal), cost, missing);
     }
 
     /**
-     * Whether the Key survives on the world as the rest of the laying leaves it: its cleared
-     * positions emptied and its other blocks set, as a cactus won't beside a block it lays. A Key
-     * whose item needn't survive, as scaffolding's needn't, stands anywhere, as vanilla's {@code
-     * BlockItem#canPlace} has it. Its state for placement, room and entities were asked of the
-     * world as it stands, which the laying changes nowhere but at these positions.
+     * The state the Key goes down in, and why it can't go down, if it can't.
+     *
+     * @param refusal {@link Refusal.Assembly#TAKEN TAKEN} where the Key has no room, no state for
+     *     placement, or an entity in its way, {@link Refusal.Assembly#KEY_WOULD_NOT_STAND KEY_WOULD_NOT_STAND} where it has a
+     *     state that wouldn't survive, or none where it goes down
      */
-    private static boolean standsOn(Level level, List<BlockPos> cleared, List<PlacementPlan.Placed> others,
-            BlockItem keyItem, BlockState keyState, BlockPos keyPos) {
-        if (!((BlockItemInvoker) keyItem).groundworks$mustSurvive()) {
-            return true;
+    private record KeyPlacing(BlockState state, Refusal.@Nullable Assembly refusal) {
+    }
+
+    /**
+     * The Key's placement as vanilla's own would choose it, asked of the world as the rest of the
+     * laying leaves it: so a torch hangs on a wall the shape builds, and a door finds no room under
+     * a block the shape lays over it. A Key whose item needn't survive, as scaffolding's needn't,
+     * stands anywhere, as vanilla's {@code BlockItem#canPlace} has it.
+     */
+    private static KeyPlacing keyPlacing(BlockItem item, BlockPlaceContext context) {
+        BlockState drawn = item.getBlock().defaultBlockState();
+        if (!item.getBlock().isEnabled(context.getLevel().enabledFeatures()) || !context.canPlace()) {
+            return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
         }
-        Map<BlockPos, BlockState> laid = new HashMap<>();
-        cleared.forEach(pos -> laid.put(pos, emptied(level.getBlockState(pos))));
-        others.forEach(placed -> laid.put(placed.pos(), placed.state()));
-        return keyState.canSurvive(new PlannedWorld(level, laid), keyPos);
+        BlockPlaceContext updated = item.updatePlacementContext(context);
+        // A Key that would move, as scaffolding moves up a tower of itself, has no place in the shape.
+        if (updated == null || !updated.getClickedPos().equals(context.getClickedPos())) {
+            return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
+        }
+        BlockState placing = ((BlockItemInvoker) item).groundworks$placementState(updated);
+        if (placing != null) {
+            return new KeyPlacing(placing, null);
+        }
+        BlockState wanted = item.getBlock().getStateForPlacement(updated);
+        if (wanted == null) {
+            return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
+        }
+        boolean stands = !((BlockItemInvoker) item).groundworks$mustSurvive()
+                || wanted.canSurvive(updated.getLevel(), updated.getClickedPos());
+        return new KeyPlacing(wanted, stands ? Refusal.Assembly.TAKEN : Refusal.Assembly.KEY_WOULD_NOT_STAND);
     }
 
     /**
@@ -476,29 +501,55 @@ public final class Assemblies {
                 return InteractionResult.SUCCESS;
             }
         }
+        Map<BlockPos, BlockState> before = new HashMap<>();
+        changed(plan.clears(), laying.others()).forEach(pos -> before.put(pos, level.getBlockState(pos)));
         for (BlockPos pos : plan.clears()) {
             level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
+        Charge.put(level, player, laying.others());
         // Vanilla's placement, so the Key's own rules run as it goes down, a golem's pumpkin's. It
-        // is placed from a copy taken before anything is charged, so charging the other blocks,
-        // which may take the hand's last item, never empties the stack it is placed from, and it
-        // is charged once it stands.
+        // is placed from a copy, so the stack it is placed from is charged with the rest, once it
+        // stands.
         BlockItem item = (BlockItem) held.getItem();
         ItemStack key = held.copyWithCount(1);
-        laying.charge().lay(level, player, PlacementPlan.accepted(laying.others()));
         BlockPlaceContext context = new BlockPlaceContext(level, player, hand, key, hit);
         if (item.place(BlockPlaceContext.at(context, laying.key(), hit.getDirection())).consumesAction()) {
-            Charge.of(player, item, 1, List.of()).pay(player);
+            Map<Item, Integer> cost = new LinkedHashMap<>(laying.cost());
+            cost.merge(item, 1, Integer::sum);
+            Charge.of(player, cost, List.of()).pay(player);
             return InteractionResult.SUCCESS;
         }
-        // Unreachable for vanilla's Keys: the plan was refused unless the Key's state survives on
-        // the world as laid, its room and its state for placement asked of the world as it
-        // stands, which the laying changes only elsewhere. A pack's Key whose placement reads
-        // more of its new neighbours, as a door's wants room above it, may still be refused here,
-        // with the rest laid (#65). Nothing is undone, which can't be done whole: what stands was
-        // paid for, the Key, unplaced, isn't, and the player is told just that.
+        // The plan took the Key on the world as the laying leaves it, so vanilla refuses it only
+        // for what the plan doesn't plan: an entity in its way, as a golem the laying spawned, or
+        // another mod's rule. What the laying set is taken back, and what is gone, as a golem's
+        // blocks are, is charged; the Key, unplaced, isn't, and the player is told just that.
+        Charge.of(player, takeBack(level, laying, before), List.of()).pay(player);
         tell(player, Component.translatable("message.groundworks.assembly_key_not_placed", laying.keyName()));
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Puts back what stood before the laying, the last laid first, wherever something of it still
+     * stands, as it was laid or changed since, as concrete powder hardens; and answers what is gone,
+     * leaving only what a placement overwrites, and so still costs the player: a laid block a
+     * golem the laying spawned took into itself, say.
+     */
+    private static Map<Item, Integer> takeBack(Level level, Laying laying, Map<BlockPos, BlockState> before) {
+        Map<Item, Integer> gone = new LinkedHashMap<>();
+        for (PlacementPlan.Placed placed : laying.others().reversed()) {
+            if (level.getBlockState(placed.pos()).canBeReplaced()) {
+                gone.merge(placed.state().getBlock().asItem(), 1, Integer::sum);
+            } else {
+                level.setBlock(placed.pos(), before.get(placed.pos()), Block.UPDATE_ALL);
+            }
+        }
+        for (BlockPos pos : laying.plan().clears().reversed()) {
+            BlockState was = before.get(pos);
+            if (level.getBlockState(pos).is(emptied(was).getBlock())) {
+                level.setBlock(pos, was, Block.UPDATE_ALL);
+            }
+        }
+        return gone;
     }
 
     /** What the player is told of a laying's refusal: one of its own reasons, or one of them at a position. */

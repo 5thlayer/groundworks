@@ -118,14 +118,22 @@ record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {
      */
     void lay(Level level, Player player, PlacementPlan plan) {
         boolean freed = HandBack.take(player, InteractionHand.MAIN_HAND, cost);
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        put(level, player, plan.blocks());
+        HandBack.give(player, InteractionHand.MAIN_HAND, freed, returned);
+    }
+
+    /**
+     * Puts down these blocks in their order, charging nothing: what {@link #lay} does once it has
+     * taken the cost, and what an Assembly does before its Key, charging it all once the Key stands.
+     */
+    static void put(Level level, Player player, List<PlacementPlan.Placed> blocks) {
+        for (PlacementPlan.Placed placed : blocks) {
             level.setBlock(placed.pos(), placed.state(), Block.UPDATE_ALL);
         }
-        HandBack.give(player, InteractionHand.MAIN_HAND, freed, returned);
-        if (plan.blocks().isEmpty()) {
+        if (blocks.isEmpty()) {
             return;
         }
-        PlacementPlan.Placed first = plan.blocks().getFirst();
+        PlacementPlan.Placed first = blocks.getFirst();
         SoundType sound = first.state().getSoundType(level, first.pos(), player);
         level.playSound(null, first.pos(), sound.getPlaceSound(), SoundSource.BLOCKS,
                 (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F);
