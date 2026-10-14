@@ -1,0 +1,16 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:obsidian",
+    "O": "minecraft:obsidian",
+    ".": "empty"
+  },
+  "layers": [
+    [" KO "],
+    ["O..O"],
+    ["O..O"],
+    ["O..O"],
+    [" OO "]
+  ],
+  "starts_alone": true
+}

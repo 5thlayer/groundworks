@@ -1,0 +1,13 @@
+{
+  "key": "P",
+  "legend": {
+    "P": "minecraft:carved_pumpkin",
+    "i": "minecraft:iron_block",
+    ".": "empty"
+  },
+  "layers": [
+    [".i."],
+    ["iii"],
+    [".P."]
+  ]
+}

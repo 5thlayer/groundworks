@@ -64,6 +64,12 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class GroundworksGameTests {
 
     private static final Identifier PLATFORM = id("gametest/platform");
+    /**
+     * An 11×8×11 stone floor with air above, for shapes taller than {@link #PLATFORM} holds: a beacon's
+     * pyramid, a conduit's frame, a nether portal. Written by the libworks plugin's
+     * {@code build-gametest-structures.py} with its template set to {@code tall_platform.nbt}, (11, 8, 11).
+     */
+    private static final Identifier TALL_PLATFORM = id("gametest/tall_platform");
 
     private static final DeferredRegister<MapCodec<? extends GameTestInstance>> TEST_TYPES =
             DeferredRegister.create(Registries.TEST_INSTANCE_TYPE, Groundworks.MOD_ID);
@@ -156,6 +162,7 @@ public final class GroundworksGameTests {
         HandBackTests.register(tests);
         FootprintTests.register(tests);
         AssemblyTests.register(tests);
+        VanillaAssemblyTests.register(tests);
     }
 
     private static Identifier id(String path) {
@@ -184,9 +191,18 @@ public final class GroundworksGameTests {
         }
 
         void test(String name, int maxTicks, Consumer<GameTestHelper> body) {
+            test(PLATFORM, name, maxTicks, body);
+        }
+
+        /** The same, on {@link #TALL_PLATFORM}. */
+        void tallTest(String name, int maxTicks, Consumer<GameTestHelper> body) {
+            test(TALL_PLATFORM, name, maxTicks, body);
+        }
+
+        private void test(Identifier structure, String name, int maxTicks, Consumer<GameTestHelper> body) {
             var id = id(name);
             CodeGameTest.define(id, body);
-            event.registerTest(id, new CodeGameTest(id, new TestData<>(environment, PLATFORM, maxTicks, 0, true, Rotation.NONE)));
+            event.registerTest(id, new CodeGameTest(id, new TestData<>(environment, structure, maxTicks, 0, true, Rotation.NONE)));
         }
     }
 }

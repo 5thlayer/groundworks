@@ -1,0 +1,15 @@
+{
+  "key": "B",
+  "legend": {
+    "B": "minecraft:beacon",
+    "b": {"tag": "minecraft:beacon_base_blocks", "default": "minecraft:iron_block"}
+  },
+  "layers": [
+    ["bbb",
+     "bbb",
+     "bbb"],
+    ["   ",
+     " B ",
+     "   "]
+  ]
+}

@@ -22,7 +22,7 @@ To play Groundworks beside every other FactoryWorks mod, install the [FactoryWor
 
 ## For pack developers
 
-Which blocks and items each feature reaches is data. Each feature has one tag, shipped with defaults, which a datapack changes with no code: `groundworks:plan_opt_in`, `groundworks:rotates_in_place`, `groundworks:stretches`, `groundworks:stretches_vertically`, the families under `groundworks:dismantle_family/`, and the Fast Replace groups under `groundworks:replace_group/`, which ships empty. The server config's `planOptInNamespaces` gives every block of a mod a preview in one line.
+Which blocks and items each feature reaches is data. Each feature has one tag, shipped with defaults, which a datapack changes with no code: `groundworks:plan_opt_in`, `groundworks:rotates_in_place`, `groundworks:stretches`, `groundworks:stretches_vertically`, the families under `groundworks:dismantle_family/`, the Fast Replace groups under `groundworks:replace_group/`, which ships empty, and the Assembly Keys of `groundworks:assembly_keys`. The server config's `planOptInNamespaces` gives every block of a mod a preview in one line.
 
 ## For mod developers
 

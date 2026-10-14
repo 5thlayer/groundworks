@@ -1,0 +1,15 @@
+{
+  "key": "C",
+  "legend": {
+    "C": "minecraft:conduit",
+    "f": {"tag": "groundworks:conduit_frame_blocks", "default": "minecraft:prismarine"},
+    ".": "empty"
+  },
+  "layers": [
+    ["fffff"],
+    ["f...f"],
+    ["f.C.f"],
+    ["f...f"],
+    ["fffff"]
+  ]
+}

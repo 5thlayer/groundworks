@@ -15,7 +15,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -28,8 +27,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Assemblies, from the {@code assemblies} test pack: its tower, keyed by lodestone, stands
- * cobblestone forward of the Key's column, one stone under the Key and one to the player's right,
- * and its snow golem is two snow blocks under a carved pumpkin. Its glowstone Assembly's Key is
+ * cobblestone forward of the Key's column, one stone under the Key and one to the player's right.
+ * Its glowstone Assembly's Key is
  * not in {@code groundworks:assembly_keys}, and two malformed declarations are skipped. Its plinth,
  * keyed by a target, is a 2×2 base of beacon base blocks, iron by default, with the target over the
  * base's near left block; its gate is a bookshelf with stone to the player's right and the two
@@ -39,7 +38,8 @@ import org.jspecify.annotations.Nullable;
  * forward is east and the player's right is south.
  *
  * <p>Next Assembly runs on the {@code assembly_choices} pack: a lodestone stands on one stone, its
- * first Assembly, or on two, its second, and an obsidian on one stone, starting on the Key alone.
+ * first Assembly, or on two, its second. The Key placed last and a Key starting alone are proved on
+ * vanilla's own Assemblies, a golem and a nether portal, in {@link VanillaAssemblyTests}.
  */
 final class AssemblyTests {
 
@@ -66,7 +66,6 @@ final class AssemblyTests {
         var withPack = tests.withPack(PACK);
         withPack.test("an_assembly_is_placed_whole_resting_on_the_face_facing_the_player_with_its_key_last", 20,
                 AssemblyTests::placedWhole);
-        withPack.test("an_assembly_places_its_key_last_so_a_snow_golem_spawns", 20, AssemblyTests::golemSpawns);
         withPack.test("an_assembly_is_charged_from_the_main_inventory", 20, AssemblyTests::chargedFromTheMainInventory);
         withPack.test("an_assembly_short_of_blocks_is_refused_naming_what_is_missing_and_takes_nothing", 20,
                 AssemblyTests::refusedForMissing);
@@ -96,7 +95,6 @@ final class AssemblyTests {
                 AssemblyTests::nextStepsAndWraps);
         withChoices.test("reverse_next_assembly_steps_back", 20, AssemblyTests::reverseStepsBack);
         withChoices.test("a_stack_remembers_its_assembly_across_clicks", 20, AssemblyTests::remembersItsChoice);
-        withChoices.test("a_key_starting_alone_places_alone_until_next_assembly", 20, AssemblyTests::startsAlone);
     }
 
     private static void placedWhole(GameTestHelper helper) {
@@ -113,17 +111,6 @@ final class AssemblyTests {
         }
         click(helper, player);
         expectTower(helper);
-        helper.succeed();
-    }
-
-    /** Vanilla's golem rule runs as its pumpkin goes down, and sees the body only when the pumpkin goes last. */
-    private static void golemSpawns(GameTestHelper helper) {
-        ListeningPlayer player = holding(helper, Items.CARVED_PUMPKIN, 1);
-        stock(player, MAIN_SLOT, Items.SNOW_BLOCK, 2);
-        click(helper, player);
-        if (helper.getEntities(EntityType.SNOW_GOLEM).isEmpty()) {
-            helper.fail("no snow golem spawned from the placed body and pumpkin");
-        }
         helper.succeed();
     }
 
@@ -329,21 +316,6 @@ final class AssemblyTests {
                     spot.above(2), Blocks.LODESTONE));
         }
         expectHeld(helper, player, Map.of(Items.LODESTONE, 0, Items.STONE, 0));
-        helper.succeed();
-    }
-
-    private static void startsAlone(GameTestHelper helper) {
-        ListeningPlayer player = holding(helper, Items.OBSIDIAN, 2);
-        stock(player, MAIN_SLOT, Items.STONE, 1);
-        click(helper, player, SPOT);
-        expectStanding(helper, Map.of(SPOT, Blocks.OBSIDIAN));
-        if (!helper.getBlockState(SPOT.above()).isAir()) {
-            helper.fail("a fresh obsidian came with " + helper.getBlockState(SPOT.above()), SPOT.above());
-        }
-        Assemblies.press(player, false);
-        click(helper, player, OTHER_SPOT);
-        expectStanding(helper, Map.of(OTHER_SPOT, Blocks.STONE, OTHER_SPOT.above(), Blocks.OBSIDIAN));
-        expectHeld(helper, player, Map.of(Items.OBSIDIAN, 0, Items.STONE, 0));
         helper.succeed();
     }
 
