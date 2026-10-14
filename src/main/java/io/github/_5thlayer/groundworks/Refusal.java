@@ -97,9 +97,8 @@ public interface Refusal {
          */
         TAKEN,
         /**
-         * The Key would not stand, or could not be placed, on the world as the rest of the
-         * Assembly leaves it, as a cactus won't beside a block. It is an {@link At} the Key's
-         * position.
+         * The Key would not stand on the world as the rest of the Assembly leaves it, as a cactus
+         * won't beside a block. It is an {@link At} the Key's position.
          */
         KEY_WOULD_NOT_STAND,
         /** The player may not build at some position the Assembly puts a block at or clears. */

@@ -5,6 +5,7 @@
     "minecraft:bookshelf",
     "minecraft:crafting_table",
     "minecraft:cactus",
-    "minecraft:smithing_table"
+    "minecraft:smithing_table",
+    "minecraft:oak_door"
   ]
 }

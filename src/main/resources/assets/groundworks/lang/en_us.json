@@ -30,6 +30,7 @@
   "message.groundworks.fast_replace_refused": "The held block can't replace the aimed block here.",
   "message.groundworks.assembly_taken": "Something stands where that would go.",
   "message.groundworks.assembly_key_would_not_stand": "%s wouldn't stand once the rest is built.",
+  "message.groundworks.assembly_key_not_placed": "%s couldn't be placed; the rest is built.",
   "message.groundworks.assembly_may_not_build": "You may not build everywhere that would go.",
   "message.groundworks.assembly_not_enough_items": "You need %s more to place that.",
   "message.groundworks.assembly_missing_item": "%s %s",

@@ -30,9 +30,14 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The world as it will stand once a plan's blocks are set: the planned state at each planned
- * position, and the world's own everywhere else, so a block's survival can be asked of it before
- * anything is laid. A planned position holds no block entity yet.
+ * The world's blocks as they will stand once a plan's blocks are set: the planned state at each
+ * planned position, and the world's own everywhere else, so a block's survival can be asked of it
+ * before anything is laid.
+ *
+ * <p>Only block, fluid and block-entity state are planned, and a planned position holds no block
+ * entity yet. Light, heightmaps, collisions and chunk access read the real world, as it stands
+ * before the plan, so a question that asks them, as an entity's room or a block's light level,
+ * is answered as if nothing were laid.
  */
 final class PlannedWorld implements LevelReader {
 

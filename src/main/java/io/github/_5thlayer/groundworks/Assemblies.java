@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.mojang.logging.LogUtils;
+import io.github._5thlayer.groundworks.mixin.BlockItemInvoker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -309,7 +310,7 @@ public final class Assemblies {
         Refusal refusal = null;
         if (firstTaken.isPresent()) {
             refusal = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
-        } else if (!standsOn(level, cleared, others, keyState, keyPos)) {
+        } else if (!standsOn(level, cleared, others, keyItem, keyState, keyPos)) {
             refusal = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, keyPos);
         } else if (player != null && !Charge.mayBuildAll(level, player, changed(cleared, blocks))) {
             refusal = Refusal.Assembly.MAY_NOT_BUILD;
@@ -322,12 +323,16 @@ public final class Assemblies {
 
     /**
      * Whether the Key survives on the world as the rest of the laying leaves it: its cleared
-     * positions emptied and its other blocks set, as a cactus won't beside a block it lays. Its
-     * state for placement, room and entities were asked of the world as it stands, which the laying
-     * changes nowhere but at these positions.
+     * positions emptied and its other blocks set, as a cactus won't beside a block it lays. A Key
+     * whose item needn't survive, as scaffolding's needn't, stands anywhere, as vanilla's {@code
+     * BlockItem#canPlace} has it. Its state for placement, room and entities were asked of the
+     * world as it stands, which the laying changes nowhere but at these positions.
      */
     private static boolean standsOn(Level level, List<BlockPos> cleared, List<PlacementPlan.Placed> others,
-            BlockState keyState, BlockPos keyPos) {
+            BlockItem keyItem, BlockState keyState, BlockPos keyPos) {
+        if (!((BlockItemInvoker) keyItem).groundworks$mustSurvive()) {
+            return true;
+        }
         Map<BlockPos, BlockState> laid = new HashMap<>();
         cleared.forEach(pos -> laid.put(pos, emptied(level.getBlockState(pos))));
         others.forEach(placed -> laid.put(placed.pos(), placed.state()));
@@ -433,9 +438,10 @@ public final class Assemblies {
         // the world as laid, its room and its state for placement asked of the world as it
         // stands, which the laying changes only elsewhere. A pack's Key whose placement reads
         // more of its new neighbours, as a door's wants room above it, may still be refused here,
-        // with the rest laid. Nothing is undone, which can't be done whole: what stands was paid
-        // for, the Key, unplaced, isn't, and the player is told it wouldn't stand.
-        tell(player, message(laying, Refusal.Assembly.KEY_WOULD_NOT_STAND));
+        // with the rest laid (#65). Nothing is undone, which can't be done whole: what stands was
+        // paid for, the Key, unplaced, isn't, and the player is told just that.
+        tell(player, Component.translatable("message.groundworks.assembly_key_not_placed",
+                laying.keyState().getBlock().getName()));
         return InteractionResult.SUCCESS;
     }
 

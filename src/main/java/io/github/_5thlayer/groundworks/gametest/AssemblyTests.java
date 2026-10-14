@@ -42,7 +42,8 @@ import org.jspecify.annotations.Nullable;
  * over the base's near left block; its gate is a bookshelf with stone to the player's right and the
  * two positions forward of them kept empty. Its porch is a crafting table with stairs forward of it
  * and the position to their right kept empty; its cactus stands on sand with cobblestone to its
- * right, beside which it would not stand.
+ * right, beside which it would not stand; its oak door has stone over it, where vanilla's
+ * placement wants the door's upper half.
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
@@ -110,6 +111,8 @@ final class AssemblyTests {
         withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
         withPack.test("an_assembly_whose_key_would_not_stand_on_it_is_refused_whole_and_places_nothing", 20,
                 AssemblyTests::keyWouldNotStandRefused);
+        withPack.test("an_assembly_whose_key_vanilla_refuses_after_the_rest_is_laid_keeps_the_rest_and_charges_no_key",
+                20, AssemblyTests::keyRefusedByVanillaLeavesTheRest);
 
         var withChoices = tests.withPack(CHOICES_PACK);
         withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
@@ -527,6 +530,31 @@ final class AssemblyTests {
         expectHeld(helper, player, Map.of(Items.CACTUS, 1, Items.COBBLESTONE, 1));
         if (!player.heard.contains("message.groundworks.assembly_key_would_not_stand")) {
             helper.fail("the player heard " + player.heard + ", not that the Key would not stand");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The door's Key stands on the floor, and its stone goes where the door's upper half would: the
+     * door survives on the world as laid, so the plan is accepted, but vanilla's placement wants
+     * room above it, which the stone, laid first, has taken. The stone stays, paid for; the door is
+     * neither placed nor charged, and the player is told so.
+     */
+    private static void keyRefusedByVanillaLeavesTheRest(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.OAK_DOOR, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.isRefused() || plan.blocks().size() != 2) {
+            helper.fail("the plan was " + plan + ", not the door and its stone accepted");
+        }
+        click(helper, player);
+        expectStanding(helper, Map.of(KEY, Blocks.STONE));
+        if (!helper.getBlockState(SPOT).isAir()) {
+            helper.fail("found " + helper.getBlockState(SPOT) + " where vanilla refused the door", SPOT);
+        }
+        expectHeld(helper, player, Map.of(Items.OAK_DOOR, 1, Items.STONE, 0));
+        if (!player.heard.contains("message.groundworks.assembly_key_not_placed")) {
+            helper.fail("the player heard " + player.heard + ", not that the Key couldn't be placed");
         }
         helper.succeed();
     }
