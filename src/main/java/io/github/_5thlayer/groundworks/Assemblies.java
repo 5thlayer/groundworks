@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -192,15 +191,35 @@ public final class Assemblies {
     }
 
     /**
-     * An Assembly's plan, what it costs, and where its Key goes.
+     * An Assembly's plan, its Key last, and what it costs.
      *
-     * @param others the blocks laid before the Key, in the plan's order
      * @param cleared the empty positions holding a block a placement overwrites, cleared before the
      *     rest is laid
-     * @param missing what the main inventory lacks for the plan, none when it affords it
+     * @param missing what the main inventory lacks for the plan, by the fill's count, none when it
+     *     affords it
      */
-    private record Laying(PlacementPlan plan, List<PlacementPlan.Placed> others, List<BlockPos> cleared,
-            Charge charge, Map<Item, Integer> missing, BlockPos key) {
+    private record Laying(PlacementPlan plan, List<BlockPos> cleared, Charge charge, Map<Item, Integer> missing) {
+
+        /** The blocks laid before the Key, in the plan's order. */
+        List<PlacementPlan.Placed> others() {
+            return plan.blocks().subList(0, plan.blocks().size() - 1);
+        }
+
+        /** Where the Key goes. */
+        BlockPos key() {
+            return plan.blocks().getLast().pos();
+        }
+
+        /** Every position the laying changes: the cleared ones, then the plan's. */
+        List<BlockPos> changed() {
+            return changed(cleared, plan.blocks());
+        }
+
+        static List<BlockPos> changed(List<BlockPos> cleared, List<PlacementPlan.Placed> blocks) {
+            List<BlockPos> changed = new ArrayList<>(cleared);
+            blocks.forEach(placed -> changed.add(placed.pos()));
+            return changed;
+        }
     }
 
     private static @Nullable Laying laying(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
@@ -286,20 +305,18 @@ public final class Assemblies {
 
         List<PlacementPlan.Placed> blocks = new ArrayList<>(others);
         blocks.add(new PlacementPlan.Placed(keyPos, keyState));
-        Set<BlockPos> all = new LinkedHashSet<>(cleared);
-        blocks.forEach(placed -> all.add(placed.pos()));
         // The refusal points at the first position taken in the plan's order, whatever made it taken.
         Optional<BlockPos> firstTaken = positions.stream().map(AssemblyShape.At::pos).filter(taken::contains).findFirst();
         Refusal refusal = null;
         if (firstTaken.isPresent()) {
             refusal = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
-        } else if (player != null && !Charge.mayBuildAll(level, player, all)) {
+        } else if (player != null && !Charge.mayBuildAll(level, player, Laying.changed(cleared, blocks))) {
             refusal = Refusal.Assembly.MAY_NOT_BUILD;
         } else if (!missing.isEmpty()) {
             refusal = Refusal.Assembly.NOT_ENOUGH_ITEMS;
         }
         PlacementPlan plan = refusal == null ? PlacementPlan.accepted(blocks) : PlacementPlan.refused(blocks, refusal);
-        return new Laying(plan, others, cleared, charge, missing, keyPos);
+        return new Laying(plan, cleared, charge, missing);
     }
 
     /**
@@ -376,12 +393,13 @@ public final class Assemblies {
         }
         PlacementPlan plan = laying.plan();
         if (plan.isRefused()) {
-            tell(player, message(laying, plan.refusal()));
+            // A laying refuses with its own reasons alone, TAKEN at a position.
+            Refusal reason = plan.refusal() instanceof Refusal.At at ? at.reason() : plan.refusal();
+            tell(player, message(laying, (Refusal.Assembly) reason));
             return InteractionResult.SUCCESS;
         }
         // A claim mod's guard on the place event, at every position it changes: the click's own event never fires.
-        List<BlockPos> changed = new ArrayList<>(laying.cleared());
-        plan.blocks().forEach(placed -> changed.add(placed.pos()));
+        List<BlockPos> changed = laying.changed();
         for (BlockPos pos : changed) {
             if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, pos), Direction.UP)) {
                 tell(player, message(laying, Refusal.Assembly.MAY_NOT_BUILD));
@@ -406,16 +424,12 @@ public final class Assemblies {
                 Block.UPDATE_ALL));
         laying.charge().cost().forEach((paid, count) -> player.getInventory().placeItemBackInInventory(
                 paid == key.getItem() ? key.copyWithCount(count) : new ItemStack(paid, count)));
-        tell(player, message(laying, new Refusal.At(Refusal.Assembly.TAKEN, laying.key())));
+        tell(player, message(laying, Refusal.Assembly.TAKEN));
         return InteractionResult.SUCCESS;
     }
 
-    private static Component message(Laying laying, Refusal refusal) {
-        Refusal reason = refusal instanceof Refusal.At at ? at.reason() : refusal;
-        if (!(reason instanceof Refusal.Assembly assembly)) {
-            return Component.translatable("message.groundworks.assembly_taken");
-        }
-        return switch (assembly) {
+    private static Component message(Laying laying, Refusal.Assembly reason) {
+        return switch (reason) {
             case TAKEN -> Component.translatable("message.groundworks.assembly_taken");
             case MAY_NOT_BUILD -> Component.translatable("message.groundworks.assembly_may_not_build");
             case NOT_ENOUGH_ITEMS -> Component.translatable("message.groundworks.assembly_not_enough_items",
