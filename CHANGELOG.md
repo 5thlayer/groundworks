@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.5.12
+
 ### Players
 
 - **Assemblies**: holding an Assembly's **Key**, the preview draws the whole structure of real blocks, resting on the aimed face and facing you, and one click places all of it, the Key last, paid from the main inventory and free in creative. It is refused whole, placing nothing and taking nothing, when a position holds a block the shape doesn't take, telling you so, or when the inventory falls short, naming what is missing. It is refused whole too, and the preview draws it refused, when the Key wouldn't stand on the shape laid round it, as a cactus won't beside a block. Air, water, grass and other blocks a placement overwrites count free, and a block of the shape already standing at its position stays, uncharged. Sneak-placing a Key places it alone, as vanilla does. Once placed, its blocks are ordinary blocks, broken one at a time. (#55)
