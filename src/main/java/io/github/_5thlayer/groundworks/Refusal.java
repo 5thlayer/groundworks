@@ -91,11 +91,12 @@ public interface Refusal {
     enum Assembly implements Refusal {
         /**
          * A position the Assembly would put a block at holds one it doesn't take and a placement
-         * can't replace, has an entity in the way, or is outside the world. It is an {@link At}
-         * that position.
+         * can't replace, has an entity in the way, or is outside the world, or a position the
+         * Assembly keeps empty holds a block a placement can't replace. It is an {@link At} that
+         * position.
          */
         TAKEN,
-        /** The player may not build at some position the Assembly puts a block at. */
+        /** The player may not build at some position the Assembly puts a block at or clears. */
         MAY_NOT_BUILD,
         /** The main inventory lacks some of the blocks the Assembly takes. */
         NOT_ENOUGH_ITEMS,

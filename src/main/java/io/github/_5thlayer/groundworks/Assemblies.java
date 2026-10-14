@@ -5,6 +5,7 @@ package io.github._5thlayer.groundworks;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +16,8 @@ import java.util.Set;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -23,6 +26,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -58,8 +62,10 @@ import org.slf4j.Logger;
  *
  * <p>A held block item is a Key when its block is in {@link VanillaConsumer#ASSEMBLY_KEYS} and a
  * declaration names it. Its plan is the whole shape, resting on the aimed face and facing the
- * player, the Key last; a sneak places the Key alone, as vanilla does, and so does a stack whose
- * {@linkplain AssemblyChoice choice}, stepped by Next Assembly, is the Key alone.
+ * player, the Key last, its tag positions {@linkplain AssemblyShape#fill filled} from the main
+ * inventory, and its empty positions cleared of what a placement overwrites, fluids aside; a sneak
+ * places the Key alone, as vanilla does, and so does a stack whose {@linkplain AssemblyChoice
+ * choice}, stepped by Next Assembly, is the Key alone.
  */
 public final class Assemblies {
 
@@ -172,8 +178,12 @@ public final class Assemblies {
      * An Assembly's plan, what it costs, and where its Key goes.
      *
      * @param others the blocks laid before the Key, in the plan's order
+     * @param cleared the empty positions holding a block a placement overwrites, cleared before the
+     *     rest is laid
+     * @param missing what the main inventory lacks for the plan, none when it affords it
      */
-    private record Laying(PlacementPlan plan, List<PlacementPlan.Placed> others, Charge charge, BlockPos key) {
+    private record Laying(PlacementPlan plan, List<PlacementPlan.Placed> others, List<BlockPos> cleared,
+            Charge charge, Map<Item, Integer> missing, BlockPos key) {
     }
 
     private static @Nullable Laying laying(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
@@ -189,27 +199,63 @@ public final class Assemblies {
         Direction facing = context.getHorizontalDirection().getOpposite();
         List<AssemblyShape.At> positions = shape.positions(context.getClickedPos(), hit.getDirection(), facing);
 
-        List<PlacementPlan.Placed> others = new ArrayList<>(positions.size());
-        Map<Item, Integer> cost = new LinkedHashMap<>();
+        // Which positions want a block, which want clearing, and the first taken.
+        List<AssemblyShape.At> wanting = new ArrayList<>(positions.size());
+        List<BlockPos> cleared = new ArrayList<>();
         BlockPos taken = null;
         for (AssemblyShape.At at : positions.subList(0, positions.size() - 1)) {
-            Optional<Block> block = BuiltInRegistries.BLOCK.getOptional(((AssemblyShape.Legend.Block) at.legend()).id());
-            if (block.isEmpty()) {
-                // A declaration a client was sent for a block it lacks: nothing honest to draw.
-                return null;
-            }
             BlockState there = level.getBlockState(at.pos());
-            if (there.is(block.get())) {
-                // It stands already, as the shape takes it, so it stays and is not charged.
-                continue;
-            }
-            BlockState state = block.get().defaultBlockState();
-            others.add(new PlacementPlan.Placed(at.pos(), state));
-            cost.merge(block.get().asItem(), 1, Integer::sum);
-            if (taken == null && !fits(level, at.pos(), there, state)) {
-                taken = at.pos();
+            switch (at.legend()) {
+                case AssemblyShape.Legend.Empty empty -> {
+                    if (!there.canBeReplaced()) {
+                        taken = taken == null ? at.pos() : taken;
+                    } else if (there != emptied(there)) {
+                        cleared.add(at.pos());
+                    }
+                }
+                case AssemblyShape.Legend.Block named -> {
+                    Optional<Block> block = BuiltInRegistries.BLOCK.getOptional(named.id());
+                    if (block.isEmpty()) {
+                        // A declaration a client was sent for a block it lacks: nothing honest to draw.
+                        return null;
+                    }
+                    // A block the shape takes, standing already, stays and is not charged.
+                    if (!there.is(block.get())) {
+                        wanting.add(at);
+                    }
+                }
+                case AssemblyShape.Legend.Tag tag -> {
+                    if (!there.is(blockTag(tag.tag()))) {
+                        wanting.add(at);
+                    }
+                }
             }
         }
+
+        List<AssemblyShape.Legend> legends = new ArrayList<>(wanting.size() + 1);
+        wanting.forEach(at -> legends.add(at.legend()));
+        legends.add(positions.getLast().legend());
+        boolean free = player == null || player.hasInfiniteMaterials();
+        AssemblyShape.Fill fill = AssemblyShape.fill(legends, free ? Map.of() : held(player), Assemblies::members, free);
+
+        List<PlacementPlan.Placed> others = new ArrayList<>(wanting.size());
+        Map<Item, Integer> cost = new LinkedHashMap<>();
+        for (int i = 0; i < wanting.size(); i++) {
+            Optional<Block> block = BuiltInRegistries.BLOCK.getOptional(fill.blocks().get(i));
+            if (block.isEmpty()) {
+                return null;
+            }
+            BlockPos pos = wanting.get(i).pos();
+            BlockState state = block.get().defaultBlockState();
+            others.add(new PlacementPlan.Placed(pos, state));
+            cost.merge(block.get().asItem(), 1, Integer::sum);
+            if (taken == null && !fits(level, pos, level.getBlockState(pos), state)) {
+                taken = pos;
+            }
+        }
+        Map<Item, Integer> missing = new LinkedHashMap<>();
+        fill.missing().forEach((id, count) -> BuiltInRegistries.BLOCK.getOptional(id)
+                .ifPresent(block -> missing.merge(block.asItem(), count, Integer::sum)));
 
         BlockPos keyPos = positions.getLast().pos();
         PlacementPlan alone = Placements.vanillaPlan(keyItem, BlockPlaceContext.at(context, keyPos, hit.getDirection()));
@@ -224,18 +270,47 @@ public final class Assemblies {
 
         List<PlacementPlan.Placed> blocks = new ArrayList<>(others);
         blocks.add(new PlacementPlan.Placed(keyPos, keyState));
-        Set<BlockPos> all = new LinkedHashSet<>();
+        Set<BlockPos> all = new LinkedHashSet<>(cleared);
         blocks.forEach(placed -> all.add(placed.pos()));
         Refusal refusal = null;
         if (taken != null) {
             refusal = new Refusal.At(Refusal.Assembly.TAKEN, taken);
         } else if (player != null && !Charge.mayBuildAll(level, player, all)) {
             refusal = Refusal.Assembly.MAY_NOT_BUILD;
-        } else if (player != null && !charge.affordable(player)) {
+        } else if (!missing.isEmpty()) {
             refusal = Refusal.Assembly.NOT_ENOUGH_ITEMS;
         }
         PlacementPlan plan = refusal == null ? PlacementPlan.accepted(blocks) : PlacementPlan.refused(blocks, refusal);
-        return new Laying(plan, others, charge, keyPos);
+        return new Laying(plan, others, cleared, charge, missing, keyPos);
+    }
+
+    /** What an empty position holds once cleared: nothing, or the fluid that was there. */
+    private static BlockState emptied(BlockState there) {
+        return there.getFluidState().createLegacyBlock();
+    }
+
+    private static TagKey<Block> blockTag(Identifier tag) {
+        return TagKey.create(Registries.BLOCK, tag);
+    }
+
+    /** The blocks of a block tag, by their ids, in the tag's order. */
+    private static List<Identifier> members(Identifier tag) {
+        List<Identifier> members = new ArrayList<>();
+        for (Holder<Block> block : BuiltInRegistries.BLOCK.getTagOrEmpty(blockTag(tag))) {
+            members.add(BuiltInRegistries.BLOCK.getKey(block.value()));
+        }
+        return members;
+    }
+
+    /** How many of each block the main inventory holds, by the block's id. */
+    private static Map<Identifier, Integer> held(Player player) {
+        Map<Identifier, Integer> held = new HashMap<>();
+        for (ItemStack slot : player.getInventory().getNonEquipmentItems()) {
+            if (!slot.isEmpty() && slot.getItem() instanceof BlockItem item) {
+                held.merge(BuiltInRegistries.BLOCK.getKey(item.getBlock()), slot.getCount(), Integer::sum);
+            }
+        }
+        return held;
     }
 
     /**
@@ -267,15 +342,20 @@ public final class Assemblies {
         }
         PlacementPlan plan = laying.plan();
         if (plan.isRefused()) {
-            tell(player, message(player, laying, plan.refusal()));
+            tell(player, message(laying, plan.refusal()));
             return InteractionResult.SUCCESS;
         }
-        // A claim mod's guard on the place event, at every position: the click's own event never fires.
-        for (PlacementPlan.Placed placed : plan.blocks()) {
-            if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, placed.pos()), Direction.UP)) {
-                tell(player, message(player, laying, Refusal.Assembly.MAY_NOT_BUILD));
+        // A claim mod's guard on the place event, at every position it changes: the click's own event never fires.
+        List<BlockPos> changed = new ArrayList<>(laying.cleared());
+        plan.blocks().forEach(placed -> changed.add(placed.pos()));
+        for (BlockPos pos : changed) {
+            if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, pos), Direction.UP)) {
+                tell(player, message(laying, Refusal.Assembly.MAY_NOT_BUILD));
                 return InteractionResult.SUCCESS;
             }
+        }
+        for (BlockPos pos : laying.cleared()) {
+            level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
         ItemStack key = held.copyWithCount(1);
         laying.charge().lay(level, player, PlacementPlan.accepted(laying.others()));
@@ -289,7 +369,7 @@ public final class Assemblies {
         return InteractionResult.SUCCESS;
     }
 
-    private static Component message(Player player, Laying laying, Refusal refusal) {
+    private static Component message(Laying laying, Refusal refusal) {
         Refusal reason = refusal instanceof Refusal.At at ? at.reason() : refusal;
         if (!(reason instanceof Refusal.Assembly assembly)) {
             return Component.translatable("message.groundworks.assembly_taken");
@@ -298,7 +378,7 @@ public final class Assemblies {
             case TAKEN -> Component.translatable("message.groundworks.assembly_taken");
             case MAY_NOT_BUILD -> Component.translatable("message.groundworks.assembly_may_not_build");
             case NOT_ENOUGH_ITEMS -> Component.translatable("message.groundworks.assembly_not_enough_items",
-                    missing(laying.charge().missing(player)));
+                    missing(laying.missing()));
         };
     }
 
