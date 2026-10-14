@@ -6,6 +6,8 @@ package io.github._5thlayer.groundworks.gametest;
 import java.util.Map;
 
 import io.github._5thlayer.groundworks.Assemblies;
+import io.github._5thlayer.groundworks.PlacementPlan;
+import io.github._5thlayer.groundworks.Placements;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -51,6 +53,10 @@ final class VanillaAssemblyTests {
                 VanillaAssemblyTests::copperGolem);
         tests.tallTest("a_beacon_places_its_level_four_pyramid_all_iron_and_reaches_level_four", 300,
                 VanillaAssemblyTests::beaconPyramid);
+        tests.tallTest("a_player_inside_a_level_three_pyramids_footprint_places_it_and_is_lifted_on_top_unhurt", 300,
+                VanillaAssemblyTests::standingInsideThePyramid);
+        tests.test("a_mob_inside_a_pyramids_footprint_refuses_it_and_nothing_is_placed", 20,
+                VanillaAssemblyTests::mobInsideThePyramid);
         tests.tallTest("a_conduit_places_its_sixteen_block_ring_underwater_and_activates", 200,
                 VanillaAssemblyTests::conduitRing);
         tests.tallTest("a_conduit_places_its_full_frame_underwater_after_next_assembly_and_activates", 200,
@@ -129,6 +135,77 @@ final class VanillaAssemblyTests {
             int levels = ((BeaconMenu) entity.createMenu(0, player.getInventory(), player)).getLevels();
             helper.assertValueEqual(4, levels, "the beacon's level");
         });
+    }
+
+    /**
+     * The player stands one block short of the spot, inside the 7×7 base, so the base's first two
+     * layers are laid round their body: their own body doesn't refuse it, and once laid they stand
+     * on its top layer, beside the beacon, at the x and z they stood at.
+     */
+    private static void standingInsideThePyramid(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, TALL_SPOT.west(), Items.BEACON, 1);
+        player.getInventory().setItem(20, new ItemStack(Items.IRON_BLOCK, 64));
+        player.getInventory().setItem(21, new ItemStack(Items.IRON_BLOCK, 19));
+        Assemblies.press(player, false);
+        Assemblies.press(player, false);
+        BlockPos beacon = TALL_SPOT.above(3);
+        player.enterTheLevel();
+        try {
+            Vec3 stood = player.position();
+            PlacementPlan plan = Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND,
+                    player.getMainHandItem(), onTheFloor(helper, TALL_SPOT));
+            if (plan == null || plan.isRefused()) {
+                helper.fail("the plan was " + plan + ", not accepted round the player's own body");
+            }
+            click(helper, player, TALL_SPOT);
+            expectStanding(helper, Map.of(beacon, Blocks.BEACON, TALL_SPOT.west().above(2), Blocks.IRON_BLOCK));
+            expectHeld(helper, player, Map.of(Items.BEACON, 0, Items.IRON_BLOCK, 0));
+            double top = helper.absolutePos(beacon).getY();
+            if (player.getX() != stood.x || player.getZ() != stood.z || player.getY() != top) {
+                helper.fail("the player stands at " + player.position() + ", not on the pyramid's top at " + top
+                        + " above where they stood, " + stood);
+            }
+            if (player.isInWall()) {
+                helper.fail("the player is left inside the pyramid");
+            }
+            float health = player.getHealth();
+            player.baseTick();
+            if (player.getHealth() != health) {
+                helper.fail("the player took " + (health - player.getHealth()) + " damage on the pyramid's top");
+            }
+        } finally {
+            player.discard();
+        }
+        helper.succeedWhen(() -> {
+            BeaconBlockEntity entity = helper.getBlockEntity(beacon, BeaconBlockEntity.class);
+            int levels = ((BeaconMenu) entity.createMenu(0, player.getInventory(), player)).getLevels();
+            helper.assertValueEqual(3, levels, "the beacon's level");
+        });
+    }
+
+    /** A pig stands at the 3×3 base's near left corner; the player, clear of it, is refused all the same. */
+    private static void mobInsideThePyramid(GameTestHelper helper) {
+        BlockPos corner = SPOT.west().north();
+        helper.spawnWithNoFreeWill(EntityType.PIG, corner);
+        ListeningPlayer player = holding(helper, PLAYER, Items.BEACON, 1);
+        stock(player, Items.IRON_BLOCK, 9);
+        click(helper, player, SPOT);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (!helper.getBlockState(SPOT.offset(dx, 0, dz)).isAir()) {
+                    helper.fail("a refused pyramid placed " + helper.getBlockState(SPOT.offset(dx, 0, dz)),
+                            SPOT.offset(dx, 0, dz));
+                }
+            }
+        }
+        if (!helper.getBlockState(SPOT.above()).isAir()) {
+            helper.fail("a refused pyramid placed its beacon", SPOT.above());
+        }
+        expectHeld(helper, player, Map.of(Items.BEACON, 1, Items.IRON_BLOCK, 9));
+        if (!player.heard.contains("message.groundworks.assembly_taken")) {
+            helper.fail("the player heard " + player.heard + ", not that a position is taken");
+        }
+        helper.succeed();
     }
 
     /** The ring stands upright across the player's view, the conduit two above the ground in its middle. */
@@ -245,8 +322,13 @@ final class VanillaAssemblyTests {
 
     /** A click on the top of the floor block under this spot. */
     private static void click(GameTestHelper helper, ListeningPlayer player, BlockPos spot) {
-        BlockPos floor = helper.absolutePos(spot.below());
         player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
-                new BlockHitResult(Vec3.atCenterOf(floor).relative(Direction.UP, 0.5), Direction.UP, floor, false));
+                onTheFloor(helper, spot));
+    }
+
+    /** The top of the floor block under this spot. */
+    private static BlockHitResult onTheFloor(GameTestHelper helper, BlockPos spot) {
+        BlockPos floor = helper.absolutePos(spot.below());
+        return new BlockHitResult(Vec3.atCenterOf(floor).relative(Direction.UP, 0.5), Direction.UP, floor, false);
     }
 }

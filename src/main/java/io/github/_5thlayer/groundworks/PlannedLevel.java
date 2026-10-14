@@ -61,19 +61,23 @@ import org.jspecify.annotations.Nullable;
  * entity yet. Light, heightmaps, entities, weather and anything read from a chunk directly are the world's,
  * as it stands before the plan, so a question that asks them, as a block's light level, is
  * answered as if nothing were laid. It is read-only: what would change it, a block set, a sound,
- * an entity added, does nothing.
+ * an entity added, does nothing. One entity may be left out of it, the player whose plan it is,
+ * whose own body is lifted out of the way once the plan is laid.
  */
 final class PlannedLevel extends Level {
 
     private final Level world;
     private final Map<BlockPos, BlockState> planned;
+    private final @Nullable Entity absent;
 
-    PlannedLevel(Level world, Map<BlockPos, BlockState> planned) {
+    /** @param absent the entity left out of every entity it is asked for, or none */
+    PlannedLevel(Level world, Map<BlockPos, BlockState> planned, @Nullable Entity absent) {
         // Both a server's and a client's level data are writable; this level writes none of it.
         super((WritableLevelData) world.getLevelData(), world.dimension(), world.registryAccess(),
                 world.dimensionTypeRegistration(), world.isClientSide(), world.isDebug(), 0, 0);
         this.world = world;
         this.planned = Map.copyOf(planned);
+        this.absent = absent;
     }
 
     @Override
@@ -112,13 +116,13 @@ final class PlannedLevel extends Level {
 
     @Override
     public List<Entity> getEntities(@Nullable Entity except, AABB bb, Predicate<? super Entity> selector) {
-        return world.getEntities(except, bb, selector);
+        return world.getEntities(except, bb, entity -> entity != absent && selector.test(entity));
     }
 
     @Override
     public <T extends Entity> List<T> getEntities(EntityTypeTest<Entity, T> type, AABB bb,
             Predicate<? super T> selector) {
-        return world.getEntities(type, bb, selector);
+        return world.getEntities(type, bb, entity -> entity != absent && selector.test(entity));
     }
 
     @Override

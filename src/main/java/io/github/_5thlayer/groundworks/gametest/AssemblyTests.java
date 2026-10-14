@@ -85,6 +85,8 @@ final class AssemblyTests {
         var withPack = tests.withPack(PACK);
         withPack.test("an_assembly_is_placed_whole_resting_on_the_face_facing_the_player_with_its_key_last", 20,
                 AssemblyTests::placedWhole);
+        withPack.test("an_assembly_laid_round_the_placing_player_lifts_them_onto_its_key", 20,
+                AssemblyTests::liftsThePlayerOntoTheKey);
         withPack.test("an_assembly_is_charged_from_the_main_inventory", 20, AssemblyTests::chargedFromTheMainInventory);
         withPack.test("an_assembly_short_of_blocks_is_refused_naming_what_is_missing_and_takes_nothing", 20,
                 AssemblyTests::refusedForMissing);
@@ -153,6 +155,35 @@ final class AssemblyTests {
         }
         click(helper, player);
         expectTower(helper);
+        helper.succeed();
+    }
+
+    /**
+     * The player stands on the spot, where the stone and the Key over it go, so their body is in
+     * the Key's way too: they are lifted before the Key is placed, onto it, at the x and z they
+     * stood at.
+     */
+    private static void liftsThePlayerOntoTheKey(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.LODESTONE, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 2);
+        stock(player, OTHER_MAIN_SLOT, Items.COBBLESTONE, 1);
+        player.standOn(helper, SPOT);
+        player.enterTheLevel();
+        try {
+            PlacementPlan plan = plan(helper, player);
+            if (plan == null || plan.isRefused()) {
+                helper.fail("the plan was " + plan + ", not accepted round the player's own body");
+            }
+            click(helper, player);
+            expectTower(helper);
+            expectHeld(helper, player, Map.of(Items.LODESTONE, 0, Items.STONE, 0, Items.COBBLESTONE, 0));
+            Vec3 onTheKey = Vec3.atBottomCenterOf(helper.absolutePos(KEY.above()));
+            if (!player.position().equals(onTheKey)) {
+                helper.fail("the player stands at " + player.position() + ", not on the Key at " + onTheKey);
+            }
+        } finally {
+            player.discard();
+        }
         helper.succeed();
     }
 

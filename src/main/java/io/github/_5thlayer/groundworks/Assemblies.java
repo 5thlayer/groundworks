@@ -47,7 +47,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
@@ -318,7 +323,7 @@ public final class Assemblies {
             BlockState state = block.get().defaultBlockState().rotate(level, pos, turn);
             others.add(new PlacementPlan.Placed(pos, state));
             cost.merge(block.get().asItem(), 1, Integer::sum);
-            if (!fits(level, pos, level.getBlockState(pos), state)) {
+            if (!fits(level, player, pos, level.getBlockState(pos), state)) {
                 taken.add(pos);
             }
         }
@@ -330,7 +335,7 @@ public final class Assemblies {
         Map<BlockPos, BlockState> laid = new HashMap<>();
         cleared.forEach(pos -> laid.put(pos, emptied(level.getBlockState(pos))));
         others.forEach(placed -> laid.put(placed.pos(), placed.state()));
-        BlockPlaceContext onTheLaid = new BlockPlaceContext(new PlannedLevel(level, laid), player,
+        BlockPlaceContext onTheLaid = new BlockPlaceContext(new PlannedLevel(level, laid, player), player,
                 InteractionHand.MAIN_HAND, stack, hit);
         KeyPlacing key = keyPlacing(keyItem, BlockPlaceContext.at(onTheLaid, keyPos, hit.getDirection()));
         if (key.refusal() == Refusal.Assembly.TAKEN) {
@@ -464,11 +469,34 @@ public final class Assemblies {
 
     /**
      * Whether a block of the shape may go here: inside the world, on a block a placement replaces,
-     * such as air, water or grass, and clear of entities.
+     * such as air, water or grass, and clear of entities, the placing player's own body aside,
+     * which the click lifts out of the shape.
      */
-    private static boolean fits(Level level, BlockPos pos, BlockState there, BlockState state) {
+    private static boolean fits(Level level, @Nullable Player player, BlockPos pos, BlockState there,
+            BlockState state) {
+        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty());
         return level.isInWorldBounds(pos) && there.canBeReplaced()
-                && level.isUnobstructed(state, pos, CollisionContext.empty());
+                && (shape.isEmpty() || level.isUnobstructed(player, shape.move(pos)));
+    }
+
+    /**
+     * Where the player is lifted to, straight up from where they stand, for their body to fit
+     * clear of the world and of the Key about to go down at {@code keyPos}: where they stand, if
+     * they fit there, else the first whole block's height above it they fit at; {@code null} where
+     * nothing above them, up to the world's top, has room.
+     */
+    private static @Nullable Vec3 liftedClear(Level level, Player player, BlockPos keyPos, BlockState key) {
+        VoxelShape keyShape = key.getCollisionShape(level, keyPos, CollisionContext.of(player)).move(keyPos);
+        Vec3 at = player.position();
+        AABB body = player.getBoundingBox();
+        for (double y = at.y; y <= level.getMaxY() + 1; y = Math.floor(y) + 1) {
+            AABB lifted = body.move(0, y - at.y, 0);
+            if (level.noCollision(player, lifted)
+                    && !Shapes.joinIsNotEmpty(keyShape, Shapes.create(lifted), BooleanOp.AND)) {
+                return new Vec3(at.x, y, at.z);
+            }
+        }
+        return null;
     }
 
     /**
@@ -507,6 +535,13 @@ public final class Assemblies {
             level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
         Charge.put(level, player, laying.others());
+        // The plan let the player's own body stand in the shape: they are lifted clear of it, and
+        // of the Key, which vanilla places only clear of them.
+        Vec3 stood = player.position();
+        Vec3 clear = liftedClear(level, player, laying.key(), laying.plan().blocks().getLast().state());
+        if (clear != null && !clear.equals(stood)) {
+            player.teleportTo(clear.x, clear.y, clear.z);
+        }
         // Vanilla's placement, so the Key's own rules run as it goes down, a golem's pumpkin's. It
         // is placed from a copy, so the stack it is placed from is charged with the rest, once it
         // stands.
@@ -524,6 +559,9 @@ public final class Assemblies {
         // another mod's rule. What the laying set is taken back, and what is gone, as a golem's
         // blocks are, is charged; the Key, unplaced, isn't, and the player is told just that.
         Charge.of(player, takeBack(level, laying, before), List.of()).pay(player);
+        if (!player.position().equals(stood)) {
+            player.teleportTo(stood.x, stood.y, stood.z);
+        }
         tell(player, Component.translatable("message.groundworks.assembly_key_not_placed", laying.keyName()));
         return InteractionResult.SUCCESS;
     }

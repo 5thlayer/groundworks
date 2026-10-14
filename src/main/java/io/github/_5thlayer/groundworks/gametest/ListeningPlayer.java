@@ -37,6 +37,23 @@ final class ListeningPlayer extends FakePlayer {
         setPos(feet.x, feet.y, feet.z);
     }
 
+    /**
+     * Puts the player into the level, where entities are looked for, so a block placed in its way
+     * finds it there; {@link #discard} takes it out.
+     */
+    void enterTheLevel() {
+        level().addNewPlayer(this);
+    }
+
+    /**
+     * Moves the player as a real connection's teleport would on the server: a fake player's
+     * connection drops it.
+     */
+    @Override
+    public void teleportTo(double x, double y, double z) {
+        setPos(x, y, z);
+    }
+
     /** Fills every empty slot of the main inventory with dirt, leaving the off hand as it is. */
     void fillInventory() {
         var inventory = getInventory().getNonEquipmentItems();
