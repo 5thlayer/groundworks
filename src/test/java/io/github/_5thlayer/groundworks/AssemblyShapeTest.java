@@ -24,9 +24,9 @@ import org.junit.jupiter.api.Test;
 
 class AssemblyShapeTest {
 
-    private static final AssemblyShape.Legend STONE = new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("stone"));
-    private static final AssemblyShape.Legend COBBLE = new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("cobblestone"));
-    private static final AssemblyShape.Legend KEY = new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("lodestone"));
+    private static final AssemblyShape.Legend.Block STONE = new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("stone"));
+    private static final AssemblyShape.Legend.Block COBBLE = new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("cobblestone"));
+    private static final AssemblyShape.Legend.Block KEY = new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("lodestone"));
 
     /**
      * Seen from above with the player at the bottom of the page looking up: cobblestone forward of
@@ -125,10 +125,10 @@ class AssemblyShapeTest {
     }
 
     /**
-     * A base of two letters, each a beacon base block or iron by default, forward of the Key's
-     * column a position kept empty, the Key on the base's left block.
+     * A ledge: a base of two letters, each a beacon base block or iron by default, forward of the
+     * Key's column a position kept empty, the Key on the base's left block.
      */
-    private static final String PLINTH = """
+    private static final String LEDGE = """
             {
               "key": "K",
               "legend": {
@@ -149,11 +149,11 @@ class AssemblyShapeTest {
     private static final Identifier EMERALD = Identifier.withDefaultNamespace("emerald_block");
     private static final Identifier STONE_BLOCK = Identifier.withDefaultNamespace("stone");
     private static final Identifier BASE_TAG = Identifier.withDefaultNamespace("beacon_base_blocks");
-    private static final AssemblyShape.Legend BASE = new AssemblyShape.Legend.Tag(BASE_TAG, IRON);
+    private static final AssemblyShape.Legend.Tag BASE = new AssemblyShape.Legend.Tag(BASE_TAG, IRON);
 
     @Test
     void aLegendLetterNamesABlockATagWithItsDefaultOrAPositionKeptEmpty() {
-        AssemblyShape shape = parse(PLINTH).getOrThrow();
+        AssemblyShape shape = parse(LEDGE).getOrThrow();
         BlockPos spot = BlockPos.ZERO;
         assertEquals(List.of(
                 new AssemblyShape.At(spot, BASE),
@@ -166,15 +166,15 @@ class AssemblyShapeTest {
 
     @Test
     void aTagWithNoDefaultOrAKeyThatIsATagOrEmptyIsRejected() {
-        assertError(PLINTH.replace(", \"default\": \"minecraft:iron_block\"", ""), "default");
-        assertError(PLINTH.replace("\"K\": \"minecraft:target\"", "\"K\": \"empty\""), "no block for the key");
-        assertError(PLINTH.replace("\"K\": \"minecraft:target\"",
+        assertError(LEDGE.replace(", \"default\": \"minecraft:iron_block\"", ""), "default");
+        assertError(LEDGE.replace("\"K\": \"minecraft:target\"", "\"K\": \"empty\""), "no block for the key");
+        assertError(LEDGE.replace("\"K\": \"minecraft:target\"",
                 "\"K\": {\"tag\": \"minecraft:logs\", \"default\": \"minecraft:oak_log\"}"), "no block for the key");
     }
 
     @Test
     void aDeclarationWithTagsAndEmptiesRoundTripsThroughItsCodec() {
-        AssemblyShape shape = parse(PLINTH).getOrThrow();
+        AssemblyShape shape = parse(LEDGE).getOrThrow();
         JsonElement encoded = AssemblyShape.CODEC.encodeStart(JsonOps.INSTANCE, shape).getOrThrow();
         assertEquals(shape.positions(BlockPos.ZERO, Direction.UP, Direction.WEST),
                 AssemblyShape.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow()
@@ -201,7 +201,7 @@ class AssemblyShapeTest {
 
     @Test
     void namedBlocksAreTakenBeforeTagPositionsShareWhatIsLeft() {
-        AssemblyShape.Legend iron = new AssemblyShape.Legend.Block(IRON);
+        AssemblyShape.Legend.Block iron = new AssemblyShape.Legend.Block(IRON);
         AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, iron, iron),
                 Map.of(IRON, 3, GOLD, 2), MEMBERS, false);
         assertEquals(List.of(GOLD, GOLD, IRON, IRON), fill.blocks());
@@ -224,7 +224,7 @@ class AssemblyShapeTest {
     }
 
     @Test
-    void creativeFillsEachTagPositionWithItsDefaultAndMissesNothing() {
+    void aFreeFillGivesEachTagPositionItsDefaultAndMissesNothing() {
         AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, STONE), Map.of(GOLD, 9), MEMBERS, true);
         assertEquals(List.of(IRON, IRON, STONE_BLOCK), fill.blocks());
         assertEquals(Map.of(), fill.missing());

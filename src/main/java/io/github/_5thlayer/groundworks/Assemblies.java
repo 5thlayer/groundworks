@@ -215,6 +215,7 @@ public final class Assemblies {
 
         // Which positions want a block, which want clearing, and which are taken.
         List<AssemblyShape.At> wanting = new ArrayList<>(positions.size());
+        List<AssemblyShape.Legend.Laid> legends = new ArrayList<>(positions.size());
         List<BlockPos> cleared = new ArrayList<>();
         Set<BlockPos> taken = new HashSet<>();
         for (AssemblyShape.At at : positions.subList(0, positions.size() - 1)) {
@@ -236,19 +237,19 @@ public final class Assemblies {
                     // A block the shape takes, standing already, stays and is not charged.
                     if (!there.is(block.get())) {
                         wanting.add(at);
+                        legends.add(named);
                     }
                 }
                 case AssemblyShape.Legend.Tag tag -> {
                     if (!there.is(blockTag(tag.tag()))) {
                         wanting.add(at);
+                        legends.add(tag);
                     }
                 }
             }
         }
 
-        List<AssemblyShape.Legend> legends = new ArrayList<>(wanting.size() + 1);
-        wanting.forEach(at -> legends.add(at.legend()));
-        legends.add(positions.getLast().legend());
+        legends.add(new AssemblyShape.Legend.Block(shape.keyBlock()));
         boolean free = player == null || player.hasInfiniteMaterials();
         AssemblyShape.Fill fill = AssemblyShape.fill(legends, free ? Map.of() : held(player), Assemblies::members, free);
 

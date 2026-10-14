@@ -84,12 +84,16 @@ public final class AssemblyShape {
     /** What a letter of the legend stands for. */
     public sealed interface Legend {
 
+        /** A position a block is laid at, which the {@linkplain #fill fill} gives one. */
+        sealed interface Laid extends Legend {
+        }
+
         /** A block, by its id. */
-        record Block(Identifier id) implements Legend {
+        record Block(Identifier id) implements Laid {
         }
 
         /** Any block of a block tag, by the tag's id, and the block a creative player gets. */
-        record Tag(Identifier tag, Identifier defaultBlock) implements Legend {
+        record Tag(Identifier tag, Identifier defaultBlock) implements Laid {
         }
 
         /** A position that holds nothing once placed, fluids aside. */
@@ -108,11 +112,15 @@ public final class AssemblyShape {
 
     private static final String EMPTY = "empty";
 
-    /** A block's id, or {@code "empty"}. */
-    private static final Codec<Legend> NAMED_CODEC = Codec.STRING.comapFlatMap(
+    /** A block's id, or {@code "empty"}: a tag is no name, and is {@link #TAG_CODEC}'s. */
+    private static final Codec<Legend> NAMED_CODEC = Codec.STRING.flatXmap(
             name -> name.equals(EMPTY) ? DataResult.success(Legend.Empty.INSTANCE)
                     : Identifier.read(name).map(Legend.Block::new),
-            legend -> legend instanceof Legend.Block block ? block.id().toString() : EMPTY);
+            legend -> switch (legend) {
+                case Legend.Block block -> DataResult.success(block.id().toString());
+                case Legend.Empty empty -> DataResult.success(EMPTY);
+                case Legend.Tag tag -> DataResult.error(() -> "a tag is written as an object, not a name: " + tag);
+            });
 
     private static final Codec<Legend.Tag> TAG_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Identifier.CODEC.fieldOf("tag").forGetter(Legend.Tag::tag),
@@ -279,19 +287,21 @@ public final class AssemblyShape {
     }
 
     /**
-     * The uniform fill: which block each of {@code positions} gets, each a {@link Legend.Block} or
-     * a {@link Legend.Tag}, from what the inventory {@code held} holds of each block.
+     * The uniform fill: which block each of {@code positions} gets, from what the inventory {@code
+     * held} holds of each block.
      *
      * <p>A named block is taken first. Then each tag's positions, in their order, are filled from
      * what is left, from the member held most of first, then the next, so a tag's positions are all
      * one block when the inventory holds enough of it; members held alike go in the tag's order.
      * What the inventory can't cover is missing, a tag's positions counted as its default, which
-     * they get. {@code creative} gives each tag position its default and misses nothing.
+     * they get.
      *
      * @param members the blocks of each tag, by the tag's id, in the tag's order
+     * @param free whether the player is charged nothing, as in creative: each tag position gets its
+     *     default and nothing is missing
      */
-    public static Fill fill(List<Legend> positions, Map<Identifier, Integer> held,
-            Function<Identifier, List<Identifier>> members, boolean creative) {
+    public static Fill fill(List<? extends Legend.Laid> positions, Map<Identifier, Integer> held,
+            Function<Identifier, List<Identifier>> members, boolean free) {
         Identifier[] blocks = new Identifier[positions.size()];
         Map<Identifier, Integer> left = new HashMap<>(held);
         Map<Identifier, Integer> missing = new LinkedHashMap<>();
@@ -300,16 +310,15 @@ public final class AssemblyShape {
             switch (positions.get(i)) {
                 case Legend.Block block -> {
                     blocks[i] = block.id();
-                    if (!creative) {
+                    if (!free) {
                         take(block.id(), left, missing);
                     }
                 }
                 case Legend.Tag tag -> tagged.computeIfAbsent(tag, t -> new ArrayList<>()).add(i);
-                case Legend.Empty empty -> throw new IllegalArgumentException("an empty position takes no block");
             }
         }
         tagged.forEach((tag, at) -> {
-            if (creative) {
+            if (free) {
                 at.forEach(i -> blocks[i] = tag.defaultBlock());
                 return;
             }
