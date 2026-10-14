@@ -125,7 +125,7 @@ _Avoid_: slave, dummy block
 ### Assemblies
 
 **Assembly**:
-A shape of real blocks, each its own item, placed in one step from its **Key** and then standing block by block: breaking one breaks only that block, and nothing remembers they were placed together. It rests on the aimed face, facing the player, with its other blocks taken from the inventory, all or none, free in creative, or nothing when any of its positions is taken, and the **Placement Preview** draws it whole. A position may take any block of a tag, filled as uniformly as the inventory allows; one that already holds a block it takes keeps it, uncharged. A position may instead be one that stays empty, such as a portal's inside, refused when taken. A Key may have several Assemblies, such as a beacon's four pyramids, and the held stack keeps which one it places, chosen by **Next Assembly**. The Key is placed last, so vanilla's own rules, such as a golem's, see the finished shape. **Rotate in Place** turns its blocks one by one, never the whole. Each is declared as data, by a **Consumer** or a pack: vanilla's beacon pyramid, conduit frame, nether portal frame and iron and snow golems are Assemblies.
+A shape of real blocks, each its own item, placed in one step from its **Key** and then standing block by block: breaking one breaks only that block, and nothing remembers they were placed together. It rests on the aimed face, facing the player, with its other blocks taken from the inventory, all or none, free in creative, or nothing when any of its positions is taken or the Key would not stand on the shape laid round it, as a cactus won't beside a block, and the **Placement Preview** draws it whole, refused or not. A position may take any block of a tag, filled as uniformly as the inventory allows; one that already holds a block it takes keeps it, uncharged. A position may instead be one that stays empty, such as a portal's inside, refused when taken. A Key may have several Assemblies, such as a beacon's four pyramids, and the held stack keeps which one it places, chosen by **Next Assembly**. The Key is placed last, so vanilla's own rules, such as a golem's, see the finished shape. **Rotate in Place** turns its blocks one by one, never the whole. Each is declared as data, by a **Consumer** or a pack: vanilla's beacon pyramid, conduit frame, nether portal frame and iron and snow golems are Assemblies.
 _Avoid_: multiblock, structure (vanilla's villages and templates), kit
 
 **Key**:
@@ -133,7 +133,7 @@ The block of an **Assembly** it is placed from: the held item that places it is 
 _Avoid_: core (a Consumer's own name, such as the Void Well's), origin (a **Footprint**'s), controller
 
 **Next Assembly**:
-One action on one key (`V` by default) that chooses the held **Key**'s next **Assembly**, or the Key alone, with its reverse on `Shift+V`; the **Placement Preview** redraws with it. A fresh stack starts on the Key's first Assembly, or on the Key alone when its declaration says so, as obsidian's does.
+One action on one key (`V` by default) that chooses the held **Key**'s next **Assembly**, or the Key alone, and round; **Reverse Next Assembly** (`Shift+V` by default) steps back. The **Placement Preview** redraws with either. A fresh stack starts on the Key's first Assembly, or on the Key alone when its declaration says so, as obsidian's does.
 _Avoid_: cycle size, next level
 
 ### Dismantling
