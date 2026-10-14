@@ -7,10 +7,12 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Players
 
 - **Assemblies**: holding an Assembly's **Key**, the preview draws the whole structure of real blocks, resting on the aimed face and facing you, and one click places all of it, the Key last, paid from the main inventory and free in creative. It is refused whole, placing nothing and taking nothing, when a position holds a block the shape doesn't take, telling you so, or when the inventory falls short, naming what is missing. Air, water, grass and other blocks a placement overwrites count free, and a block of the shape already standing at its position stays, uncharged. Sneak-placing a Key places it alone, as vanilla does. Once placed, its blocks are ordinary blocks, broken one at a time. Groundworks ships no Assemblies of its own yet. (#55)
+- An Assembly's position may take any block of a tag: it is filled as uniformly as the inventory allows, from the block you hold most of first, and the preview draws the block each position will get; in creative each takes the tag's default. A block the tag takes already standing there stays, uncharged. A position an Assembly keeps empty is cleared of grass and other blocks a placement overwrites, keeping any water, and a block there that a placement can't overwrite refuses the Assembly whole. (#56)
 
 ### Consumers
 
 - An Assembly is declared as data, a JSON file under `data/<namespace>/groundworks/assembly/`: its shape as layers of strings, bottom first, a legend of block ids, the letter that marks its Key, and `starts_alone`; `AssemblyShape`'s javadoc sets the format and its frame, a Footprint's. The block tag `groundworks:assembly_keys`, shipped empty, decides which Keys place theirs. A malformed declaration is logged with its id and skipped, `/reload` reads them again, and the server sends them to each client. `Placements.planFor` serves an Assembly's plan, refused with the new `Refusal.Assembly` reasons, `TAKEN` as a `Refusal.At` its position. (#55)
+- An Assembly's legend letter may name a block tag with the block a creative player gets, `{"tag": "<tag>", "default": "<block>"}`, or a position kept empty, `"empty"`; the Key's letter still names a block. `AssemblyShape.fill` is the uniform fill, and an empty position taken refuses as `TAKEN` at it. (#56)
 
 ## 0.5.11
 

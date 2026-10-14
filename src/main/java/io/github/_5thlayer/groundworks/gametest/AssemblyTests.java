@@ -28,7 +28,10 @@ import org.jspecify.annotations.Nullable;
  * Assemblies, from the {@code assemblies} test pack: its tower, keyed by lodestone, stands
  * cobblestone forward of the Key's column, one stone under the Key and one to the player's right,
  * and its snow golem is two snow blocks under a carved pumpkin. Its glowstone Assembly's Key is
- * not in {@code groundworks:assembly_keys}, and two malformed declarations are skipped.
+ * not in {@code groundworks:assembly_keys}, and two malformed declarations are skipped. Its plinth,
+ * keyed by a target, is a 2×2 base of beacon base blocks, iron by default, with the target over the
+ * base's near left block; its gate is a bookshelf with stone to the player's right and the two
+ * positions forward of them kept empty.
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
@@ -40,6 +43,8 @@ final class AssemblyTests {
     private static final BlockPos KEY = SPOT.above();
     private static final BlockPos FORWARD = SPOT.east();
     private static final BlockPos RIGHT = SPOT.south();
+    private static final BlockPos FORWARD_RIGHT = FORWARD.south();
+    private static final List<BlockPos> BASE = List.of(SPOT, RIGHT, FORWARD, FORWARD_RIGHT);
 
     /** Where a main-inventory slot is, out of the hotbar. */
     private static final int MAIN_SLOT = 20;
@@ -64,6 +69,18 @@ final class AssemblyTests {
         withPack.test("sneak_placing_a_key_places_it_alone", 20, AssemblyTests::sneakPlacesTheKeyAlone);
         withPack.test("a_key_outside_the_tag_places_as_vanilla", 20, AssemblyTests::untaggedKeyPlacesAsVanilla);
         withPack.test("breaking_one_block_of_an_assembly_breaks_only_it", 20, AssemblyTests::breaksOneBlock);
+        withPack.test("an_assemblys_tag_positions_are_filled_from_the_block_held_most_of_first", 20,
+                AssemblyTests::uniformFill);
+        withPack.test("an_assembly_short_of_blocks_for_its_tag_positions_is_refused_and_takes_nothing", 20,
+                AssemblyTests::tagPositionsShort);
+        withPack.test("an_assemblys_tag_positions_take_their_default_in_creative", 20,
+                AssemblyTests::tagDefaultsInCreative);
+        withPack.test("an_assembly_keeps_a_block_its_tag_takes_standing_uncharged", 20,
+                AssemblyTests::keepsATaggedBlock);
+        withPack.test("an_assembly_clears_grass_from_its_empty_positions_and_keeps_water", 20,
+                AssemblyTests::clearsEmptyPositions);
+        withPack.test("an_assembly_with_an_empty_position_taken_is_refused_whole_and_places_nothing", 20,
+                AssemblyTests::refusedWhenEmptyTaken);
     }
 
     private static void placedWhole(GameTestHelper helper) {
@@ -213,6 +230,122 @@ final class AssemblyTests {
         }
         expectStanding(helper, Map.of(SPOT, Blocks.STONE, RIGHT, Blocks.STONE, KEY, Blocks.LODESTONE));
         helper.succeed();
+    }
+
+    /** Three gold and two iron cover the plinth's four base blocks as three gold and one iron. */
+    private static void uniformFill(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.TARGET, 1);
+        stock(player, MAIN_SLOT, Items.IRON_BLOCK, 2);
+        stock(player, OTHER_MAIN_SLOT, Items.GOLD_BLOCK, 3);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.isRefused() || plan.blocks().size() != 5) {
+            helper.fail("the plan was " + plan + ", not the whole plinth accepted");
+        }
+        // The preview draws the block each position gets.
+        long gold = plan.blocks().stream().filter(placed -> placed.state().is(Blocks.GOLD_BLOCK)).count();
+        long iron = plan.blocks().stream().filter(placed -> placed.state().is(Blocks.IRON_BLOCK)).count();
+        if (gold != 3 || iron != 1) {
+            helper.fail("the plan drew " + gold + " gold and " + iron + " iron, not 3 and 1");
+        }
+        click(helper, player);
+        expectBase(helper, Blocks.GOLD_BLOCK, 3, Blocks.IRON_BLOCK, 1);
+        expectStanding(helper, Map.of(KEY, Blocks.TARGET));
+        expectHeld(helper, player, Map.of(Items.TARGET, 0, Items.GOLD_BLOCK, 0, Items.IRON_BLOCK, 1));
+        helper.succeed();
+    }
+
+    private static void tagPositionsShort(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.TARGET, 1);
+        stock(player, MAIN_SLOT, Items.IRON_BLOCK, 2);
+        stock(player, OTHER_MAIN_SLOT, Items.GOLD_BLOCK, 1);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.refusal() != Refusal.Assembly.NOT_ENOUGH_ITEMS) {
+            helper.fail("the plan was " + plan + ", not refused for blocks missing");
+        }
+        click(helper, player);
+        expectNothingPlaced(helper);
+        if (!helper.getBlockState(FORWARD_RIGHT).isAir()) {
+            helper.fail("a refused Assembly placed " + helper.getBlockState(FORWARD_RIGHT), FORWARD_RIGHT);
+        }
+        expectHeld(helper, player, Map.of(Items.TARGET, 1, Items.IRON_BLOCK, 2, Items.GOLD_BLOCK, 1));
+        if (!player.heard.contains("message.groundworks.assembly_not_enough_items")) {
+            helper.fail("the player heard " + player.heard + ", not what is missing");
+        }
+        helper.succeed();
+    }
+
+    private static void tagDefaultsInCreative(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.TARGET, 1);
+        player.setGameMode(GameType.CREATIVE);
+        stock(player, MAIN_SLOT, Items.GOLD_BLOCK, 9);
+        click(helper, player);
+        expectBase(helper, Blocks.IRON_BLOCK, 4, Blocks.GOLD_BLOCK, 0);
+        expectStanding(helper, Map.of(KEY, Blocks.TARGET));
+        expectHeld(helper, player, Map.of(Items.TARGET, 1, Items.GOLD_BLOCK, 9));
+        helper.succeed();
+    }
+
+    private static void keepsATaggedBlock(GameTestHelper helper) {
+        helper.setBlock(SPOT, Blocks.GOLD_BLOCK);
+        ListeningPlayer player = holding(helper, Items.TARGET, 1);
+        stock(player, MAIN_SLOT, Items.IRON_BLOCK, 3);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.isRefused() || plan.blocks().size() != 4) {
+            helper.fail("the plan was " + plan + ", not the plinth less the gold standing");
+        }
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, Blocks.GOLD_BLOCK, RIGHT, Blocks.IRON_BLOCK, FORWARD, Blocks.IRON_BLOCK,
+                FORWARD_RIGHT, Blocks.IRON_BLOCK, KEY, Blocks.TARGET));
+        expectHeld(helper, player, Map.of(Items.IRON_BLOCK, 0, Items.TARGET, 0));
+        helper.succeed();
+    }
+
+    /** The grass is cleared, as a golem's arms' space must be; the water stays, as a conduit's inside does. */
+    private static void clearsEmptyPositions(GameTestHelper helper) {
+        helper.setBlock(FORWARD, Blocks.SHORT_GRASS);
+        helper.setBlock(FORWARD_RIGHT, Blocks.WATER);
+        ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, Blocks.BOOKSHELF, RIGHT, Blocks.STONE, FORWARD_RIGHT, Blocks.WATER));
+        if (!helper.getBlockState(FORWARD).isAir()) {
+            helper.fail("the empty position still holds " + helper.getBlockState(FORWARD), FORWARD);
+        }
+        expectHeld(helper, player, Map.of(Items.BOOKSHELF, 0, Items.STONE, 0));
+        helper.succeed();
+    }
+
+    private static void refusedWhenEmptyTaken(GameTestHelper helper) {
+        helper.setBlock(FORWARD, Blocks.DIRT);
+        ListeningPlayer player = holding(helper, Items.BOOKSHELF, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        PlacementPlan plan = plan(helper, player);
+        Refusal taken = new Refusal.At(Refusal.Assembly.TAKEN, helper.absolutePos(FORWARD));
+        if (plan == null || !taken.equals(plan.refusal())) {
+            helper.fail("the plan was " + plan + ", not refused where the dirt stands");
+        }
+        click(helper, player);
+        for (BlockPos pos : List.of(SPOT, RIGHT, FORWARD_RIGHT)) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("a refused Assembly placed " + helper.getBlockState(pos), pos);
+            }
+        }
+        expectStanding(helper, Map.of(FORWARD, Blocks.DIRT));
+        expectHeld(helper, player, Map.of(Items.BOOKSHELF, 1, Items.STONE, 1));
+        if (!player.heard.contains("message.groundworks.assembly_taken")) {
+            helper.fail("the player heard " + player.heard + ", not that a position is taken");
+        }
+        helper.succeed();
+    }
+
+    /** The plinth's base holds so many of one block and so many of another, and nothing else. */
+    private static void expectBase(GameTestHelper helper, Block one, int ones, Block other, int others) {
+        long found = BASE.stream().filter(pos -> helper.getBlockState(pos).is(one)).count();
+        long foundOther = BASE.stream().filter(pos -> helper.getBlockState(pos).is(other)).count();
+        if (found != ones || foundOther != others || ones + others != BASE.size()) {
+            helper.fail("the base holds " + BASE.stream().map(helper::getBlockState).toList() + ", not " + ones + " "
+                    + one + " and " + others + " " + other);
+        }
     }
 
     private static void expectTower(GameTestHelper helper) {

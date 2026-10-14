@@ -1,0 +1,13 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:target",
+    "b": {"tag": "minecraft:beacon_base_blocks", "default": "minecraft:iron_block"}
+  },
+  "layers": [
+    ["bb",
+     "bb"],
+    ["  ",
+     "K "]
+  ]
+}

@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -119,6 +122,105 @@ class AssemblyShapeTest {
         AssemblyShape decoded = AssemblyShape.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow();
         assertEquals(shape.positions(BlockPos.ZERO, Direction.UP, Direction.WEST),
                 decoded.positions(BlockPos.ZERO, Direction.UP, Direction.WEST));
+    }
+
+    /**
+     * A base of two letters, each a beacon base block or iron by default, forward of the Key's
+     * column a position kept empty, the Key on the base's left block.
+     */
+    private static final String PLINTH = """
+            {
+              "key": "K",
+              "legend": {
+                "K": "minecraft:target",
+                "b": {"tag": "minecraft:beacon_base_blocks", "default": "minecraft:iron_block"},
+                "o": "empty"
+              },
+              "layers": [
+                ["  ",
+                 "bb"],
+                ["o ",
+                 "K "]
+              ]
+            }""";
+
+    private static final Identifier IRON = Identifier.withDefaultNamespace("iron_block");
+    private static final Identifier GOLD = Identifier.withDefaultNamespace("gold_block");
+    private static final Identifier EMERALD = Identifier.withDefaultNamespace("emerald_block");
+    private static final Identifier STONE_BLOCK = Identifier.withDefaultNamespace("stone");
+    private static final Identifier BASE_TAG = Identifier.withDefaultNamespace("beacon_base_blocks");
+    private static final AssemblyShape.Legend BASE = new AssemblyShape.Legend.Tag(BASE_TAG, IRON);
+
+    @Test
+    void aLegendLetterNamesABlockATagWithItsDefaultOrAPositionKeptEmpty() {
+        AssemblyShape shape = parse(PLINTH).getOrThrow();
+        BlockPos spot = BlockPos.ZERO;
+        assertEquals(List.of(
+                new AssemblyShape.At(spot, BASE),
+                new AssemblyShape.At(spot.south(), BASE),
+                new AssemblyShape.At(spot.above().east(), AssemblyShape.Legend.Empty.INSTANCE),
+                new AssemblyShape.At(spot.above(), new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("target")))),
+                shape.positions(spot, Direction.UP, Direction.WEST));
+        assertEquals(Set.of(Identifier.withDefaultNamespace("target"), IRON), Set.copyOf(shape.blocks()));
+    }
+
+    @Test
+    void aTagWithNoDefaultOrAKeyThatIsATagOrEmptyIsRejected() {
+        assertError(PLINTH.replace(", \"default\": \"minecraft:iron_block\"", ""), "default");
+        assertError(PLINTH.replace("\"K\": \"minecraft:target\"", "\"K\": \"empty\""), "no block for the key");
+        assertError(PLINTH.replace("\"K\": \"minecraft:target\"",
+                "\"K\": {\"tag\": \"minecraft:logs\", \"default\": \"minecraft:oak_log\"}"), "no block for the key");
+    }
+
+    @Test
+    void aDeclarationWithTagsAndEmptiesRoundTripsThroughItsCodec() {
+        AssemblyShape shape = parse(PLINTH).getOrThrow();
+        JsonElement encoded = AssemblyShape.CODEC.encodeStart(JsonOps.INSTANCE, shape).getOrThrow();
+        assertEquals(shape.positions(BlockPos.ZERO, Direction.UP, Direction.WEST),
+                AssemblyShape.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow()
+                        .positions(BlockPos.ZERO, Direction.UP, Direction.WEST));
+    }
+
+    private static final Function<Identifier, List<Identifier>> MEMBERS =
+            tag -> tag.equals(BASE_TAG) ? List.of(IRON, GOLD, EMERALD) : List.of();
+
+    @Test
+    void tagPositionsAreFilledFromTheMemberHeldMostOfFirst() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, BASE, BASE),
+                Map.of(IRON, 1, GOLD, 3, EMERALD, 2), MEMBERS, false);
+        assertEquals(List.of(GOLD, GOLD, GOLD, EMERALD), fill.blocks());
+        assertEquals(Map.of(), fill.missing());
+    }
+
+    @Test
+    void aFillIsUniformWhenOneMemberCoversItAll() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, BASE),
+                Map.of(IRON, 3, GOLD, 3), MEMBERS, false);
+        assertEquals(List.of(IRON, IRON, IRON), fill.blocks());
+    }
+
+    @Test
+    void namedBlocksAreTakenBeforeTagPositionsShareWhatIsLeft() {
+        AssemblyShape.Legend iron = new AssemblyShape.Legend.Block(IRON);
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, iron, iron),
+                Map.of(IRON, 3, GOLD, 2), MEMBERS, false);
+        assertEquals(List.of(GOLD, GOLD, IRON, IRON), fill.blocks());
+        assertEquals(Map.of(), fill.missing());
+    }
+
+    @Test
+    void whatTheInventoryCannotCoverIsMissingTagPositionsCountedAsTheirDefault() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, BASE, STONE, STONE),
+                Map.of(GOLD, 1, STONE_BLOCK, 1), MEMBERS, false);
+        assertEquals(List.of(GOLD, IRON, IRON, STONE_BLOCK, STONE_BLOCK), fill.blocks());
+        assertEquals(Map.of(STONE_BLOCK, 1, IRON, 2), fill.missing());
+    }
+
+    @Test
+    void creativeFillsEachTagPositionWithItsDefaultAndMissesNothing() {
+        AssemblyShape.Fill fill = AssemblyShape.fill(List.of(BASE, BASE, STONE), Map.of(GOLD, 9), MEMBERS, true);
+        assertEquals(List.of(IRON, IRON, STONE_BLOCK), fill.blocks());
+        assertEquals(Map.of(), fill.missing());
     }
 
     private static List<BlockPos> positionsOf(List<AssemblyShape.At> at) {
