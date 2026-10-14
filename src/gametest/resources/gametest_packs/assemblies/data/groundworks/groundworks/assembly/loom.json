@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:loom",
+    "n": {"tag": "groundworks:no_blocks", "default": "minecraft:stone"}
+  },
+  "layers": [
+    ["n"],
+    ["K"]
+  ]
+}

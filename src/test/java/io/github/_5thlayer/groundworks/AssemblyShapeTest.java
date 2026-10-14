@@ -162,6 +162,8 @@ class AssemblyShapeTest {
                 new AssemblyShape.At(spot.above(), new AssemblyShape.Legend.Block(Identifier.withDefaultNamespace("target")))),
                 shape.positions(spot, Direction.UP, Direction.WEST));
         assertEquals(Set.of(Identifier.withDefaultNamespace("target"), IRON), Set.copyOf(shape.blocks()));
+        assertEquals(List.of(BASE_TAG), shape.tags());
+        assertEquals(List.of(), parse(TOWER).getOrThrow().tags());
     }
 
     @Test

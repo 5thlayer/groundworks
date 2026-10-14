@@ -253,6 +253,18 @@ public final class AssemblyShape {
                 .toList();
     }
 
+    /** Every block tag the legend names, by its id, which whoever loads the shape checks. */
+    public List<Identifier> tags() {
+        return declaration.legend().values().stream()
+                .<Identifier>mapMulti((legend, ids) -> {
+                    if (legend instanceof Legend.Tag tag) {
+                        ids.accept(tag.tag());
+                    }
+                })
+                .distinct()
+                .toList();
+    }
+
     /**
      * Where each block stands for a placement at {@code spot}, the position a block placed at the
      * aim would take, against the aimed {@code face}, with the Key facing {@code facing}, a

@@ -18,6 +18,7 @@ import io.github._5thlayer.groundworks.mixin.BlockItemInvoker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -481,8 +482,9 @@ public final class Assemblies {
 
     /**
      * Reads the declarations with the server's data: each file alone, one that doesn't parse logged
-     * with its id and skipped by the reader, and one naming a block the game lacks, or a block with
-     * no item to pay for it with, such as fire or water, logged and skipped here.
+     * with its id and skipped by the reader, and one naming a block the game lacks, a block tag this
+     * reload didn't load, or a block with no item to pay for it with, such as fire or water,
+     * logged and skipped here. A tag declared with no blocks is a tag the game has.
      */
     private static final class Loader extends SimpleJsonResourceReloadListener<AssemblyShape> {
 
@@ -493,6 +495,8 @@ public final class Assemblies {
         @Override
         protected void apply(Map<Identifier, AssemblyShape> prepared, ResourceManager manager, ProfilerFiller profiler) {
             Map<Identifier, AssemblyShape> loaded = new LinkedHashMap<>();
+            // This reload's tags, which are bound to the registry only once every listener is done.
+            HolderLookup.RegistryLookup<Block> blocks = getRegistryLookup().lookupOrThrow(Registries.BLOCK);
             prepared.forEach((id, shape) -> {
                 List<Identifier> unknown = shape.blocks().stream()
                         .filter(block -> !BuiltInRegistries.BLOCK.containsKey(block))
@@ -501,8 +505,13 @@ public final class Assemblies {
                         .filter(block -> BuiltInRegistries.BLOCK.getOptional(block)
                                 .map(found -> found.asItem() == Items.AIR).orElse(false))
                         .toList();
+                List<Identifier> unknownTags = shape.tags().stream()
+                        .filter(tag -> blocks.get(blockTag(tag)).isEmpty())
+                        .toList();
                 if (!unknown.isEmpty()) {
                     LOGGER.error("Couldn't load assembly '{}': it names blocks the game lacks, {}", id, unknown);
+                } else if (!unknownTags.isEmpty()) {
+                    LOGGER.error("Couldn't load assembly '{}': it names block tags the game lacks, {}", id, unknownTags);
                 } else if (!unpaid.isEmpty()) {
                     LOGGER.error("Couldn't load assembly '{}': it names blocks with no item to pay for them with, {}",
                             id, unpaid);

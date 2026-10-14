@@ -6,6 +6,7 @@
     "minecraft:crafting_table",
     "minecraft:cactus",
     "minecraft:smithing_table",
-    "minecraft:oak_door"
+    "minecraft:oak_door",
+    "minecraft:loom"
   ]
 }

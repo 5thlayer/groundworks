@@ -37,7 +37,8 @@ import org.jspecify.annotations.Nullable;
  * Assemblies, from the {@code assemblies} test pack: its tower, keyed by lodestone, stands
  * cobblestone forward of the Key's column, one stone under the Key and one to the player's right.
  * Its glowstone Assembly's Key is not in {@code groundworks:assembly_keys}, and two malformed
- * declarations are skipped, as is the smithing table's, which names fire, a block with no item. Its
+ * declarations are skipped, as is the smithing table's, which names fire, a block with no item, and
+ * a target's declaration naming a tag the game lacks; the loom's names a tag with no blocks, and loads. Its
  * plinth, keyed by a target, is a 2×2 base of beacon base blocks, iron by default, with the target
  * over the base's near left block; its gate is a bookshelf with stone to the player's right and the
  * two positions forward of them kept empty. Its porch is a crafting table with stairs forward of it
@@ -109,6 +110,9 @@ final class AssemblyTests {
                 AssemblyTests::takenPointsAtTheFirst);
         withPack.test("an_assemblys_oriented_blocks_turn_with_it", 20, AssemblyTests::orientedBlocksTurn);
         withPack.test("an_assembly_naming_a_block_with_no_item_is_not_loaded", 20, AssemblyTests::noItemNotLoaded);
+        withPack.test("an_assembly_naming_an_unknown_tag_is_not_loaded", 20, AssemblyTests::unknownTagNotLoaded);
+        withPack.test("an_assembly_naming_an_empty_tag_loads_and_takes_its_default", 20,
+                AssemblyTests::emptyTagLoads);
         withPack.test("an_assembly_whose_key_would_not_stand_on_it_is_refused_whole_and_places_nothing", 20,
                 AssemblyTests::keyWouldNotStandRefused);
         withPack.test("an_assembly_whose_key_vanilla_refuses_after_the_rest_is_laid_keeps_the_rest_and_charges_no_key",
@@ -503,6 +507,32 @@ final class AssemblyTests {
         player.setGameMode(GameType.CREATIVE);
         click(helper, player);
         expectAlone(helper, Blocks.SMITHING_TABLE);
+        helper.succeed();
+    }
+
+    /**
+     * The target's declaration naming a misspelt tag sorts before its plinth, so loaded it would be
+     * the target's first Assembly: skipped, the target's only Assembly is the plinth.
+     */
+    private static void unknownTagNotLoaded(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.TARGET, 1);
+        player.setGameMode(GameType.CREATIVE);
+        PlacementPlan plan = plan(helper, player);
+        // The plinth's four base blocks and its target.
+        if (plan == null || plan.isRefused() || plan.blocks().size() != 5) {
+            helper.fail("the plan was " + plan + ", not the plinth");
+        }
+        Assemblies.press(player, false);
+        expectKeyAlone(helper, player);
+        helper.succeed();
+    }
+
+    /** The loom's tag is declared with no blocks: its declaration loads, and creative lays the default. */
+    private static void emptyTagLoads(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.LOOM, 1);
+        player.setGameMode(GameType.CREATIVE);
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, Blocks.STONE, KEY, Blocks.LOOM));
         helper.succeed();
     }
 
