@@ -1,6 +1,6 @@
 # Groundworks is published on Modrinth and CurseForge as a mod
 
-Since ADR 0005 Groundworks is useful in a vanilla game with no other mod, and that ADR foresaw a standalone page. Until now Groundworks reached players only nested in Beltworks, and libworks' `docs/agents/publishing.md` named it as the Library that never goes to the sites.
+Since ADR 0005 Groundworks is useful in a vanilla game with no other mod, and that ADR foresaw a standalone page. Until now Groundworks reached players only nested in Beltworks, and libworks' `docs/agents/publishing.md` named it as the Module that never goes to the sites.
 
 **Decision.** Groundworks gets a project on Modrinth and one on CurseForge, as a mod players install:
 
@@ -21,7 +21,7 @@ Since ADR 0005 Groundworks is useful in a vanilla game with no other mod, and th
 
 ## Consequences
 
-- libworks' `publishing.md` drops Groundworks as its example of a Library that skips the sites.
+- libworks' `publishing.md` drops Groundworks as its example of a Module that skips the sites.
 - `mod_description` becomes the page's summary, written for players.
 - Groundworks gains a `README.md`, its page description, and the release docs gain the upload step.
 - Every Groundworks release after the first upload is public on two sites, where, as in `~/.m2`, a version is final.

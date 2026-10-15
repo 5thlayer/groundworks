@@ -16,4 +16,4 @@ Every Consumer keeps one contract the library can't enforce: an item that plans 
 
 ## Consequences
 
-- The library's API is semver from 0.1.0, under libworks' ADR 0001, "Below 1.0 an addition bumps the patch" (https://github.com/5thlayer/libworks/blob/main/docs/adr/0001-below-1-0-an-addition-bumps-the-patch.md), which every Library inherits. For Groundworks, what counts as breaking is what a Consumer compiles against: the types above, their methods, and the events.
+- The library's API is semver from 0.1.0, under libworks' ADR 0001, "Below 1.0 an addition bumps the patch" (https://github.com/5thlayer/libworks/blob/main/docs/adr/0001-below-1-0-an-addition-bumps-the-patch.md), which every Module inherits. For Groundworks, what counts as breaking is what a Consumer compiles against: the types above, their methods, and the events.

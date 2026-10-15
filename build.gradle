@@ -4,7 +4,7 @@ plugins {
     id 'io.github.5thlayer.libworks.module' version '0.3.0'
 }
 
-// Groundworks requires no other Library.
+// Groundworks requires no other Module.
 libworks {
     // Groundworks' own tags are v<version>, which its Consumers' CI builds from.
     tagPrefix = 'v'
@@ -26,6 +26,6 @@ repositories {
 }
 
 dependencies {
-    // Jade finds the footprint plugin by its annotation, so the Library runs without it.
+    // Jade finds the footprint plugin by its annotation, so the Module runs without it.
     compileOnly 'curse.maven:jade-324717:8651070'
 }
