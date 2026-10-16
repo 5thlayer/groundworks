@@ -20,6 +20,7 @@ path = [
     "src/main/resources/**/*.mcmeta",
     "src/main/resources/**/*.nbt",
     "LICENSE",
+    "NOTICE",
     "publish/summary.txt",
     ".github/**",
 ]
