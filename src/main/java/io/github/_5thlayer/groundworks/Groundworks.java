@@ -5,7 +5,6 @@ package io.github._5thlayer.groundworks;
 
 import java.util.List;
 
-import io.github._5thlayer.groundworks.gametest.GroundworksGameTests;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionResult;
@@ -27,7 +26,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * clicks too. The {@linkplain VanillaConsumer vanilla Consumer} makes its statements here, read from
  * a tag and the {@linkplain GroundworksConfig server config}. Every {@linkplain FootprintPartBlock
  * footprint part} forwards its capabilities to its origin from here. The drawing and the keys are {@code
- * client.GroundworksClient}.
+ * client.GroundworksClient}. The game tests hook themselves in from the {@code gametest} source set,
+ * which never ships (libworks ADR 0011).
  */
 @Mod(Groundworks.MOD_ID)
 public final class Groundworks {
@@ -70,7 +70,6 @@ public final class Groundworks {
         modBus.addListener(RaisePayload::register);
         modBus.addListener(NextAssemblyPayload::register);
         modBus.addListener(Footprint::forwardCapabilities);
-        GroundworksGameTests.register(modBus);
         // An event rather than an item's own use: the tools that dismantle, the items that
         // stretch, and the blocks that replace, are no one's in particular.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, PlayerInteractEvent.RightClickBlock.class, event -> {

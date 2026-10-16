@@ -30,8 +30,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLConstructModEvent;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.gametest.GameTestHooks;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -39,17 +41,18 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /**
  * The library's game tests, run by the {@code gameTestServer} Gradle run. Each test stands on the
  * {@code gametest/platform} structure, a stone floor that {@code sh ./gradlew buildGametestStructures}
- * writes, and places what it needs itself, so the setup is in the diff.
+ * writes, and places what it needs itself, so the setup is in the diff. It lives in the {@code gametest}
+ * source set, which only the Module's own runs load, and hooks itself in, so the {@code @Mod} class
+ * names no game-test code and nothing gates it (libworks ADR 0011).
  *
  * <p>The tests use vanilla blocks. The {@linkplain io.github._5thlayer.groundworks.VanillaConsumer
  * vanilla Consumer} opts in those its shipped tag holds; the tests opt in the few others they need,
  * such as cobblestone, a block with no orientation, and state their own Rotate in Place and a Key
  * of their own. That {@linkplain Placements#optIn Opt-in}, {@linkplain Rotate#turnsInPlace Rotate
  * in Place statement} and {@linkplain Assemblies#keys statement of Keys} are made while the tests
- * are registered, which happens only when game tests are enabled, so a production server never has
- * them. They are the ones not made at mod construction as ADR 0001 has it, and they hold on the
- * server alone, which is all a game-test server has. A dev client, which enables game tests too,
- * draws these blocks.
+ * are registered, which happens only when game tests are enabled. They are the ones not made at mod
+ * construction as ADR 0001 has it, and they hold on the server alone, which is all a game-test
+ * server has. A dev client, which enables game tests too, draws these blocks.
  *
  * <p>A test that needs a pack developer's datapack runs in a batch of its own {@linkplain
  * WithTestPack with that pack switched on}.
@@ -57,12 +60,12 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * <p>The one block of the tests' own, {@link RefusesToTurnBlock}, and the one item,
  * {@link #STRETCHES_ARROWS}, whose legs {@link LineOfArrows} builds, and the dismantling tool
  * {@link #DISMANTLES}, and the item that plans its own placement, {@link #PLANS_PINK}, are
- * registered only when game tests are enabled, for the same reason. The builder, the {@link
- * RowOfTerracotta} family and the {@linkplain FastReplaceTests#stateGroups Replace groups} are
- * registered at mod construction, as a Consumer's are, so a dev client stretches, dismantles and
- * replaces with them too. The {@linkplain TestFootprint tests' Footprint} is registered only when
- * game tests are enabled, with its blocks and item.
+ * registered at mod construction, as are the builder, the {@link RowOfTerracotta} family and the
+ * {@linkplain FastReplaceTests#stateGroups Replace groups}, as a Consumer's are, so a dev client
+ * stretches, dismantles and replaces with them too. So is the {@linkplain TestFootprint tests'
+ * Footprint}, with its blocks and item.
  */
+@EventBusSubscriber(modid = Groundworks.MOD_ID)
 public final class GroundworksGameTests {
 
     private static final Identifier PLATFORM = id("gametest/platform");
@@ -108,8 +111,8 @@ public final class GroundworksGameTests {
             properties -> new PlansItsOwnPlacement(Blocks.PINK_GLAZED_TERRACOTTA, properties));
 
     /**
-     * The tests' dismantling tool, in {@code groundworks:dismantles} as an optional entry, which
-     * takes up a {@linkplain RowOfTerracotta row of cyan terracotta}.
+     * The tests' dismantling tool, in {@code groundworks:dismantles} as an optional entry of the
+     * game-test and dev packs, which takes up a {@linkplain RowOfTerracotta row of cyan terracotta}.
      */
     static final DeferredItem<Item> DISMANTLES = ITEMS.registerSimpleItem("gametest_dismantles");
 
@@ -128,19 +131,22 @@ public final class GroundworksGameTests {
     private GroundworksGameTests() {
     }
 
+    @SubscribeEvent
+    static void construct(FMLConstructModEvent event) {
+        register(event.getContainer().getEventBus());
+    }
+
     public static void register(IEventBus modBus) {
         TEST_TYPES.register(modBus);
         ENVIRONMENT_TYPES.register(modBus);
-        if (GameTestHooks.isGametestEnabled()) {
-            modBus.addListener(WithTestPack::addPackFinders);
-            BLOCKS.register(modBus);
-            ITEMS.register(modBus);
-            Stretches.register(new LineOfArrows());
-            Dismantles.register(new RowOfTerracotta());
-            FastReplaceTests.stateGroups();
-            TestFootprint.register(modBus);
-        }
-        // Posted only when game tests are enabled, so a production server never registers the tests.
+        modBus.addListener(WithTestPack::addPackFinders);
+        BLOCKS.register(modBus);
+        ITEMS.register(modBus);
+        Stretches.register(new LineOfArrows());
+        Dismantles.register(new RowOfTerracotta());
+        FastReplaceTests.stateGroups();
+        TestFootprint.register(modBus);
+        // Posted only when game tests are enabled, which a production game never is.
         modBus.addListener(GroundworksGameTests::registerTests);
     }
 

@@ -47,8 +47,8 @@ import org.jspecify.annotations.Nullable;
  * The tests' Footprint, declared as a Consumer declares one: an origin that holds energy, a part
  * forward, a part above and a part to the side, so that a turn moves two of them. Its origin's loot
  * table, which drops its item, is in the {@code footprints} test pack, since the item exists only
- * where game tests are enabled. Registered only then, with a Replace group of its blocks whose
- * {@linkplain ReplacesWhole builder} asks where the origin stands, as a Consumer's machine tiers do.
+ * in the Module's own runs. Registered with a Replace group of its blocks whose {@linkplain
+ * ReplacesWhole builder} asks where the origin stands, as a Consumer's machine tiers do.
  */
 final class TestFootprint {
 
