@@ -181,7 +181,8 @@ final class PlacementPreview {
         PoseStack poseStack = event.getPoseStack();
         SubmitNodeCollector collector = event.getSubmitNodeCollector();
         RandomSource random = RandomSource.create();
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        // A Companion is drawn as the plan's blocks are, though no laying path places it.
+        for (PlacementPlan.Placed placed : drawn(plan)) {
             BlockPos pos = placed.pos();
             Set<Direction> faces = shown.getOrDefault(pos, Set.of());
             BlockStateModel model = Minecraft.getInstance().getModelManager()
@@ -225,12 +226,13 @@ final class PlacementPreview {
     }
 
     /**
-     * The plan's outside faces, less those the world already hides -- a multiblock's underside
-     * against the ground -- so the preview draws what the placed blocks will.
+     * The plan's outside faces, its Companions counted among its blocks, less those the world
+     * already hides -- a multiblock's underside against the ground -- so the preview draws what
+     * the placed blocks will.
      */
     private static Map<BlockPos, Set<Direction>> shownFaces(ClientLevel level, PlacementPlan plan) {
         Map<BlockPos, BlockState> states = new HashMap<>();
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        for (PlacementPlan.Placed placed : drawn(plan)) {
             states.put(placed.pos(), placed.state());
         }
         Map<BlockPos, Set<Direction>> faces = new HashMap<>();
@@ -245,6 +247,13 @@ final class PlacementPreview {
             }
         }
         return faces;
+    }
+
+    /** What the preview draws of a plan: its blocks, then its Companions. */
+    private static List<PlacementPlan.Placed> drawn(PlacementPlan plan) {
+        List<PlacementPlan.Placed> drawn = new ArrayList<>(plan.blocks());
+        drawn.addAll(plan.companions());
+        return drawn;
     }
 
     private static void emit(VertexConsumer buffer, PoseStack.Pose pose, List<BakedQuad> quads,

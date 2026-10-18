@@ -35,9 +35,15 @@ import org.jspecify.annotations.Nullable;
  * blocks; none of them is among {@code blocks}, and it is empty for a plan that clears nothing. A
  * position the clearing leaves as it is, air or a fluid that stays, is not named. A refused plan
  * still names them, as it does its blocks, and clears nothing.
+ *
+ * <p>{@code companions} names the Companions: the blocks a placed block puts down itself once it
+ * is placed, as a door its upper half, a bed its head, a tall flower its top. The preview draws
+ * them as it draws the plan's blocks, but they are not among {@code blocks}, and nothing that lays
+ * a plan places them or charges for them: the placed block's own {@code setPlacedBy} lays them.
+ * It is empty for a plan whose blocks put down nothing more.
  */
 public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
-                            @Nullable Refusal refusal) {
+                            List<Placed> companions, @Nullable Refusal refusal) {
 
     /** One block the plan would put down. */
     public record Placed(BlockPos pos, BlockState state) {
@@ -47,11 +53,18 @@ public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<B
         blocks = List.copyOf(blocks);
         replaces = List.copyOf(replaces);
         clears = List.copyOf(clears);
+        companions = List.copyOf(companions);
+    }
+
+    /** A plan with no Companions. */
+    public PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
+                         @Nullable Refusal refusal) {
+        this(blocks, replaces, clears, List.of(), refusal);
     }
 
     /** A plan that clears nothing. */
     public PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, @Nullable Refusal refusal) {
-        this(blocks, replaces, List.of(), refusal);
+        this(blocks, replaces, List.of(), List.of(), refusal);
     }
 
     /** A plan that would go through. */
@@ -82,6 +95,11 @@ public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<B
     /** A one-block plan that would not. */
     public static PlacementPlan refused(BlockPos pos, BlockState state, Refusal refusal) {
         return refused(List.of(new Placed(pos, state)), refusal);
+    }
+
+    /** The same plan, refused for {@code reason}. */
+    PlacementPlan refusedFor(Refusal reason) {
+        return new PlacementPlan(blocks, replaces, clears, companions, reason);
     }
 
     public boolean isRefused() {

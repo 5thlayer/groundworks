@@ -86,6 +86,7 @@ final class VanillaLegs implements LegBuilder {
     private static PlacementPlan laid(BlockItem blockItem, List<Laying> contexts, @Nullable Refusal refused) {
         List<PlacementPlan.Placed> blocks = new ArrayList<>();
         List<BlockPos> replaces = new ArrayList<>();
+        List<PlacementPlan.Placed> companions = new ArrayList<>();
         Refusal refusal = refused;
         for (Laying context : contexts) {
             if (context.replacing && context.getLevel().getBlockState(context.getClickedPos()).is(blockItem.getBlock())) {
@@ -102,12 +103,13 @@ final class VanillaLegs implements LegBuilder {
                 blocks.add(new PlacementPlan.Placed(context.getClickedPos(), state != null ? state : blockItem.getBlock().defaultBlockState()));
             } else {
                 blocks.addAll(alone.blocks());
+                companions.addAll(alone.companions());
             }
             if (refusal == null && (alone == null || alone.isRefused())) {
                 refusal = new Refusal.At(Refusal.Vanilla.VANILLA, context.getClickedPos());
             }
         }
-        return new PlacementPlan(blocks, replaces, refusal);
+        return new PlacementPlan(blocks, replaces, List.of(), companions, refusal);
     }
 
     @Override

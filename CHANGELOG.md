@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- The preview of a door or a bed, and of a tall plant such as a sunflower where a pack opts it in, draws the whole block: the door's upper half, the bed's head, the plant's top, where the click puts it down, white or red with the rest. A Fast Replace with a door draws it whole too. Placing is unchanged: a door still costs one door. (#69)
+
+### Consumers
+
+- A `PlacementPlan` may name **Companions**, `companions()`: the blocks its placed blocks put down themselves once placed, as a door its upper half. The preview draws them in the plan's tint and counts them in its outline, and no laying path places or charges for them: a plain click and a Fast Replace leave them to the placed block's own `setPlacedBy`, and a Stretch, which calls no `setPlacedBy`, lays none. The Vanilla Plan names them for blocks with vanilla's `DOUBLE_BLOCK_HALF` or `BED_PART`, a modded one's too. Every existing constructor and factory stays and names none. (#69)
+
 ## 0.5.13
 
 ### Consumers

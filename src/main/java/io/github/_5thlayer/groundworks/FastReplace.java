@@ -269,7 +269,7 @@ public final class FastReplace {
             if (planned == null) {
                 return null;
             }
-            plan = leavesAGap(planned) ? refused(planned, Refusal.FastReplace.LEAVES_A_GAP) : planned;
+            plan = leavesAGap(planned) ? planned.refusedFor(Refusal.FastReplace.LEAVES_A_GAP) : planned;
             ItemStack back = builder.refund(level, aimed, old);
             returned = back.isEmpty() ? List.of() : List.of(back);
         }
@@ -278,9 +278,9 @@ public final class FastReplace {
         // Where the player may not build, the replace is refused whatever else refused it.
         List<BlockPos> positions = plan.blocks().stream().map(PlacementPlan.Placed::pos).toList();
         if (player != null && !Charge.mayBuildAll(level, player, positions)) {
-            plan = refused(plan, Refusal.FastReplace.MAY_NOT_BUILD);
+            plan = plan.refusedFor(Refusal.FastReplace.MAY_NOT_BUILD);
         } else if (player != null && !plan.isRefused() && !charge.fits(player)) {
-            plan = refused(plan, Refusal.FastReplace.NO_ROOM_TO_RETURN);
+            plan = plan.refusedFor(Refusal.FastReplace.NO_ROOM_TO_RETURN);
         }
         return new Replacing(plan, charge, builder);
     }
@@ -297,9 +297,16 @@ public final class FastReplace {
             return PlacementPlan.refused(aimed, item.getBlock().defaultBlockState(), Refusal.FastReplace.PLANS_ELSEWHERE);
         }
         if (planned.blocks().stream().noneMatch(placed -> placed.pos().equals(aimed))) {
-            return PlacementPlan.refused(planned.blocks(), Refusal.FastReplace.PLANS_ELSEWHERE);
+            return new PlacementPlan(planned.blocks(), List.of(), List.of(), planned.companions(),
+                    Refusal.FastReplace.PLANS_ELSEWHERE);
         }
-        return new PlacementPlan(keepingOrientation(planned.blocks(), aimed, old, stack), List.of(aimed), planned.refusal());
+        List<PlacementPlan.Placed> blocks = keepingOrientation(planned.blocks(), aimed, old, stack);
+        // A Vanilla Plan's Companions follow its blocks, so they follow the old block's orientation too;
+        // an item's own plan names its own.
+        List<PlacementPlan.Placed> companions = item instanceof PlansPlacement
+                ? planned.companions()
+                : Placements.companionsOf(blocks);
+        return new PlacementPlan(blocks, List.of(aimed), List.of(), companions, planned.refusal());
     }
 
     /**
@@ -414,15 +421,10 @@ public final class FastReplace {
         for (PlacementPlan.Placed placed : plan.blocks()) {
             BlockSnapshot before = BlockSnapshot.create(level.dimension(), level, placed.pos());
             if (EventHooks.onBlockPlace(player, before, Direction.UP)) {
-                return refused(plan, Refusal.FastReplace.MAY_NOT_BUILD);
+                return plan.refusedFor(Refusal.FastReplace.MAY_NOT_BUILD);
             }
         }
         return plan;
-    }
-
-    /** The same plan, refused for {@code reason}. */
-    private static PlacementPlan refused(PlacementPlan plan, Refusal reason) {
-        return new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), reason);
     }
 
     /**
