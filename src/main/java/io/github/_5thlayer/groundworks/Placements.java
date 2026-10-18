@@ -3,6 +3,7 @@
 
 package io.github._5thlayer.groundworks;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
@@ -19,6 +20,9 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
@@ -148,6 +152,8 @@ public final class Placements {
      * that position draws red. A spot moved by the held stack's {@linkplain Raise height} is a
      * position the player chose, so one that is taken, or outside the world, refuses there rather
      * than drawing nothing.
+     *
+     * <p>Accepted or refused, the plan names the block's {@linkplain #companionsOf Companions}.
      */
     @Nullable
     public static PlacementPlan vanillaPlan(BlockItem item, BlockPlaceContext context) {
@@ -160,8 +166,8 @@ public final class Placements {
             }
             // The spot may be why a block has no state for it, and the refusal is still drawn there.
             BlockState state = item.getBlock().getStateForPlacement(context);
-            return PlacementPlan.refused(context.getClickedPos(),
-                    state != null ? state : item.getBlock().defaultBlockState(), Refusal.Vanilla.VANILLA);
+            return planned(context.getClickedPos(), state != null ? state : item.getBlock().defaultBlockState(),
+                    Refusal.Vanilla.VANILLA);
         }
         BlockPlaceContext updated = item.updatePlacementContext(context);
         if (updated == null) {
@@ -172,10 +178,39 @@ public final class Placements {
             return null;
         }
         BlockPos pos = updated.getClickedPos();
-        if (!canPlace(item, state, updated, pos)) {
-            return PlacementPlan.refused(pos, state, Refusal.Vanilla.VANILLA);
+        return planned(pos, state, canPlace(item, state, updated, pos) ? null : Refusal.Vanilla.VANILLA);
+    }
+
+    /** A Vanilla Plan of one block, with the Companions it puts down once placed. */
+    private static PlacementPlan planned(BlockPos pos, BlockState state, @Nullable Refusal refusal) {
+        PlacementPlan.Placed placed = new PlacementPlan.Placed(pos, state);
+        return new PlacementPlan(List.of(placed), List.of(), List.of(), companionsOf(List.of(placed)), refusal);
+    }
+
+    /**
+     * The Companions these placed blocks put down once placed: above a lower half, the same state
+     * as its upper half, and where a bed's foot faces, the same state as its head.
+     *
+     * <p>Read from the placed state's own properties rather than asked of the game, since the game
+     * puts a Companion down only in the block's {@code setPlacedBy}, once the block stands: running
+     * it would change the world the plan only reads, and a bed's does nothing on the client. The
+     * properties are vanilla's own, so a modded block that uses them gets its Companions too.
+     */
+    static List<PlacementPlan.Placed> companionsOf(List<PlacementPlan.Placed> blocks) {
+        List<PlacementPlan.Placed> companions = new ArrayList<>();
+        for (PlacementPlan.Placed placed : blocks) {
+            BlockState state = placed.state();
+            if (state.getOptionalValue(BlockStateProperties.DOUBLE_BLOCK_HALF).orElse(null) == DoubleBlockHalf.LOWER) {
+                companions.add(new PlacementPlan.Placed(placed.pos().above(),
+                        state.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER)));
+            } else if (state.getOptionalValue(BlockStateProperties.BED_PART).orElse(null) == BedPart.FOOT
+                    && state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+                companions.add(new PlacementPlan.Placed(
+                        placed.pos().relative(state.getValue(BlockStateProperties.HORIZONTAL_FACING)),
+                        state.setValue(BlockStateProperties.BED_PART, BedPart.HEAD)));
+            }
         }
-        return PlacementPlan.accepted(pos, state);
+        return companions;
     }
 
     /**

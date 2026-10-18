@@ -86,4 +86,25 @@ class PlacementPlanTest {
         assertEquals(List.of(at(0, 0, 0)), plan.blocks());
         assertFalse(plan.isReplace());
     }
+
+    @Test
+    void aPlanBuiltWithoutCompanionsHasNone() {
+        assertEquals(List.of(), PlacementPlan.accepted(List.of(at(0, 0, 0))).companions());
+        assertEquals(List.of(), new PlacementPlan(List.of(at(0, 0, 0)), List.of(), List.of(), null).companions());
+    }
+
+    @Test
+    void aPlanKeepsItsCompanionsApartFromWhatItPlaces() {
+        PlacementPlan plan = new PlacementPlan(List.of(at(0, 0, 0)), List.of(), List.of(), List.of(at(0, 1, 0)), null);
+        assertEquals(List.of(at(0, 1, 0)), plan.companions());
+        assertEquals(List.of(at(0, 0, 0)), plan.blocks());
+    }
+
+    @Test
+    void aPlanKeepsItsCompanionsWhenTheCallersListChanges() {
+        List<Placed> companions = new ArrayList<>(List.of(at(0, 1, 0)));
+        PlacementPlan plan = new PlacementPlan(List.of(at(0, 0, 0)), List.of(), List.of(), companions, null);
+        companions.add(at(1, 1, 0));
+        assertEquals(1, plan.companions().size());
+    }
 }

@@ -4,6 +4,15 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- The preview of a door or a bed, and of a tall plant such as a sunflower where a pack opts it in, draws the whole block: the door's upper half, the bed's head, the plant's top, where the click puts it down, white or red with the rest. A Fast Replace with a door draws it whole too. Placing is unchanged: a door still costs one door. (#69)
+- A Stretch of doors, beds or tall plants, where a pack stretches them, lays them whole, as its preview draws them: it laid lower halves only. Beds stretched along their facing, each head where the next foot would go, lay every other bed and cost one bed each: before, the feet broke one another and the stretch charged for all of them. (#70)
+
+### Consumers
+
+- A `PlacementPlan` may name **Companions**, `companions()`: the blocks its placed blocks put down themselves once placed, as a door its upper half. The preview draws them in the plan's tint and counts them in its outline, and no laying path places or charges for them: a plain click, a Fast Replace and a Stretch leave them to the placed block's own `setPlacedBy`. A Stretch now calls each laid block's `setPlacedBy`, with one of the held item, and fires the `PLACED_BLOCK` criterion for it, as a Fast Replace does. A Stretch's plan leaves out, in its order, each block that would stand at a block or a named Companion it keeps, or whose own named Companion would, and charges only for what it keeps. The Vanilla Plan names them for blocks with vanilla's `DOUBLE_BLOCK_HALF` or `BED_PART`, a modded one's too. Every existing constructor and factory stays and names none. (#69, #70)
+
 ## 0.5.13
 
 ### Consumers

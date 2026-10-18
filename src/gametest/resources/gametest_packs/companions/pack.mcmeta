@@ -1,0 +1,7 @@
+{
+  "pack": {
+    "description": "Groundworks game tests: puts #minecraft:doors in groundworks:stretches, and oak planks and the oak door in a Replace group",
+    "min_format": [101, 1],
+    "max_format": [101, 1]
+  }
+}

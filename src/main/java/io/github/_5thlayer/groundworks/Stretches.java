@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -165,11 +166,22 @@ public final class Stretches {
      */
     private static PlacementPlan reshaped(Level level, PlacementPlan plan) {
         Map<BlockPos, BlockState> planned = new LinkedHashMap<>();
+        // A Companion stands beside its block once laid, as a door's lower half reads its upper.
+        for (PlacementPlan.Placed placed : plan.companions()) {
+            planned.put(placed.pos(), placed.state());
+        }
         for (PlacementPlan.Placed placed : plan.blocks()) {
             planned.put(placed.pos(), placed.state());
         }
+        return new PlacementPlan(reshapedAgainst(level, plan.blocks(), planned), plan.replaces(), plan.clears(),
+                reshapedAgainst(level, plan.companions(), planned), plan.refusal());
+    }
+
+    /** Each of these blocks reshaped against its neighbours: the planned one where there is one, the world elsewhere. */
+    private static List<PlacementPlan.Placed> reshapedAgainst(Level level, List<PlacementPlan.Placed> placing,
+                                                              Map<BlockPos, BlockState> planned) {
         List<PlacementPlan.Placed> blocks = new ArrayList<>();
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        for (PlacementPlan.Placed placed : placing) {
             BlockState state = placed.state();
             for (Direction direction : Direction.values()) {
                 BlockPos beside = placed.pos().relative(direction);
@@ -178,7 +190,7 @@ public final class Stretches {
             }
             blocks.add(new PlacementPlan.Placed(placed.pos(), state));
         }
-        return new PlacementPlan(blocks, plan.replaces(), plan.clears(), plan.refusal());
+        return blocks;
     }
 
     /** Where a reshape in the preview schedules its ticks: nowhere, since the preview changes nothing. */
@@ -241,6 +253,7 @@ public final class Stretches {
 
         // A later leg's block at a position an earlier one takes, its first anchor, is the later leg's.
         Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
+        Map<BlockPos, BlockState> companions = new LinkedHashMap<>();
         Set<BlockPos> replaces = new LinkedHashSet<>();
         for (Leg leg : Leg.ofStretch(stored.start(), route, rises, reachesEnd)) {
             PlacementPlan built = Detours.plan(leg, player == null ? null : player.blockPosition(),
@@ -253,15 +266,20 @@ public final class Stretches {
                     replaces.remove(placed.pos());
                 }
             }
+            built.companions().forEach(companion -> companions.put(companion.pos(), companion.state()));
             if (refusal == null) {
                 refusal = built.refusal();
             }
         }
 
-        List<PlacementPlan.Placed> placed = blocks.entrySet().stream()
+        return charged(level, player, item,
+                new PlacementPlan(placedOf(blocks), List.copyOf(replaces), List.of(), placedOf(companions), refusal));
+    }
+
+    private static List<PlacementPlan.Placed> placedOf(Map<BlockPos, BlockState> blocks) {
+        return blocks.entrySet().stream()
                 .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
                 .toList();
-        return charged(level, player, item, new PlacementPlan(placed, List.copyOf(replaces), refusal));
     }
 
     /**
@@ -277,8 +295,12 @@ public final class Stretches {
         return new Column(stored.start(), player == null ? 0 : Raise.heightOf(player, stack).blocks(), stored.look());
     }
 
-    /** The stretch's plan refused where the player may not build or can't pay, with its charge. */
-    private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan plan) {
+    /**
+     * The stretch's plan, {@linkplain #withRoomForCompanions with room for its Companions}, refused
+     * where the player may not build or can't pay, with its charge.
+     */
+    private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan built) {
+        PlacementPlan plan = withRoomForCompanions(built);
         Refusal refusal = plan.refusal();
         Set<BlockPos> positions = new LinkedHashSet<>();
         plan.blocks().forEach(placed -> positions.add(placed.pos()));
@@ -301,7 +323,43 @@ public final class Stretches {
                 refusal = Refusal.Stretch.NO_ROOM_TO_RETURN;
             }
         }
-        return new Laying(new PlacementPlan(plan.blocks(), replaces, plan.clears(), refusal), charge);
+        return new Laying(new PlacementPlan(plan.blocks(), replaces, plan.clears(), plan.companions(), refusal), charge);
+    }
+
+    /**
+     * The plan without each block that would stand where a block kept before it, in the plan's
+     * order, stands or puts a Companion the plan names, or whose own named Companion would: beds
+     * laid foot to foot along their facing leave every other one, each whole, and are charged for as
+     * laid. A plan that names no Companions keeps every block.
+     */
+    private static PlacementPlan withRoomForCompanions(PlacementPlan plan) {
+        Set<BlockPos> named = new HashSet<>();
+        plan.companions().forEach(companion -> named.add(companion.pos()));
+        Set<BlockPos> taken = new HashSet<>();
+        Set<BlockPos> kept = new HashSet<>();
+        Set<BlockPos> keptCompanions = new HashSet<>();
+        Set<BlockPos> droppedCompanions = new HashSet<>();
+        List<PlacementPlan.Placed> blocks = new ArrayList<>();
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            List<BlockPos> own = Placements.companionsOf(List.of(placed)).stream()
+                    .map(PlacementPlan.Placed::pos).filter(named::contains).toList();
+            if (taken.contains(placed.pos()) || own.stream().anyMatch(taken::contains)) {
+                droppedCompanions.addAll(own);
+                continue;
+            }
+            blocks.add(placed);
+            kept.add(placed.pos());
+            keptCompanions.addAll(own);
+            taken.add(placed.pos());
+            taken.addAll(own);
+        }
+        List<BlockPos> replaces = plan.replaces().stream().filter(kept::contains).toList();
+        // A position the stretch lays a block at is that block's, not another's Companion.
+        List<PlacementPlan.Placed> companions = plan.companions().stream()
+                .filter(companion -> !kept.contains(companion.pos()))
+                .filter(companion -> keptCompanions.contains(companion.pos()) || !droppedCompanions.contains(companion.pos()))
+                .toList();
+        return new PlacementPlan(blocks, replaces, plan.clears(), companions, plan.refusal());
     }
 
     /**
@@ -414,9 +472,11 @@ public final class Stretches {
         };
     }
 
-    // The state is reset before the charge, which may take the held stack's last item.
+    // The state is reset, and the item a laid block is told placed it copied, before the charge,
+    // which may take the held stack's last item.
     private static void lay(Laying laying, Level level, ItemStack held, Player player, StretchState reset) {
         store(held, reset);
+        ItemStack placedWith = held.copyWithCount(1);
         // A plant breaking with a replaced block touches it: standing on it, or hanging on it, as cocoa does.
         Set<BlockPos> touching = new HashSet<>();
         Set<BlockPos> above = new HashSet<>();
@@ -433,10 +493,28 @@ public final class Stretches {
         } finally {
             silenced = previous;
         }
+        tellPlaced(level, player, laying.plan(), placedWith);
         // A plant that breaks only on its next tick, as sugar cane does, is cleared now, and each piece of it above.
         for (BlockPos pos : above) {
             for (BlockPos at = pos; isPlant(level.getBlockState(at)) && !level.getBlockState(at).canSurvive(level, at); at = at.above()) {
                 level.setBlock(at, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
+    }
+
+    /**
+     * Tells each laid block still standing what placed it, as vanilla's own placement does, so that
+     * it lays its Companions, which the plan has left room for.
+     */
+    private static void tellPlaced(Level level, Player player, PlacementPlan plan, ItemStack placedWith) {
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            BlockState state = level.getBlockState(placed.pos());
+            if (!state.is(placed.state().getBlock())) {
+                continue;
+            }
+            state.getBlock().setPlacedBy(level, placed.pos(), state, player, placedWith);
+            if (player instanceof ServerPlayer server) {
+                CriteriaTriggers.PLACED_BLOCK.trigger(server, placed.pos(), placedWith);
             }
         }
     }
