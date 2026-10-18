@@ -17,7 +17,7 @@ _Avoid_: client (collides with the game's client side), dependent, integration
 ### Plans
 
 **Placement Plan**:
-What a held item would do at an aimed spot: the blocks it would put down (each a position and a blockstate), the positions among them it replaces, the positions apart from them it clears, as an **Assembly** clears the grass from its empty positions, and a **Refusal** or none. Placing executes a plan and the preview draws one, so both ask one rule. A refused plan still carries its blocks, because a refusal is drawn where they would have gone; no plan at all means nothing to draw.
+What a held item would do at an aimed spot: the blocks it would put down (each a position and a blockstate), the positions among them it replaces, the positions apart from them it clears, as an **Assembly** clears the grass from its empty positions, its **Companions**, and a **Refusal** or none. Placing executes a plan and the preview draws one, so both ask one rule. A refused plan still carries its blocks, because a refusal is drawn where they would have gone; no plan at all means nothing to draw.
 _Avoid_: ghost, build plan, preview state, placement context (vanilla's own type, one input to a plan)
 
 **Refusal**:
@@ -25,8 +25,12 @@ Why a **Placement Plan**, or a **Dismantle**'s span, would not go through. Refus
 _Avoid_: error, failure, rejection
 
 **Vanilla Plan**:
-The **Placement Plan** of an item that places as vanilla does, asked of the game rather than restated. It is drawn only for blocks a **Consumer** has **opted in**.
+The **Placement Plan** of an item that places as vanilla does, asked of the game rather than restated. Its **Companions** follow from the placed block's own properties, since the game puts them down only once the block is placed. It is drawn only for blocks a **Consumer** has **opted in**.
 _Avoid_: default plan, generic plan
+
+**Companion**:
+A block that a **Placement Plan**'s placed block puts down itself once placed, as a door its upper half, a bed its head, a tall flower its top. The plan draws it and counts it in its outline, but never places it or charges for it.
+_Avoid_: other half, follower, extra block
 
 **Opt-in**:
 A **Consumer**'s statement of which plain blocks get a **Vanilla Plan**. An item that plans its own placement needs none; it is always drawn. The library keeps no list of mods.
