@@ -272,8 +272,6 @@ public final class Stretches {
             }
         }
 
-        // A position the stretch lays a block at is that block's, not another's Companion.
-        companions.keySet().removeAll(blocks.keySet());
         return charged(level, player, item,
                 new PlacementPlan(placedOf(blocks), List.copyOf(replaces), List.of(), placedOf(companions), refusal));
     }
@@ -297,8 +295,12 @@ public final class Stretches {
         return new Column(stored.start(), player == null ? 0 : Raise.heightOf(player, stack).blocks(), stored.look());
     }
 
-    /** The stretch's plan refused where the player may not build or can't pay, with its charge. */
-    private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan plan) {
+    /**
+     * The stretch's plan, {@linkplain #withRoomForCompanions with room for its Companions}, refused
+     * where the player may not build or can't pay, with its charge.
+     */
+    private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan built) {
+        PlacementPlan plan = withRoomForCompanions(built);
         Refusal refusal = plan.refusal();
         Set<BlockPos> positions = new LinkedHashSet<>();
         plan.blocks().forEach(placed -> positions.add(placed.pos()));
@@ -322,6 +324,42 @@ public final class Stretches {
             }
         }
         return new Laying(new PlacementPlan(plan.blocks(), replaces, plan.clears(), plan.companions(), refusal), charge);
+    }
+
+    /**
+     * The plan without each block that would stand where a block kept before it, in the plan's
+     * order, stands or puts a Companion the plan names, or whose own named Companion would: beds
+     * laid foot to foot along their facing leave every other one, each whole, and are charged for as
+     * laid. A plan that names no Companions keeps every block.
+     */
+    private static PlacementPlan withRoomForCompanions(PlacementPlan plan) {
+        Set<BlockPos> named = new HashSet<>();
+        plan.companions().forEach(companion -> named.add(companion.pos()));
+        Set<BlockPos> taken = new HashSet<>();
+        Set<BlockPos> kept = new HashSet<>();
+        Set<BlockPos> keptCompanions = new HashSet<>();
+        Set<BlockPos> droppedCompanions = new HashSet<>();
+        List<PlacementPlan.Placed> blocks = new ArrayList<>();
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            List<BlockPos> own = Placements.companionsOf(List.of(placed)).stream()
+                    .map(PlacementPlan.Placed::pos).filter(named::contains).toList();
+            if (taken.contains(placed.pos()) || own.stream().anyMatch(taken::contains)) {
+                droppedCompanions.addAll(own);
+                continue;
+            }
+            blocks.add(placed);
+            kept.add(placed.pos());
+            keptCompanions.addAll(own);
+            taken.add(placed.pos());
+            taken.addAll(own);
+        }
+        List<BlockPos> replaces = plan.replaces().stream().filter(kept::contains).toList();
+        // A position the stretch lays a block at is that block's, not another's Companion.
+        List<PlacementPlan.Placed> companions = plan.companions().stream()
+                .filter(companion -> !kept.contains(companion.pos()))
+                .filter(companion -> keptCompanions.contains(companion.pos()) || !droppedCompanions.contains(companion.pos()))
+                .toList();
+        return new PlacementPlan(blocks, replaces, plan.clears(), companions, plan.refusal());
     }
 
     /**
@@ -466,20 +504,15 @@ public final class Stretches {
 
     /**
      * Tells each laid block still standing what placed it, as vanilla's own placement does, so that
-     * it lays its Companions. One whose Companion would stand where the stretch laid a block isn't
-     * told, since that position is the laid block's, as the plan has it.
+     * it lays its Companions, which the plan has left room for.
      */
     private static void tellPlaced(Level level, Player player, PlacementPlan plan, ItemStack placedWith) {
-        Set<BlockPos> laid = new HashSet<>();
-        plan.blocks().forEach(placed -> laid.add(placed.pos()));
         for (PlacementPlan.Placed placed : plan.blocks()) {
             BlockState state = level.getBlockState(placed.pos());
             if (!state.is(placed.state().getBlock())) {
                 continue;
             }
-            if (Placements.companionsOf(List.of(placed)).stream().noneMatch(companion -> laid.contains(companion.pos()))) {
-                state.getBlock().setPlacedBy(level, placed.pos(), state, player, placedWith);
-            }
+            state.getBlock().setPlacedBy(level, placed.pos(), state, player, placedWith);
             if (player instanceof ServerPlayer server) {
                 CriteriaTriggers.PLACED_BLOCK.trigger(server, placed.pos(), placedWith);
             }

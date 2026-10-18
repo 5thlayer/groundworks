@@ -60,6 +60,8 @@ final class VanillaCompanionTests {
                 VanillaCompanionTests::stretchOfDoors);
         paired.test("vanilla_companion_a_stretch_of_doors_lays_four_two_block_doors_for_one_door_each", 20,
                 VanillaCompanionTests::stretchOfDoorsLaid);
+        paired.test("vanilla_companion_beds_stretched_along_their_facing_lay_every_other_bed_whole_for_one_bed_each", 20,
+                VanillaCompanionTests::stretchOfBedsAlongTheirFacing);
         paired.test("vanilla_companion_a_fast_replace_with_a_door_leaves_one_two_block_door_for_one_item", 20,
                 VanillaCompanionTests::fastReplaceWithADoor);
     }
@@ -155,6 +157,35 @@ final class VanillaCompanionTests {
         plan.blocks().forEach(placed -> expectLaid(helper, placed));
         plan.companions().forEach(companion -> expectLaid(helper, companion));
         expectHeld(helper, player, Blocks.OAK_DOOR, 12);
+        helper.succeed();
+    }
+
+    /**
+     * Beds stretched east four from a start on the floor, each facing east, its head where the
+     * next foot would go: the plan keeps every other bed, the first and the third, each with its
+     * head where the second and fourth would have stood, and the click lays them whole for two beds.
+     */
+    private static void stretchOfBedsAlongTheirFacing(GameTestHelper helper) {
+        BlockPos start = new BlockPos(1, 0, 2);
+        ListeningPlayer player = holding(helper, new ItemStack(Blocks.RED_BED, 16));
+        player.setShiftKeyDown(true);
+        clickAt(helper, player, start);
+        player.setShiftKeyDown(false);
+        BlockPos end = start.east(3);
+        PlacementPlan plan = planAt(helper, player, end);
+        BlockPos first = helper.absolutePos(start.above());
+        List<BlockPos> feet = List.of(first, first.east(2));
+        List<BlockPos> heads = List.of(first.east(), first.east(3));
+        if (plan == null || plan.isRefused()
+                || !plan.blocks().stream().map(PlacementPlan.Placed::pos).toList().equals(feet)
+                || !plan.companions().stream().map(PlacementPlan.Placed::pos).toList().equals(heads)) {
+            throw helper.assertionException(end, "the stretch's plan is " + plan + ", not two whole beds, foot to head");
+        }
+
+        clickAt(helper, player, end);
+        plan.blocks().forEach(placed -> expectLaid(helper, placed));
+        plan.companions().forEach(companion -> expectLaid(helper, companion));
+        expectHeld(helper, player, Blocks.RED_BED, 14);
         helper.succeed();
     }
 
