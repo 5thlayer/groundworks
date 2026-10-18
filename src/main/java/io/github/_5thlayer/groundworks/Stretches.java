@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -433,9 +434,11 @@ public final class Stretches {
         };
     }
 
-    // The state is reset before the charge, which may take the held stack's last item.
+    // The state is reset, and the item a laid block is told placed it copied, before the charge,
+    // which may take the held stack's last item.
     private static void lay(Laying laying, Level level, ItemStack held, Player player, StretchState reset) {
         store(held, reset);
+        ItemStack placedWith = held.copyWithCount(1);
         // A plant breaking with a replaced block touches it: standing on it, or hanging on it, as cocoa does.
         Set<BlockPos> touching = new HashSet<>();
         Set<BlockPos> above = new HashSet<>();
@@ -452,10 +455,33 @@ public final class Stretches {
         } finally {
             silenced = previous;
         }
+        tellPlaced(level, player, laying.plan(), placedWith);
         // A plant that breaks only on its next tick, as sugar cane does, is cleared now, and each piece of it above.
         for (BlockPos pos : above) {
             for (BlockPos at = pos; isPlant(level.getBlockState(at)) && !level.getBlockState(at).canSurvive(level, at); at = at.above()) {
                 level.setBlock(at, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+            }
+        }
+    }
+
+    /**
+     * Tells each laid block still standing what placed it, as vanilla's own placement does, so that
+     * it lays its Companions. One whose Companion would stand where the stretch laid a block isn't
+     * told, since that position is the laid block's, as the plan has it.
+     */
+    private static void tellPlaced(Level level, Player player, PlacementPlan plan, ItemStack placedWith) {
+        Set<BlockPos> laid = new HashSet<>();
+        plan.blocks().forEach(placed -> laid.add(placed.pos()));
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            BlockState state = level.getBlockState(placed.pos());
+            if (!state.is(placed.state().getBlock())) {
+                continue;
+            }
+            if (Placements.companionsOf(List.of(placed)).stream().noneMatch(companion -> laid.contains(companion.pos()))) {
+                state.getBlock().setPlacedBy(level, placed.pos(), state, player, placedWith);
+            }
+            if (player instanceof ServerPlayer server) {
+                CriteriaTriggers.PLACED_BLOCK.trigger(server, placed.pos(), placedWith);
             }
         }
     }

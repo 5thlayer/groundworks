@@ -58,6 +58,8 @@ final class VanillaCompanionTests {
         var paired = tests.withPack(COMPANIONS);
         paired.test("vanilla_companion_a_stretch_of_doors_names_each_door_s_upper_half", 20,
                 VanillaCompanionTests::stretchOfDoors);
+        paired.test("vanilla_companion_a_stretch_of_doors_lays_four_two_block_doors_for_one_door_each", 20,
+                VanillaCompanionTests::stretchOfDoorsLaid);
         paired.test("vanilla_companion_a_fast_replace_with_a_door_leaves_one_two_block_door_for_one_item", 20,
                 VanillaCompanionTests::fastReplaceWithADoor);
     }
@@ -130,6 +132,29 @@ final class VanillaCompanionTests {
         if (!plan.companions().equals(expected)) {
             helper.fail("the stretch's Companions are " + plan.companions() + ", not " + expected, end.above(2));
         }
+        helper.succeed();
+    }
+
+    /**
+     * Doors stretched east four from a start on the floor, the end clicked: each door laid as
+     * planned with its upper half above it, and four doors taken.
+     */
+    private static void stretchOfDoorsLaid(GameTestHelper helper) {
+        BlockPos start = new BlockPos(1, 0, 2);
+        ListeningPlayer player = holding(helper, new ItemStack(Blocks.OAK_DOOR, 16));
+        player.setShiftKeyDown(true);
+        clickAt(helper, player, start);
+        player.setShiftKeyDown(false);
+        BlockPos end = start.east(3);
+        PlacementPlan plan = planAt(helper, player, end);
+        if (plan == null || plan.isRefused() || plan.blocks().size() != 4 || plan.companions().size() != 4) {
+            throw helper.assertionException(end, "the stretch's plan is " + plan + ", not four doors accepted");
+        }
+
+        clickAt(helper, player, end);
+        plan.blocks().forEach(placed -> expectLaid(helper, placed));
+        plan.companions().forEach(companion -> expectLaid(helper, companion));
+        expectHeld(helper, player, Blocks.OAK_DOOR, 12);
         helper.succeed();
     }
 
