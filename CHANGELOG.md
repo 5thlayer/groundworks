@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.6.0
+
 ### Players
 
 - **Rotate** and **Reverse Rotate** turn a block placed against the side of another as well as one placed on top: a block that faces the face it is placed on, such as a trapdoor, a hopper, a log or a Beltworks feeder, now turns a quarter per press there, where before the press did nothing you could see. A block that hangs on that face, as a ladder or wall torch does, keeps hanging on it, and a turn that would leave a block with nothing to stand on, as an amethyst cluster would, is skipped. (#72)
