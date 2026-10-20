@@ -42,6 +42,8 @@
   "groundworks.configuration.planOptInNamespaces": "Namespaces opted in for a Vanilla Plan",
   "message.groundworks.stretch_no_anchor_in_a_column": "A column has no anchors. Click without sneaking to lay it.",
   "message.groundworks.footprint_turn_blocked": "No room to turn it here.",
+  "message.groundworks.rotate_nothing_drawn": "Aim where it would be placed.",
+  "message.groundworks.rotate_unchanged": "It can't be turned here.",
   "tag.item.groundworks.dismantles": "Dismantling Tools",
   "tag.item.groundworks.stretches": "Stretch Items",
   "tag.item.groundworks.stretches_vertically": "Column Items"

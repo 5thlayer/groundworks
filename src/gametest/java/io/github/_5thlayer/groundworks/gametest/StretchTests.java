@@ -94,8 +94,9 @@ final class StretchTests {
     /** The start drawn before the sneak-click, the start it stores, and the stretch laid, all run south. */
     private static void rotatedStart(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, 16);
-        Rotate.press(player, null, false);
+        // Sneaking, as the sneak-click that stores the start will: the press turns that start.
         player.setShiftKeyDown(true);
+        Rotate.press(player, onTop(helper, START), false);
         StoredStretch drawn = Stretches.startedAt(player.level(), player, player.getMainHandItem(), onTop(helper, START));
         player.setShiftKeyDown(false);
         if (drawn == null || drawn.look() != Direction.SOUTH) {
@@ -112,8 +113,11 @@ final class StretchTests {
 
     private static void reverseRotatedStart(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, 16);
-        Rotate.press(player, null, true);
-        click(helper, player, new BlockPos(1, 0, 5), true);
+        BlockPos start = new BlockPos(1, 0, 5);
+        player.setShiftKeyDown(true);
+        Rotate.press(player, onTop(helper, start), true);
+        player.setShiftKeyDown(false);
+        click(helper, player, start, true);
         expectStartLooking(helper, player, Direction.NORTH);
         expectTurn(helper, player, QuarterTurn.NONE);
         helper.succeed();

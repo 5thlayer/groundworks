@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:hopper",
+    "s": "minecraft:stone"
+  },
+  "layers": [
+    ["K",
+     "s"]
+  ]
+}

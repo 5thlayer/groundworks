@@ -161,9 +161,11 @@ final class RaiseTests {
 
     private static void turnedAndRaised(GameTestHelper helper) {
         Player player = holding(helper, Blocks.FURNACE, Direction.EAST);
-        Rotate.press(player, null, false);
-        press(player, 1);
         BlockPos floor = new BlockPos(4, 0, 4);
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(floor.above().south(2)));
+        player.setPos(feet.x, feet.y, feet.z);
+        Rotate.press(player, onFace(helper, floor, Direction.UP), false);
+        press(player, 1);
         BlockState placed = placeAsPlanned(helper, player, floor, onFace(helper, floor, Direction.UP), floor.above(2));
         // Looking east turned a quarter is looking south, and a furnace faces the one looking at it.
         BlockState expected = Blocks.FURNACE.defaultBlockState()

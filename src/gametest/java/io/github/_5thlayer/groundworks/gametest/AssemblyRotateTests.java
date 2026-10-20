@@ -52,13 +52,13 @@ final class AssemblyRotateTests {
 
     private static void rotateTurns(GameTestHelper helper) {
         ListeningPlayer player = holdingTheTowerKey(helper);
-        Rotate.press(player, null, false);
+        Rotate.press(player, onTheFloor(helper), false);
         expectPlanAndPlaced(helper, player, SPOT.south(), SPOT.west());
     }
 
     private static void reverseRotateTurns(GameTestHelper helper) {
         ListeningPlayer player = holdingTheTowerKey(helper);
-        Rotate.press(player, null, true);
+        Rotate.press(player, onTheFloor(helper), true);
         expectPlanAndPlaced(helper, player, SPOT.north(), SPOT.east());
     }
 
@@ -70,7 +70,7 @@ final class AssemblyRotateTests {
         helper.setBlock(SPOT, Blocks.OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.NORTH));
         ListeningPlayer player = holdingTheTowerKey(helper);
         player.setShiftKeyDown(true);
-        Rotate.press(player, helper.absolutePos(SPOT), false);
+        Rotate.press(player, onTop(helper, SPOT), false);
         BlockState stairs = helper.getBlockState(SPOT);
         if (!stairs.is(Blocks.OAK_STAIRS) || stairs.getValue(StairBlock.FACING) != Direction.EAST) {
             helper.fail("found " + stairs + ", not the stairs turned to face east", SPOT);
@@ -118,7 +118,11 @@ final class AssemblyRotateTests {
 
     /** The top of the floor block under {@link #SPOT}. */
     private static BlockHitResult onTheFloor(GameTestHelper helper) {
-        BlockPos floor = helper.absolutePos(SPOT.below());
-        return new BlockHitResult(Vec3.atCenterOf(floor).relative(Direction.UP, 0.5), Direction.UP, floor, false);
+        return onTop(helper, SPOT.below());
+    }
+
+    private static BlockHitResult onTop(GameTestHelper helper, BlockPos pos) {
+        BlockPos absolute = helper.absolutePos(pos);
+        return new BlockHitResult(Vec3.atCenterOf(absolute).relative(Direction.UP, 0.5), Direction.UP, absolute, false);
     }
 }

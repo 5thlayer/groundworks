@@ -9,6 +9,7 @@
     "minecraft:oak_door",
     "minecraft:loom",
     "minecraft:torch",
-    "minecraft:note_block"
+    "minecraft:note_block",
+    "minecraft:hopper"
   ]
 }

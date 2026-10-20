@@ -4,6 +4,16 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- **Rotate** and **Reverse Rotate** turn a block placed against the side of another as well as one placed on top: a block that faces the face it is placed on, such as a trapdoor, a hopper, a log or a Beltworks feeder, now turns a quarter per press there, where before the press did nothing you could see. A block that hangs on that face, as a ladder or wall torch does, keeps hanging on it, and a turn that would leave a block with nothing to stand on, as an amethyst cluster would, is skipped. (#72)
+- A press that wouldn't change what the preview draws, or made with nothing aimed so no preview is drawn, is refused with its reason on the action bar, and the held stack keeps its turn, so a turn you couldn't see never shows up on a later placement. With a Stretch's start stored, a press still turns the held stack for the next start. (#72)
+
+### Consumers
+
+- A placement context's clicked face, when it is a side, is turned by the held stack's turn, as its look already was (ADR 0012), so a block whose `getStateForPlacement` reads `getClickedFace()` turns with Rotate with no code of its own. The nearest looking directions still put the face as hit first, so a block that hangs on it keeps it. Where the placement goes is unchanged. (#72)
+- **Breaking:** `Rotate.press(Player, BlockPos, boolean)` is now `Rotate.press(Player, BlockHitResult, boolean)`: a game test that presses Rotate passes the hit the crosshair would have, block, face and point, since the press now works out the plan there. A hit whose point lies off the block it names is no hit. `RotatePayload` carries the hit too, and its version is bumped. `Rotate.NOTHING_DRAWN` and `Rotate.UNCHANGED` name the two refusals' translation keys. (#72)
+
 ## 0.5.13
 
 ### Consumers

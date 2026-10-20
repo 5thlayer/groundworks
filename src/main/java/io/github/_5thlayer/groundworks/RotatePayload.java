@@ -5,32 +5,36 @@ package io.github._5thlayer.groundworks;
 
 import java.util.Optional;
 
-import io.netty.buffer.ByteBuf;
-import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Rotate or Reverse Rotate was pressed, with the block under the crosshair if any. The client only
- * says what was pressed; the server decides what it turns.
+ * Rotate or Reverse Rotate was pressed, with the hit under the crosshair if any: the block, the face
+ * and where on it, which is all a placement there reads. The client only says what was pressed; the
+ * server decides what it turns.
  */
-public record RotatePayload(boolean reverse, Optional<BlockPos> aimed) implements CustomPacketPayload {
+public record RotatePayload(boolean reverse, Optional<BlockHitResult> aimed) implements CustomPacketPayload {
 
     public static final Type<RotatePayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "rotate"));
 
-    static final StreamCodec<ByteBuf, RotatePayload> STREAM_CODEC = StreamCodec.composite(
+    private static final StreamCodec<FriendlyByteBuf, BlockHitResult> HIT_CODEC =
+            StreamCodec.of(FriendlyByteBuf::writeBlockHitResult, FriendlyByteBuf::readBlockHitResult);
+
+    static final StreamCodec<FriendlyByteBuf, RotatePayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL, RotatePayload::reverse,
-            BlockPos.STREAM_CODEC.apply(ByteBufCodecs::optional), RotatePayload::aimed,
+            HIT_CODEC.apply(ByteBufCodecs::optional), RotatePayload::aimed,
             RotatePayload::new);
 
     /** Bumped when a payload's shape changes, so a client on the old shape is refused rather than misread. */
-    private static final String VERSION = "1";
+    private static final String VERSION = "2";
 
     @Override
     public Type<RotatePayload> type() {

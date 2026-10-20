@@ -9,7 +9,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import io.github._5thlayer.groundworks.RotatePayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -54,8 +53,8 @@ final class RotateKeys {
         if (minecraft.player == null) {
             return;
         }
-        Optional<BlockPos> aimed = minecraft.hitResult instanceof BlockHitResult hit
-                && hit.getType() == HitResult.Type.BLOCK ? Optional.of(hit.getBlockPos()) : Optional.empty();
+        Optional<BlockHitResult> aimed = minecraft.hitResult instanceof BlockHitResult hit
+                && hit.getType() == HitResult.Type.BLOCK ? Optional.of(hit) : Optional.empty();
         ClientPacketDistributor.sendToServer(new RotatePayload(reverse, aimed));
     }
 }

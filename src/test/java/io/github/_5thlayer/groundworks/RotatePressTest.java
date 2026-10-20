@@ -12,14 +12,19 @@ import io.github._5thlayer.groundworks.RotatePress.Refused;
 import io.github._5thlayer.groundworks.RotatePress.TurnedInPlace;
 import io.github._5thlayer.groundworks.TurnsInPlace.Verdict;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /**
- * The Rotate press rule over a stand-in state, a string: the held item first, then the aimed block
- * if a statement covers it and the player may turn it there, by its own contract or else vanilla's
- * turn. The Pack's {@code PlacedTurnTest} is ported here, less its deny list and refit, which the
- * block's own contract replaces.
+ * The Rotate press rule over a stand-in state and plan, strings: the held item first, to the next
+ * turn whose plan the preview would show, then the aimed block if a statement covers it and the
+ * player may turn it there, by its own contract or else vanilla's turn. The Pack's {@code
+ * PlacedTurnTest} is ported here, less its deny list and refit, which the block's own contract
+ * replaces.
  */
 class RotatePressTest {
 
@@ -57,23 +62,102 @@ class RotatePressTest {
         }
     }
 
+    /**
+     * A stand-in held stack: its turn, and the plan drawn with each turn, by quarters, {@code null}
+     * where none is drawn, those in {@code refused} drawn red.
+     */
+    private record Held(QuarterTurn turn, boolean turnsAStart, List<@Nullable String> plans, Set<String> refused)
+            implements RotatePress.Held<String> {
+
+        /** A furnace's: each turn draws its own plan. */
+        static Held turning(int quarters) {
+            return new Held(QuarterTurn.of(quarters), false, List.of("north", "east", "south", "west"), Set.of());
+        }
+
+        /** A wall torch's: every turn draws the same plan. */
+        static Held hanging() {
+            return new Held(QuarterTurn.NONE, false, List.of("on the wall", "on the wall", "on the wall", "on the wall"),
+                    Set.of());
+        }
+
+        static Held aimingNothing(int quarters) {
+            return new Held(QuarterTurn.of(quarters), false, Arrays.asList(null, null, null, null), Set.of());
+        }
+
+        Held refusing(String... plans) {
+            return new Held(turn, turnsAStart, this.plans, Set.of(plans));
+        }
+
+        Held turningAStart() {
+            return new Held(turn, true, plans, refused);
+        }
+
+        @Override
+        public @Nullable String planWith(QuarterTurn turn) {
+            return plans.get(turn.quarters());
+        }
+
+        @Override
+        public boolean isRefused(String plan) {
+            return refused.contains(plan);
+        }
+    }
+
     private static final StandIn TILE = StandIn.turnable("tile");
 
     private static Outcome<String> pressAimed(StandIn aimed) {
-        return RotatePress.decide(null, false, aimed);
+        return RotatePress.<String, String>decide(null, false, aimed);
     }
 
     @Test
     void rotatableHeldBeatsAimed() {
-        assertEquals(new PlanTurned<String>(QuarterTurn.of(1)), RotatePress.decide(QuarterTurn.NONE, false, TILE));
-        assertEquals(new PlanTurned<String>(QuarterTurn.of(3)), RotatePress.decide(QuarterTurn.NONE, true, TILE));
-        assertEquals(new PlanTurned<String>(QuarterTurn.NONE), RotatePress.decide(QuarterTurn.of(3), false, null));
-        assertEquals(new PlanTurned<String>(QuarterTurn.of(1)), RotatePress.decide(QuarterTurn.of(2), true, null));
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(1)), RotatePress.decide(Held.turning(0), false, TILE));
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(3)), RotatePress.decide(Held.turning(0), true, TILE));
+        assertEquals(new PlanTurned<String>(QuarterTurn.NONE), RotatePress.decide(Held.turning(3), false, null));
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(1)), RotatePress.decide(Held.turning(2), true, null));
+    }
+
+    @Test
+    void nothingDrawnIsRefused() {
+        assertEquals(new Refused<String>(Rotate.NOTHING_DRAWN), RotatePress.decide(Held.aimingNothing(1), false, TILE));
+    }
+
+    @Test
+    void anUnchangedPlanIsRefused() {
+        assertEquals(new Refused<String>(Rotate.UNCHANGED), RotatePress.decide(Held.hanging(), false, TILE));
+        assertEquals(new Refused<String>(Rotate.UNCHANGED), RotatePress.decide(Held.hanging(), true, null));
+    }
+
+    @Test
+    void aRefusedTurnIsPassedOver() {
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(2)),
+                RotatePress.decide(Held.turning(0).refusing("east"), false, null));
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(2)),
+                RotatePress.decide(Held.turning(0).refusing("west"), true, null));
+    }
+
+    @Test
+    void onlyRefusedTurnsAreRefused() {
+        assertEquals(new Refused<String>(Rotate.UNCHANGED),
+                RotatePress.decide(Held.turning(0).refusing("east", "south", "west"), false, null));
+    }
+
+    @Test
+    void aRefusedPlanTurnsToAnyOther() {
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(1)),
+                RotatePress.decide(Held.turning(0).refusing("north", "east", "south", "west"), false, null));
+    }
+
+    @Test
+    void aStartsTurnIsNotChecked() {
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(1)), RotatePress.decide(Held.hanging().turningAStart(), false, null));
+        assertEquals(new PlanTurned<String>(QuarterTurn.of(3)),
+                RotatePress.decide(Held.aimingNothing(0).turningAStart(), true, null));
     }
 
     @Test
     void noAimIsNothing() {
-        assertEquals(new Nothing<String>(), RotatePress.decide(null, false, null));
+        assertEquals(new Nothing<String>(), RotatePress.<String, String>decide(null, false, null));
     }
 
     @Test

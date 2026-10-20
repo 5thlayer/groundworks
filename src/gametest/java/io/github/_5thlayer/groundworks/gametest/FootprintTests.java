@@ -199,7 +199,7 @@ final class FootprintTests {
         List<BlockPos> before = TestFootprint.FOOTPRINT.positions(helper.absolutePos(ORIGIN), PLACED_FACING);
         // An empty hand, since a held rotatable item takes the press for its plan.
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        Rotate.press(player, helper.absolutePos(ORIGIN.above()), false);
+        Rotate.press(player, aimedAt(helper.absolutePos(ORIGIN.above())), false);
         Direction turned = PLACED_FACING.getClockWise();
         expectStanding(helper, turned);
         List<BlockPos> after = TestFootprint.FOOTPRINT.positions(helper.absolutePos(ORIGIN), turned);
@@ -223,7 +223,7 @@ final class FootprintTests {
         helper.getLevel().setBlockAndUpdate(taken, Blocks.STONE.defaultBlockState());
         // An empty hand, since a held rotatable item takes the press for its plan.
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        Rotate.press(player, helper.absolutePos(ORIGIN.above()), false);
+        Rotate.press(player, aimedAt(helper.absolutePos(ORIGIN.above())), false);
         expectStanding(helper, PLACED_FACING);
         if (!helper.getLevel().getBlockState(taken).is(Blocks.STONE) || !player.heard.equals(List.of(Footprint.TURN_BLOCKED))) {
             helper.fail("the refused turn changed the taken block or told " + player.heard);
@@ -324,7 +324,7 @@ final class FootprintTests {
         if (helper.getLevel().getCapability(Capabilities.Energy.BLOCK, at, Direction.UP) != null) {
             helper.fail("an orphan part forwarded an energy lookup", ORIGIN);
         }
-        Rotate.press(player, at, false);
+        Rotate.press(player, aimedAt(at), false);
         if (!helper.getBlockState(ORIGIN).equals(orphan)) {
             helper.fail("Rotate in Place changed the orphan part to " + helper.getBlockState(ORIGIN), ORIGIN);
         }
@@ -404,5 +404,10 @@ final class FootprintTests {
     private static BlockHitResult onTheFloor(GameTestHelper helper) {
         BlockPos floor = helper.absolutePos(ORIGIN.below());
         return new BlockHitResult(Vec3.atCenterOf(floor).relative(Direction.UP, 0.5), Direction.UP, floor, false);
+    }
+
+    /** The top of the block at {@code absolute}, as the crosshair would hit it. */
+    private static BlockHitResult aimedAt(BlockPos absolute) {
+        return new BlockHitResult(Vec3.atCenterOf(absolute).relative(Direction.UP, 0.5), Direction.UP, absolute, false);
     }
 }

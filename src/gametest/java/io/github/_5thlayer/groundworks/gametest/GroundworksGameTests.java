@@ -164,6 +164,7 @@ public final class GroundworksGameTests {
         PlanOptInTests.register(tests);
         RotateTests.register(tests);
         RotateInPlaceTests.register(tests);
+        SideFaceRotateTests.register(tests);
         RaiseTests.register(tests);
         StretchTests.register(tests);
         VanillaStretchTests.register(tests);

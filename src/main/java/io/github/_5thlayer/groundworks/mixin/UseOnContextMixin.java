@@ -13,8 +13,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * A placement's horizontal direction and rotation, turned by the held stack's
+ * A placement's horizontal direction, rotation and clicked face, turned by the held stack's
  * {@linkplain Rotate#turnOf(BlockPlaceContext) turn}. Only a {@link BlockPlaceContext}'s: using an item on a block is not placing it.
+ * The clicked face turns only when it is a side, so a block that faces the face it is placed on
+ * turns with the look (ADR 0012); where the placement goes is worked out from the hit itself, so it
+ * does not move.
  */
 @Mixin(UseOnContext.class)
 public abstract class UseOnContextMixin {
@@ -30,6 +33,13 @@ public abstract class UseOnContextMixin {
     private void groundworks$turnRotation(CallbackInfoReturnable<Float> cir) {
         if ((Object) this instanceof BlockPlaceContext context) {
             cir.setReturnValue(Rotate.turnOf(context).turnYaw(cir.getReturnValue()));
+        }
+    }
+
+    @Inject(method = "getClickedFace", at = @At("RETURN"), cancellable = true)
+    private void groundworks$turnClickedFace(CallbackInfoReturnable<Direction> cir) {
+        if ((Object) this instanceof BlockPlaceContext context) {
+            cir.setReturnValue(Rotate.turnOf(context).turn(cir.getReturnValue()));
         }
     }
 }

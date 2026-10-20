@@ -31,8 +31,8 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Rotate the Plan on vanilla blocks: an opted-in oriented block held and pressed places turned from
  * the look, the plan asked before the click agrees, and the turn goes where the stack goes. Every
- * press goes through {@link Rotate#press}, which is what the key's payload calls; the key itself is
- * checked by hand.
+ * press goes through {@link Rotate#press}, aiming the top of the floor the block is then placed on,
+ * which is what the key's payload calls; the key itself is checked by hand.
  */
 final class RotateTests {
 
@@ -88,8 +88,8 @@ final class RotateTests {
                 Oriented oriented = ORIENTED.get(row);
                 Player player = holding(helper, oriented.block(), look);
                 player.setShiftKeyDown(sneaking);
-                press(player, presses, reverse);
                 BlockPos floor = new BlockPos(1 + 2 * presses, 0, 1 + 3 * row);
+                press(helper, player, floor, presses, reverse);
                 BlockState placed = placeAsPlanned(helper, player, floor);
                 BlockState expected = oriented.placedLooking().apply(turned);
                 if (!placed.equals(expected)) {
@@ -106,8 +106,9 @@ final class RotateTests {
         if (player.getMainHandItem().has(Groundworks.QUARTER_TURN.get())) {
             helper.fail("an unpressed stack carries a turn");
         }
-        Rotate.press(player, null, false);
-        Rotate.press(player, null, true);
+        BlockPos floor = new BlockPos(4, 0, 4);
+        press(helper, player, floor, 1, false);
+        press(helper, player, floor, 1, true);
         if (player.getMainHandItem().has(Groundworks.QUARTER_TURN.get())) {
             helper.fail("a stack turned back to none still carries the turn, so it won't stack with an unturned one");
         }
@@ -117,10 +118,10 @@ final class RotateTests {
     private static void turnGoesWithTheLastItem(GameTestHelper helper) {
         Player player = holding(helper, Blocks.FURNACE, Direction.EAST);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Blocks.FURNACE, 2));
-        Rotate.press(player, null, false);
+        BlockPos first = new BlockPos(2, 0, 2);
+        press(helper, player, first, 1, false);
         BlockState turned = ORIENTED.getFirst().placedLooking().apply(Direction.SOUTH);
 
-        BlockPos first = new BlockPos(2, 0, 2);
         BlockState placed = placeAsPlanned(helper, player, first);
         ItemStack rest = player.getMainHandItem();
         if (!placed.equals(turned) || rest.getCount() != 1 || !Rotate.turnOf(rest).equals(QuarterTurn.of(1))) {
@@ -139,10 +140,10 @@ final class RotateTests {
     /** The Placement Preview draws the main hand only, so a turn the player moved to the other hand is not seen and not placed. */
     private static void offHandUnturned(GameTestHelper helper) {
         Player player = holding(helper, Blocks.FURNACE, Direction.EAST);
-        Rotate.press(player, null, false);
+        BlockPos floor = new BlockPos(4, 0, 4);
+        press(helper, player, floor, 1, false);
         player.setItemInHand(InteractionHand.OFF_HAND, player.getMainHandItem());
         player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        BlockPos floor = new BlockPos(4, 0, 4);
         player.getOffhandItem().useOn(new UseOnContext(player, InteractionHand.OFF_HAND, onTop(helper, floor)));
         BlockState placed = helper.getBlockState(floor.above());
         BlockState unturned = ORIENTED.getFirst().placedLooking().apply(Direction.EAST);
@@ -155,11 +156,11 @@ final class RotateTests {
     /** A press leaves the stack unturned, and the block places as if it had never been pressed. */
     private static void notTurned(GameTestHelper helper, Block block) {
         Player player = holding(helper, block, Direction.EAST);
-        Rotate.press(player, null, false);
+        BlockPos floor = new BlockPos(4, 0, 4);
+        press(helper, player, floor, 1, false);
         if (player.getMainHandItem().has(Groundworks.QUARTER_TURN.get())) {
             helper.fail("Rotate turned a stack of " + name(block));
         }
-        BlockPos floor = new BlockPos(4, 0, 4);
         helper.useBlock(floor, player, onTop(helper, floor));
         BlockState placed = helper.getBlockState(floor.above());
         // Stairs face the way the player looks.
@@ -186,9 +187,12 @@ final class RotateTests {
         return placed;
     }
 
-    private static void press(Player player, int presses, boolean reverse) {
+    /** Presses with the player standing two blocks south of the spot over {@code floor}, aiming the floor's top. */
+    private static void press(GameTestHelper helper, Player player, BlockPos floor, int presses, boolean reverse) {
+        Vec3 feet = Vec3.atBottomCenterOf(helper.absolutePos(floor.above().south(2)));
+        player.setPos(feet.x, feet.y, feet.z);
         for (int press = 0; press < presses; press++) {
-            Rotate.press(player, null, reverse);
+            Rotate.press(player, onTop(helper, floor), reverse);
         }
     }
 

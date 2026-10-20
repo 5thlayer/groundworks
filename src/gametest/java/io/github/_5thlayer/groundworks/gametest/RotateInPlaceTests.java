@@ -29,6 +29,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
@@ -123,7 +125,7 @@ final class RotateInPlaceTests {
         ListeningPlayer player = new ListeningPlayer(helper, AIMED.north(2));
         for (boolean reverse : List.of(false, true)) {
             for (int press = 1; press <= 4; press++) {
-                Rotate.press(player, helper.absolutePos(AIMED), reverse);
+                Rotate.press(player, aimedAt(helper.absolutePos(AIMED)), reverse);
                 BlockState expected = turning.turned().apply(turning.start(), reverse ? -press : press);
                 if (!helper.getBlockState(AIMED).equals(expected)) {
                     helper.fail((reverse ? "Reverse Rotate" : "Rotate") + " press " + press + " left "
@@ -146,7 +148,7 @@ final class RotateInPlaceTests {
         helper.setBlock(AIMED, pumpkin.start());
         ListeningPlayer player = new ListeningPlayer(helper, AIMED.north(2));
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(held, 2));
-        Rotate.press(player, helper.absolutePos(AIMED), false);
+        Rotate.press(player, aimedAt(helper.absolutePos(AIMED)), false);
         if (player.getMainHandItem().has(Groundworks.QUARTER_TURN.get())) {
             helper.fail("a press turned the held " + name(held), AIMED);
         }
@@ -185,7 +187,7 @@ final class RotateInPlaceTests {
         helper.setBlock(AIMED, refusing);
         for (boolean reverse : List.of(false, true)) {
             ListeningPlayer player = new ListeningPlayer(helper, AIMED.north(2));
-            Rotate.press(player, helper.absolutePos(AIMED), reverse);
+            Rotate.press(player, aimedAt(helper.absolutePos(AIMED)), reverse);
             if (!helper.getBlockState(AIMED).equals(refusing)) {
                 helper.fail("a refused turn changed " + refusing + " to " + helper.getBlockState(AIMED), AIMED);
             }
@@ -215,7 +217,7 @@ final class RotateInPlaceTests {
         // Past the reach the press checks, the player's range plus one, whatever range the install gives it.
         int beyond = (int) Math.ceil(player.blockInteractionRange() + 1.0) + 2;
         player.standOn(helper, AIMED.north(beyond));
-        Rotate.press(player, helper.absolutePos(AIMED), false);
+        Rotate.press(player, aimedAt(helper.absolutePos(AIMED)), false);
         if (!helper.getBlockState(AIMED).equals(start)) {
             helper.fail("a press from " + beyond + " blocks away turned " + start + " to " + helper.getBlockState(AIMED), AIMED);
         }
@@ -232,7 +234,7 @@ final class RotateInPlaceTests {
         for (BlockPos pos : aimed) {
             for (boolean reverse : List.of(false, true)) {
                 ListeningPlayer player = new ListeningPlayer(helper, pos.north(2));
-                Rotate.press(player, helper.absolutePos(pos), reverse);
+                Rotate.press(player, aimedAt(helper.absolutePos(pos)), reverse);
                 before.forEach((kept, state) -> {
                     if (!helper.getBlockState(kept).equals(state)) {
                         helper.fail("a press at " + pos + " changed " + state + " to " + helper.getBlockState(kept), kept);
@@ -251,5 +253,10 @@ final class RotateInPlaceTests {
 
     /** A block's state before any press, and its state turned a number of quarters clockwise, negative the other way. */
     private record Turning(BlockState start, BiFunction<BlockState, Integer, BlockState> turned) {
+    }
+
+    /** The top of the block at {@code absolute}, as the crosshair would hit it. */
+    private static BlockHitResult aimedAt(BlockPos absolute) {
+        return new BlockHitResult(Vec3.atCenterOf(absolute).relative(Direction.UP, 0.5), Direction.UP, absolute, false);
     }
 }

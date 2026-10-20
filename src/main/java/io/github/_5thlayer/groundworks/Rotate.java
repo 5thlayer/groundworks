@@ -22,6 +22,8 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.event.EventHooks;
 import org.jspecify.annotations.Nullable;
@@ -30,19 +32,29 @@ import org.jspecify.annotations.Nullable;
  * Rotate and Reverse Rotate (ADR 0003). A press Rotates the Plan of a rotatable held stack: its
  * next placement turns a quarter from the way the player looks, and the turn stays on the stack,
  * as {@link Groundworks#QUARTER_TURN}, until its last item is placed or a {@linkplain Stretches
- * Stretch}'s start uses it up. Otherwise it Rotates in Place the block under the crosshair, if a
- * Consumer has {@linkplain #turnsInPlace stated} it turns it.
+ * Stretch}'s start uses it up. A press the Placement Preview would not show is refused (ADR 0012).
+ * Otherwise it Rotates in Place the block under the crosshair, if a Consumer has {@linkplain
+ * #turnsInPlace stated} it turns it.
  *
  * <p>Nothing implements a contract to Rotate the Plan. The look a placement context reports is
- * turned by the stack's turn, so the plan and the click, which both read that context, turn
- * together, and every block whose placement reads the look turns with no code of its own. A
- * stretch's start, which stores the look rather than reading a context, turns it by the stack's
- * turn itself; with a start stored, a press leaves the stretch alone. In place, a block that
+ * turned by the stack's turn, and so is the face it is made against when that is a side, so the
+ * plan and the click, which both read that context, turn together, and every block whose placement
+ * reads the look or the face turns with no code of its own. A stretch's start, which stores the
+ * look rather than reading a context, turns it by the stack's turn itself; with a start stored, a
+ * press leaves the stretch alone. In place, a block that
  * {@linkplain TurnsInPlace answers for itself} does, and any other takes vanilla's turn.
  */
 public final class Rotate {
 
+    /** A press refused because nothing is aimed, or nothing drawn where it is, so no turn would be seen. */
+    public static final String NOTHING_DRAWN = "message.groundworks.rotate_nothing_drawn";
+    /** A press refused because no turn would change what is drawn, or none it would change it to could be placed. */
+    public static final String UNCHANGED = "message.groundworks.rotate_unchanged";
+
     private static final List<Predicate<? super Block>> TURNED_IN_PLACE = new CopyOnWriteArrayList<>();
+
+    /** How far from its block's centre a hit may land, along each axis: vanilla's bound on a click's. */
+    private static final double HIT_FROM_CENTRE = 1.0000001;
 
     private Rotate() {
     }
@@ -120,19 +132,22 @@ public final class Rotate {
 
     /**
      * A press of Rotate, or of Reverse Rotate, decided on the server by {@link RotatePress}'s rule.
-     * It turns the main hand's stack if that is rotatable, and otherwise the aimed block, the block
-     * under the crosshair if any. A refusal is told on the action bar.
+     * It turns the main hand's stack if that is rotatable, to the next turn the Placement Preview at
+     * the aim would show, and otherwise the aimed block, the block under the crosshair if any. A
+     * refusal is told on the action bar.
      *
-     * <p>An aimed block the player could not reach is no aimed block. That is checked from the
-     * payload's position alone, before anything reads the block, since a modified client may aim
-     * anywhere and reading an unloaded block would load its chunk.
+     * <p>A hit the player could not reach is no hit. That is checked from the payload's hit alone,
+     * before anything reads the block, since a modified client may aim anywhere and reading an
+     * unloaded block would load its chunk.
      */
-    public static void press(Player player, @Nullable BlockPos aimed, boolean reverse) {
+    public static void press(Player player, @Nullable BlockHitResult hit, boolean reverse) {
+        BlockHitResult reached = hit == null || !mayReach(player, hit) ? null : hit;
         ItemStack held = player.getMainHandItem();
-        switch (RotatePress.decide(isRotatable(player, held) ? turnOf(held) : null, reverse,
-                aimed == null || !mayReach(player, aimed) ? null : new AimedInWorld(player, aimed, reverse))) {
+        switch (RotatePress.decide(isRotatable(player, held) ? new HeldInWorld(player, held, reached) : null, reverse,
+                reached == null ? null : new AimedInWorld(player, reached.getBlockPos(), reverse))) {
             case RotatePress.PlanTurned<BlockState>(QuarterTurn turn) -> setTurn(held, turn);
-            case RotatePress.TurnedInPlace<BlockState>(BlockState turned) -> turnInPlace(player.level(), aimed, turned);
+            case RotatePress.TurnedInPlace<BlockState>(BlockState turned) ->
+                    turnInPlace(player.level(), reached.getBlockPos(), turned);
             case RotatePress.Refused<BlockState>(String reason) ->
                     player.sendOverlayMessage(Component.translatable(reason));
             case RotatePress.Nothing<BlockState>() -> {
@@ -151,9 +166,14 @@ public final class Rotate {
         }
     }
 
-    private static boolean mayReach(Player player, BlockPos pos) {
+    /** Within reach, as a click's is, and landing on the block it names, as vanilla asks of a click's hit. */
+    private static boolean mayReach(Player player, BlockHitResult hit) {
         Level level = player.level();
-        return player.mayBuild() && level.isLoaded(pos) && player.isWithinBlockInteractionRange(pos, 1.0)
+        BlockPos pos = hit.getBlockPos();
+        Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
+        return Math.abs(offset.x) < HIT_FROM_CENTRE && Math.abs(offset.y) < HIT_FROM_CENTRE
+                && Math.abs(offset.z) < HIT_FROM_CENTRE
+                && player.mayBuild() && level.isLoaded(pos) && player.isWithinBlockInteractionRange(pos, 1.0)
                 && level.mayInteract(player, pos);
     }
 
@@ -163,6 +183,41 @@ public final class Rotate {
             stack.remove(Groundworks.QUARTER_TURN.get());
         } else {
             stack.set(Groundworks.QUARTER_TURN.get(), turned);
+        }
+    }
+
+    /**
+     * The rotatable main-hand stack in the world, as the press rule asks of it: its plan at the
+     * reached hit, asked of a copy turned each way, so the stack itself is turned only once decided.
+     */
+    private record HeldInWorld(Player player, ItemStack stack, @Nullable BlockHitResult hit)
+            implements RotatePress.Held<PlacementPlan> {
+
+        @Override
+        public QuarterTurn turn() {
+            return turnOf(stack);
+        }
+
+        @Override
+        public boolean turnsAStart() {
+            Level level = player.level();
+            return Stretches.storedOn(level, stack) != null
+                    || hit != null && Stretches.startAt(level, player, stack, hit) != null;
+        }
+
+        @Override
+        public @Nullable PlacementPlan planWith(QuarterTurn turn) {
+            if (hit == null) {
+                return null;
+            }
+            ItemStack turned = stack.copy();
+            setTurn(turned, turn);
+            return Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, turned, hit);
+        }
+
+        @Override
+        public boolean isRefused(PlacementPlan plan) {
+            return plan.isRefused();
         }
     }
 

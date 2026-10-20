@@ -543,7 +543,7 @@ final class FastReplaceTests {
         helper.setBlock(AIMED, Blocks.PINK_GLAZED_TERRACOTTA.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST));
         expectFacing(helper, AIMED, Blocks.PINK_GLAZED_TERRACOTTA, Direction.EAST);
         ListeningPlayer player = holding(helper, new ItemStack(Items.LIME_GLAZED_TERRACOTTA, 2));
-        Rotate.press(player, null, false);
+        Rotate.press(player, onTop(helper, AIMED), false);
         // A fresh lime on empty ground, with the same turn, faces the same way: the cross-check.
         BlockPos ground = new BlockPos(4, 0, 2);
         PlacementPlan fresh = Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, player.getMainHandItem(),
