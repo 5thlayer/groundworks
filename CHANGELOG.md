@@ -7,6 +7,7 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Players
 
 - An **Assembly** where you may not build, in adventure mode or on protected ground, now tells you so whatever else refuses it, as a Stretch and a Fast Replace do, where before a taken position, a Key that wouldn't stand or the blocks it lacks were told first.
+- A torch, a sign, a hanging sign, a banner, a head or skull, or a coral fan aimed at the side of a block is now previewed as the wall one vanilla places there, where before the preview drew a standing or ceiling one. The preview now asks each item for the state it places, as vanilla's own placing does, so a block a pack opts in whose item chooses its own state, such as a command block for a player who may not use it, is drawn as vanilla places it too.
 
 ### Consumers
 

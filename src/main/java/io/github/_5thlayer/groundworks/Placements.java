@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
-import io.github._5thlayer.groundworks.mixin.BlockItemInvoker;
 import io.github._5thlayer.groundworks.mixin.UseOnContextInvoker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
@@ -20,7 +19,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -122,13 +120,9 @@ public final class Placements {
     /**
      * The plan a plain {@link BlockItem} would carry out, asked of vanilla rather than restated.
      *
-     * <p>This follows {@code BlockItem#place}'s decision chain -- the context's {@code canPlace},
-     * then {@code updatePlacementContext}, then {@code getStateForPlacement}, then survival and
-     * obstruction -- because the whole value of deferring is that facing, replaceable blocks and
-     * state survival come out right without the library having an opinion. The last step is
-     * {@code BlockItem#canPlace}, which is protected, so it is restated: survival is asked only
-     * where the item's {@code mustSurvive}, reached through an invoker, says its block must
-     * survive, as scaffolding's needn't, and obstruction always.
+     * <p>It is {@linkplain VanillaPlacement vanilla's own placement}, asked of the world as it
+     * stands, because the whole value of deferring is that facing, replaceable blocks and state
+     * survival come out right without the library having an opinion.
      *
      * <p>Where vanilla would refuse before there is even a position -- an unplaceable context, a
      * null state -- there is no plan, so nothing is drawn. Where it refuses <em>at</em> a position,
@@ -138,31 +132,22 @@ public final class Placements {
      */
     @Nullable
     public static PlacementPlan vanillaPlan(BlockItem item, BlockPlaceContext context) {
-        if (!item.getBlock().isEnabled(context.getLevel().enabledFeatures())) {
-            return null;
-        }
-        if (!context.canPlace()) {
-            if (Raise.heightOf(context).equals(Height.NONE)) {
-                return null;
+        VanillaPlacement placement = VanillaPlacement.of(item, context);
+        return switch (placement.outcome()) {
+            case DISABLED, NO_CONTEXT, NO_STATE -> null;
+            case CANNOT_PLACE -> {
+                if (Raise.heightOf(context).equals(Height.NONE)) {
+                    yield null;
+                }
+                // The spot may be why a block has no state for it, and the refusal is still drawn there.
+                BlockState state = item.getBlock().getStateForPlacement(context);
+                yield PlacementPlan.refused(context.getClickedPos(),
+                        state != null ? state : item.getBlock().defaultBlockState(), Refusal.Vanilla.VANILLA);
             }
-            // The spot may be why a block has no state for it, and the refusal is still drawn there.
-            BlockState state = item.getBlock().getStateForPlacement(context);
-            return PlacementPlan.refused(context.getClickedPos(),
-                    state != null ? state : item.getBlock().defaultBlockState(), Refusal.Vanilla.VANILLA);
-        }
-        BlockPlaceContext updated = item.updatePlacementContext(context);
-        if (updated == null) {
-            return null;
-        }
-        BlockState state = item.getBlock().getStateForPlacement(updated);
-        if (state == null) {
-            return null;
-        }
-        BlockPos pos = updated.getClickedPos();
-        if (!canPlace(item, state, updated, pos)) {
-            return PlacementPlan.refused(pos, state, Refusal.Vanilla.VANILLA);
-        }
-        return PlacementPlan.accepted(pos, state);
+            case WOULD_NOT_SURVIVE, REFUSED -> PlacementPlan.refused(placement.context().getClickedPos(),
+                    placement.state(), Refusal.Vanilla.VANILLA);
+            case PLACES -> PlacementPlan.accepted(placement.context().getClickedPos(), placement.state());
+        };
     }
 
     /**
@@ -185,15 +170,5 @@ public final class Placements {
      */
     public static boolean isReplacing(BlockPlaceContext context) {
         return context instanceof ReplacingContext;
-    }
-
-    /**
-     * {@code BlockItem#canPlace}, restated since it is protected: vanilla's own two conditions for
-     * "this state may stand here": it survives, where the item says it must, and nothing is in its way.
-     */
-    private static boolean canPlace(BlockItem item, BlockState state, BlockPlaceContext context, BlockPos pos) {
-        Level level = context.getLevel();
-        return (!((BlockItemInvoker) item).groundworks$mustSurvive() || state.canSurvive(level, pos))
-                && level.isUnobstructed(state, pos, CollisionContext.placementContext(context.getPlayer()));
     }
 }

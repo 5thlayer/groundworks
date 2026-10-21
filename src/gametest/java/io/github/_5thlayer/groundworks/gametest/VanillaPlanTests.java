@@ -39,7 +39,7 @@ final class VanillaPlanTests {
     }
 
     static void register(GroundworksGameTests.Registrar tests) {
-        tests.optIn(Blocks.POPPY, Blocks.SCAFFOLDING);
+        tests.optIn(Blocks.POPPY, Blocks.SCAFFOLDING, Blocks.OAK_SIGN);
         for (Direction look : Direction.Plane.HORIZONTAL) {
             String looking = look.getSerializedName();
             tests.test("a_furnace_looking_" + looking + "_is_placed_as_planned", 20,
@@ -51,6 +51,8 @@ final class VanillaPlanTests {
         tests.test("a_poppy_on_stone_is_planned_refused_and_not_placed", 20, VanillaPlanTests::refusedAndNotPlaced);
         // Scaffolding's item needn't survive: vanilla places it past a bridge's reach, and it falls.
         tests.test("scaffolding_past_its_reach_is_placed_as_planned", 20, VanillaPlanTests::scaffoldingPastItsReach);
+        // A sign's item chooses the wall sign where the sign would hang on the face it is placed against.
+        tests.test("a_sign_against_a_wall_is_planned_and_placed_on_the_wall", 20, VanillaPlanTests::signOnAWall);
     }
 
     private static void placedAsPlanned(GameTestHelper helper, Block block, Direction look) {
@@ -132,6 +134,34 @@ final class VanillaPlanTests {
         var placed = helper.getLevel().getBlockState(planned.pos());
         if (!placed.equals(planned.state())) {
             helper.fail("the plan was " + planned.state() + ", the click placed " + placed, beyond);
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A sign clicked on the east side of a stone block, the player looking west, is planned as the
+     * wall sign hanging on it, the state its item places, and placed as planned.
+     */
+    private static void signOnAWall(GameTestHelper helper) {
+        BlockPos wall = FLOOR.above();
+        helper.setBlock(wall, Blocks.STONE);
+        Player player = holding(helper, Blocks.OAK_SIGN, Direction.WEST);
+        var absolute = helper.absolutePos(wall);
+        BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absolute).relative(Direction.EAST, 0.5), Direction.EAST,
+                absolute, false);
+        PlacementPlan plan = planFor(player, hit);
+        BlockPos beside = wall.east();
+        var expected = Blocks.OAK_WALL_SIGN.defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING,
+                Direction.EAST);
+        if (plan == null || plan.isRefused()
+                || !plan.blocks().equals(List.of(new PlacementPlan.Placed(helper.absolutePos(beside), expected)))) {
+            throw helper.assertionException(beside, "the library plans " + plan + ", not the wall sign on the stone");
+        }
+
+        helper.useBlock(wall, player, hit);
+        var placed = helper.getLevel().getBlockState(helper.absolutePos(beside));
+        if (!placed.equals(expected)) {
+            helper.fail("the plan was " + expected + ", the click placed " + placed, beside);
         }
         helper.succeed();
     }

@@ -16,7 +16,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
 import com.mojang.logging.LogUtils;
-import io.github._5thlayer.groundworks.mixin.BlockItemInvoker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -379,25 +378,17 @@ public final class Assemblies {
      */
     private static KeyPlacing keyPlacing(BlockItem item, BlockPlaceContext context) {
         BlockState drawn = item.getBlock().defaultBlockState();
-        if (!item.getBlock().isEnabled(context.getLevel().enabledFeatures()) || !context.canPlace()) {
-            return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
-        }
-        BlockPlaceContext updated = item.updatePlacementContext(context);
+        VanillaPlacement placement = VanillaPlacement.of(item, context);
         // A Key that would move, as scaffolding moves up a tower of itself, has no place in the shape.
-        if (updated == null || !updated.getClickedPos().equals(context.getClickedPos())) {
+        if (placement.context() != null && !placement.context().getClickedPos().equals(context.getClickedPos())) {
             return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
         }
-        BlockState placing = ((BlockItemInvoker) item).groundworks$placementState(updated);
-        if (placing != null) {
-            return new KeyPlacing(placing, null);
-        }
-        BlockState wanted = item.getBlock().getStateForPlacement(updated);
-        if (wanted == null) {
-            return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
-        }
-        boolean stands = !((BlockItemInvoker) item).groundworks$mustSurvive()
-                || wanted.canSurvive(updated.getLevel(), updated.getClickedPos());
-        return new KeyPlacing(wanted, stands ? Refusal.Assembly.TAKEN : Refusal.Assembly.KEY_WOULD_NOT_STAND);
+        return switch (placement.outcome()) {
+            case PLACES -> new KeyPlacing(placement.state(), null);
+            case WOULD_NOT_SURVIVE -> new KeyPlacing(placement.state(), Refusal.Assembly.KEY_WOULD_NOT_STAND);
+            case REFUSED -> new KeyPlacing(placement.state(), Refusal.Assembly.TAKEN);
+            case DISABLED, CANNOT_PLACE, NO_CONTEXT, NO_STATE -> new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
+        };
     }
 
     /**
