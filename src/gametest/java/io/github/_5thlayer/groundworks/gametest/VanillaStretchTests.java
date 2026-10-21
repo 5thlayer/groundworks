@@ -68,6 +68,8 @@ final class VanillaStretchTests {
                 VanillaStretchTests::ladderColumnWithAGap);
         tests.test("chains_stretched_as_a_column_stand_upright_past_the_players_reach", 20,
                 VanillaStretchTests::chainColumn);
+        tests.test("a_column_over_a_claimed_position_is_refused_whole_on_the_click", 20,
+                VanillaStretchTests::claimedColumn);
         tests.test("a_stone_block_does_not_stretch", 20, helper -> {
             if (Stretches.builderOf(Blocks.STONE.asItem()) != null) {
                 helper.fail("stone stretches, though the shipped tag doesn't hold it");
@@ -185,6 +187,35 @@ final class VanillaStretchTests {
             }
         }
         expectHeld(helper, player, 12);
+        helper.succeed();
+    }
+
+    /**
+     * A claim mod cancels the place event at one position up the Column. The preview fires no event,
+     * so it draws the Column accepted; the click asks each position and lays nothing.
+     */
+    private static void claimedColumn(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.IRON_CHAIN, 16);
+        start(helper, player);
+        press(player, 3);
+        BlockPos claimed = helper.absolutePos(new BlockPos(1, 3, 2));
+        RotateInPlaceTests.CLAIMED.add(claimed);
+        try {
+            PlacementPlan plan = plan(helper, player, START);
+            if (plan == null || plan.isRefused()) {
+                helper.fail("the plan was " + plan + ", not drawn accepted");
+            }
+            click(helper, player, START, false);
+        } finally {
+            RotateInPlaceTests.CLAIMED.remove(claimed);
+        }
+        for (int y = 1; y <= 4; y++) {
+            helper.assertBlockNotPresent(Blocks.IRON_CHAIN, new BlockPos(1, y, 2));
+        }
+        expectHeld(helper, player, 16);
+        if (!player.heard.getLast().equals("message.groundworks.stretch_may_not_build")) {
+            helper.fail("the player was told " + player.heard);
+        }
         helper.succeed();
     }
 
