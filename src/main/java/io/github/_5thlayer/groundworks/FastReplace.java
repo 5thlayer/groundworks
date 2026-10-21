@@ -8,7 +8,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -389,11 +388,7 @@ public final class FastReplace {
                 ItemStack placedWith = held.copyWithCount(1);
                 replacing.charge().lay(level, player, plan);
                 for (PlacementPlan.Placed placed : plan.blocks()) {
-                    BlockState state = level.getBlockState(placed.pos());
-                    state.getBlock().setPlacedBy(level, placed.pos(), state, player, placedWith);
-                    if (player instanceof ServerPlayer server) {
-                        CriteriaTriggers.PLACED_BLOCK.trigger(server, placed.pos(), placedWith);
-                    }
+                    Charge.tellPlaced(level, player, placed.pos(), placedWith);
                 }
             }
         }

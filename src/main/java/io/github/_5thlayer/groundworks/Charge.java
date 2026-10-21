@@ -10,7 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -19,6 +21,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.gameevent.GameEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -120,6 +126,24 @@ record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {
         boolean freed = HandBack.take(player, InteractionHand.MAIN_HAND, cost);
         put(level, player, plan.blocks());
         HandBack.give(player, InteractionHand.MAIN_HAND, freed, returned);
+    }
+
+    /**
+     * Tells the block standing at {@code pos} that the player placed it with {@code with}, and
+     * triggers the placed-block advancement, as vanilla's own placing does once a block is down.
+     * The upper half of a door or a tall plant, or a bed's head, is not told: vanilla tells only
+     * the half it placed, which sets the other one again.
+     */
+    static void tellPlaced(Level level, Player player, BlockPos pos, ItemStack with) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getOptionalValue(BlockStateProperties.DOUBLE_BLOCK_HALF).orElse(null) == DoubleBlockHalf.UPPER
+                || state.getOptionalValue(BlockStateProperties.BED_PART).orElse(null) == BedPart.HEAD) {
+            return;
+        }
+        state.getBlock().setPlacedBy(level, pos, state, player, with);
+        if (player instanceof ServerPlayer server) {
+            CriteriaTriggers.PLACED_BLOCK.trigger(server, pos, with);
+        }
     }
 
     /**

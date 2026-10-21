@@ -7,10 +7,12 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Players
 
 - A **Stretch** is refused whole, laying and charging nothing, when a claim mod guarding the place event protects any position it lays, as a Fast Replace and a footprint already were. The preview asks no claim mod, so it draws such a stretch accepted and the click refuses it.
+- Each block a **Stretch** lays, and each block an **Assembly** lays besides its Key, now counts as placed by you, for the placed-block advancement among others, as a block placed by hand or by a Fast Replace does.
 
 ### Consumers
 
 - `Refusal.Stretch.MAY_NOT_BUILD` also refuses a stretch where a protection mod cancels the place event, which Groundworks fires on the click for each position of a stretch that would otherwise go through, and never in the plan the preview asks.
+- A Consumer's block that a Stretch lays, or that an Assembly lays before its Key, now gets `Block.setPlacedBy` with the placing player and the item it was laid from, as one a Fast Replace lays already did: a Stretch's once all its blocks are down, an Assembly's once its Key stands, and only where the block still stands. The upper half of a door or a tall plant, and a bed's head, is not told, as vanilla tells only the half it placed; this holds for a Fast Replace too.
 
 ## 0.6.0
 

@@ -437,9 +437,11 @@ public final class Stretches {
         };
     }
 
-    // The state is reset before the charge, which may take the held stack's last item.
+    // The state is reset before the charge, which may take the held stack's last item, and each
+    // block laid is told it was placed with a copy of the stack as it stood before the charge.
     private static void lay(Laying laying, Level level, ItemStack held, Player player, StretchState reset) {
         store(held, reset);
+        ItemStack placedWith = held.copyWithCount(1);
         // A plant breaking with a replaced block touches it: standing on it, or hanging on it, as cocoa does.
         Set<BlockPos> touching = new HashSet<>();
         Set<BlockPos> above = new HashSet<>();
@@ -453,6 +455,9 @@ public final class Stretches {
         silenced = new Silenced(level, touching);
         try {
             laying.charge().lay(level, player, laying.plan());
+            for (PlacementPlan.Placed placed : laying.plan().blocks()) {
+                Charge.tellPlaced(level, player, placed.pos(), placedWith);
+            }
         } finally {
             silenced = previous;
         }

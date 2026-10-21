@@ -92,7 +92,13 @@ public final class GroundworksGameTests {
     static final DeferredBlock<RefusesToTurnBlock> REFUSES_TO_TURN =
             BLOCKS.registerBlock("gametest_refuses_to_turn", RefusesToTurnBlock::new);
 
+    /** The tests' block that notes it was told it was placed, which a Stretch and an Assembly lay. */
+    static final DeferredBlock<TellsPlacedBlock> TELLS_PLACED =
+            BLOCKS.registerBlock("gametest_tells_placed", TellsPlacedBlock::new);
+
     private static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(Groundworks.MOD_ID);
+
+    static final DeferredItem<BlockItem> TELLS_PLACED_ITEM = ITEMS.registerSimpleBlockItem(TELLS_PLACED);
 
     /**
      * The tests' stretch-able item: magenta glazed terracotta, placed one at a time as any block

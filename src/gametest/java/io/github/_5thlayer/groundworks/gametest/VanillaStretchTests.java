@@ -17,6 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -68,6 +69,8 @@ final class VanillaStretchTests {
                 VanillaStretchTests::ladderColumnWithAGap);
         tests.test("chains_stretched_as_a_column_stand_upright_past_the_players_reach", 20,
                 VanillaStretchTests::chainColumn);
+        tests.test("a_stretch_tells_each_block_it_lays_it_was_placed_with_the_held_item", 20,
+                VanillaStretchTests::tellsEachBlockPlaced);
         tests.test("a_column_over_a_claimed_position_is_refused_whole_on_the_click", 20,
                 VanillaStretchTests::claimedColumn);
         tests.test("a_stone_block_does_not_stretch", 20, helper -> {
@@ -187,6 +190,22 @@ final class VanillaStretchTests {
             }
         }
         expectHeld(helper, player, 12);
+        helper.succeed();
+    }
+
+    /** Every block a stretch lays is told it was placed by the player, with the held item, as vanilla tells one. */
+    private static void tellsEachBlockPlaced(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, GroundworksGameTests.TELLS_PLACED.get(), 16);
+        start(helper, player);
+        click(helper, player, new BlockPos(5, 0, 2), false);
+        for (int x = 1; x <= 5; x++) {
+            BlockPos pos = new BlockPos(x, 1, 2);
+            helper.assertBlockPresent(GroundworksGameTests.TELLS_PLACED.get(), pos);
+            Item told = TellsPlacedBlock.TOLD.remove(helper.absolutePos(pos));
+            if (told != GroundworksGameTests.TELLS_PLACED_ITEM.get()) {
+                helper.fail("the block laid was told it was placed with " + told, pos);
+            }
+        }
         helper.succeed();
     }
 

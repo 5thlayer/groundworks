@@ -10,6 +10,7 @@
     "minecraft:loom",
     "minecraft:torch",
     "minecraft:note_block",
-    "minecraft:hopper"
+    "minecraft:hopper",
+    "minecraft:barrel"
   ]
 }

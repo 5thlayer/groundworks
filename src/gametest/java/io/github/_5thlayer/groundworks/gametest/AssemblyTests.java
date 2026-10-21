@@ -49,7 +49,8 @@ import org.jspecify.annotations.Nullable;
  * placement wants the door's upper half. Its sconce is a torch over nothing with stone forward of
  * it, on cobblestone; its golem trap is a note block with cobblestone to the player's left and an
  * iron golem's body and pumpkin to its right, the golem's leg beside it and the position beside
- * the leg's far side kept empty.
+ * the leg's far side kept empty. Its barrel stands on the tests' block that notes it was told it
+ * was placed.
  *
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
@@ -95,6 +96,8 @@ final class AssemblyTests {
                 AssemblyTests::refusedWhenTaken);
         withPack.test("an_assembly_goes_over_water_and_grass", 20, AssemblyTests::overWaterAndGrass);
         withPack.test("an_assembly_keeps_a_block_of_its_own_standing_uncharged", 20, AssemblyTests::keepsItsOwnBlock);
+        withPack.test("an_assembly_tells_each_block_laid_before_its_key_it_was_placed_with_its_own_item", 20,
+                AssemblyTests::tellsEachBlockPlaced);
         withPack.test("sneak_placing_a_key_places_it_alone", 20, AssemblyTests::sneakPlacesTheKeyAlone);
         withPack.test("a_key_outside_the_tag_places_as_vanilla", 20, AssemblyTests::untaggedKeyPlacesAsVanilla);
         withPack.test("a_key_stated_only_in_code_places_its_assembly", 20, AssemblyTests::keyStatedInCode);
@@ -157,6 +160,19 @@ final class AssemblyTests {
         }
         click(helper, player);
         expectTower(helper);
+        helper.succeed();
+    }
+
+    /** A block laid before the Key is told it was placed by the player, with its own item, as vanilla tells one. */
+    private static void tellsEachBlockPlaced(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.BARREL, 1);
+        stock(player, MAIN_SLOT, GroundworksGameTests.TELLS_PLACED_ITEM.get(), 1);
+        click(helper, player);
+        expectStanding(helper, Map.of(SPOT, GroundworksGameTests.TELLS_PLACED.get(), KEY, Blocks.BARREL));
+        Item told = TellsPlacedBlock.TOLD.remove(helper.absolutePos(SPOT));
+        if (told != GroundworksGameTests.TELLS_PLACED_ITEM.get()) {
+            helper.fail("the block laid was told it was placed with " + told, SPOT);
+        }
         helper.succeed();
     }
 

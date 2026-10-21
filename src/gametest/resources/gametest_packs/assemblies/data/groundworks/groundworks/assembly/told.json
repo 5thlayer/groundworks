@@ -1,0 +1,11 @@
+{
+  "key": "K",
+  "legend": {
+    "K": "minecraft:barrel",
+    "t": "groundworks:gametest_tells_placed"
+  },
+  "layers": [
+    ["t"],
+    ["K"]
+  ]
+}

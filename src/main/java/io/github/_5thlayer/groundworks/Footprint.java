@@ -10,12 +10,10 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
-import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -262,10 +260,7 @@ public final class Footprint {
             entity.applyComponentsFromItemStack(held);
             entity.setChanged();
         }
-        placed.getBlock().setPlacedBy(level, at, placed, player, held);
-        if (player instanceof ServerPlayer server) {
-            CriteriaTriggers.PLACED_BLOCK.trigger(server, at, held);
-        }
+        Charge.tellPlaced(level, player, at, held);
         SoundType sound = placed.getSoundType(level, at, player);
         level.playSound(player, at, sound.getPlaceSound(), SoundSource.BLOCKS,
                 (sound.getVolume() + 1.0F) / 2.0F, sound.getPitch() * 0.8F);

@@ -559,6 +559,13 @@ public final class Assemblies {
         ItemStack key = held.copyWithCount(1);
         BlockPlaceContext context = new BlockPlaceContext(level, player, hand, key, hit);
         if (item.place(BlockPlaceContext.at(context, laying.key(), hit.getDirection())).consumesAction()) {
+            // Vanilla told the Key; each block laid before it that still stands, not one a golem
+            // took, is told now, with its own item, so a Key it refused tells none.
+            for (PlacementPlan.Placed placed : laying.others()) {
+                if (level.getBlockState(placed.pos()).is(placed.state().getBlock())) {
+                    Charge.tellPlaced(level, player, placed.pos(), new ItemStack(placed.state().getBlock()));
+                }
+            }
             Map<Item, Integer> cost = new LinkedHashMap<>(laying.cost());
             cost.merge(item, 1, Integer::sum);
             Charge.of(player, cost, List.of()).pay(player);
