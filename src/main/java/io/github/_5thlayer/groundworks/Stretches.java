@@ -356,20 +356,26 @@ public final class Stretches {
     }
 
     /**
+     * Whether a click on a block with this stack is the Stretch's: with the main hand, a stack that
+     * stretches, and a sneak, storing a start or an anchor, or a stretch being drawn.
+     */
+    static boolean takesClick(Level level, @Nullable Player player, InteractionHand hand, ItemStack stack) {
+        return hand == InteractionHand.MAIN_HAND && builderOf(stack.getItem()) != null
+                && Click.of(player != null && player.isShiftKeyDown(), storedOn(level, stack) != null) != Click.PASS;
+    }
+
+    /**
      * A click on a block with the main hand, or PASS where the Stretch has nothing to say and the
      * click goes on as it would. The main hand only, since that is the hand the preview draws.
      */
     static InteractionResult useOn(Player player, InteractionHand hand, BlockHitResult hit) {
         ItemStack held = player.getItemInHand(hand);
-        if (hand != InteractionHand.MAIN_HAND || builderOf(held.getItem()) == null) {
+        Level level = player.level();
+        if (!takesClick(level, player, hand, held)) {
             return InteractionResult.PASS;
         }
-        Level level = player.level();
         StretchState state = stateOf(level, player, held);
         Click click = Click.of(player.isShiftKeyDown(), state.stored() != null);
-        if (click == Click.PASS) {
-            return InteractionResult.PASS;
-        }
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }

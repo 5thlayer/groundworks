@@ -8,6 +8,7 @@ import java.util.List;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -73,15 +74,14 @@ public final class Groundworks {
         // An event rather than an item's own use: the tools that dismantle, the items that
         // stretch, and the blocks that replace, are no one's in particular.
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, PlayerInteractEvent.RightClickBlock.class, event -> {
-            InteractionResult result = Dismantles.useOn(event.getEntity(), event.getHand(), event.getPos());
+            Player player = event.getEntity();
+            InteractionResult result = Dismantles.useOn(player, event.getHand(), event.getPos());
             if (result == InteractionResult.PASS) {
-                result = Stretches.useOn(event.getEntity(), event.getHand(), event.getHitVec());
-            }
-            if (result == InteractionResult.PASS) {
-                result = Assemblies.useOn(event.getEntity(), event.getHand(), event.getHitVec());
-            }
-            if (result == InteractionResult.PASS) {
-                result = FastReplace.useOn(event.getEntity(), event.getHand(), event.getHitVec());
+                Feature.Claim claim = Feature.claimOf(player.level(), player, event.getHand(),
+                        player.getItemInHand(event.getHand()), event.getHitVec());
+                if (claim != null) {
+                    result = claim.feature().useOn(player, event.getHand(), event.getHitVec());
+                }
             }
             if (result != InteractionResult.PASS) {
                 event.setCanceled(true);

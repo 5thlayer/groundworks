@@ -84,32 +84,19 @@ public final class Placements {
      * <p>Safe on either side, and it reads the world without touching it: the client asks it every
      * frame (behind the preview's cache) and the server asks it on the click.
      *
-     * <p>While a {@linkplain Stretches Stretch} is being drawn with the main hand's stack, it is the
-     * stretch that a click would lay. A sneak-click that would store a stretch's start places
-     * nothing, so it has no plan. Otherwise a held {@linkplain Assemblies Key} draws its Assembly,
-     * and a plain click on a block of the held block's Replace group is a {@linkplain FastReplace
-     * Fast Replace}, each drawn whether or not the item is.
+     * <p>It is the plan of the {@linkplain Feature feature} that takes the click, in the one order the click
+     * walks as well: a {@linkplain Stretches Stretch} being drawn with the main hand's stack, a held
+     * {@linkplain Assemblies Key}'s Assembly, or a {@linkplain FastReplace Fast Replace}, each drawn
+     * whether or not the item is. A sneak-click that would store a stretch's start places nothing,
+     * so it has no plan.
      */
     @Nullable
     public static PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand,
                                         ItemStack stack, BlockHitResult hit) {
         Item item = stack.getItem();
-        if (hand == InteractionHand.MAIN_HAND) {
-            if (player != null && Stretches.startAt(level, player, stack, hit) != null) {
-                return null;
-            }
-            PlacementPlan stretch = Stretches.planFor(level, player, stack, hit);
-            if (stretch != null) {
-                return stretch;
-            }
-            PlacementPlan assembly = Assemblies.planFor(level, player, stack, hit);
-            if (assembly != null) {
-                return assembly;
-            }
-        }
-        PlacementPlan replace = FastReplace.planFor(level, player, hand, stack, hit);
-        if (replace != null) {
-            return replace;
+        Feature.Claim claim = Feature.claimOf(level, player, hand, stack, hit);
+        if (claim != null) {
+            return claim.plan();
         }
         if (!isDrawn(item)) {
             return null;
