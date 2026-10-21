@@ -49,7 +49,8 @@ public interface Refusal {
         NO_ROOM_TO_RETURN,
         /**
          * The player may not build at some position the stretch lays: they may not build at all, as
-         * in adventure mode, or the position is outside the world or protected, as spawn is.
+         * in adventure mode, or the position is outside the world, protected as spawn is, or
+         * guarded by a protection mod through the place event, which only the click asks.
          */
         MAY_NOT_BUILD,
         /** A sneak-click while a Column is drawn: a Column has no anchors between its ends (ADR 0006). */

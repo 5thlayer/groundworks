@@ -38,6 +38,8 @@ import net.minecraft.world.ticks.BlackholeTickAccess;
 import net.minecraft.world.ticks.LevelTickAccess;
 import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
+import net.neoforged.neoforge.common.util.BlockSnapshot;
+import net.neoforged.neoforge.event.EventHooks;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -305,6 +307,27 @@ public final class Stretches {
     }
 
     /**
+     * The laying, refused whole as may-not-build when a protection mod cancels the place event at
+     * any position it lays. The claim guard Rotate and Fast Replace use: NeoForge's event, fired once
+     * for each position before anything is laid, on the click alone, since the preview asks the plan
+     * every frame. It is asked only of a stretch that would go through, so no event is heard for a
+     * block that never goes down.
+     */
+    private static Laying guarded(Level level, Player player, Laying laying) {
+        PlacementPlan plan = laying.plan();
+        if (plan.isRefused()) {
+            return laying;
+        }
+        for (PlacementPlan.Placed placed : plan.blocks()) {
+            if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, placed.pos()), Direction.UP)) {
+                return new Laying(new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(),
+                        Refusal.Stretch.MAY_NOT_BUILD), laying.charge());
+            }
+        }
+        return laying;
+    }
+
+    /**
      * Where a placement at this hit would go with no height: the aimed block if it is replaceable,
      * or one the stretch {@linkplain FastReplace#stretchesThrough goes through}, the spot across the
      * hit face otherwise, as vanilla has it. The context's own position is moved by the held stack's
@@ -373,7 +396,7 @@ public final class Stretches {
                 }
             }
             default -> {
-                Laying laying = laying(level, player, held, hit);
+                Laying laying = guarded(level, player, laying(level, player, held, hit));
                 if (laying.plan().isRefused()) {
                     tell(player, message(held, laying.plan().refusal()));
                 } else {

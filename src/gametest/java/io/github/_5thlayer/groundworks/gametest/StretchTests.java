@@ -70,6 +70,7 @@ final class StretchTests {
         tests.test("an_adventure_mode_player_s_stretch_is_refused_whole", 20, StretchTests::adventureMode);
         tests.test("a_stretch_reaching_a_position_the_player_may_not_interact_with_is_refused_whole", 20,
                 StretchTests::mayNotInteract);
+        tests.test("a_stretch_over_a_claimed_position_is_refused_whole_on_the_click", 20, StretchTests::claimed);
         tests.test("a_replaced_block_is_returned_to_the_inventory", 20, StretchTests::returned);
         tests.test("no_room_to_return_refuses_the_stretch_whole", 20, StretchTests::noRoomToReturn);
         tests.test("a_stretch_that_empties_the_held_stack_hands_back_into_the_held_slot", 20,
@@ -320,6 +321,32 @@ final class StretchTests {
             border.setSize(size);
         }
         expectNothingLaidOrCharged(helper, player, 16, line(1, 5, 1, 2));
+        helper.succeed();
+    }
+
+    /**
+     * A claim mod cancels the place event at one position on the line. The preview fires no event,
+     * so it draws the stretch accepted; the click asks each position and lays nothing.
+     */
+    private static void claimed(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, 16);
+        start(helper, player);
+        BlockPos end = new BlockPos(5, 0, 2);
+        BlockPos claimed = helper.absolutePos(new BlockPos(3, 1, 2));
+        RotateInPlaceTests.CLAIMED.add(claimed);
+        try {
+            PlacementPlan plan = plan(helper, player, end);
+            if (plan == null || plan.isRefused()) {
+                helper.fail("the plan was " + plan + ", not drawn accepted", end);
+            }
+            click(helper, player, end, false);
+        } finally {
+            RotateInPlaceTests.CLAIMED.remove(claimed);
+        }
+        expectNothingLaidOrCharged(helper, player, 16, line(1, 5, 1, 2));
+        if (!player.heard.getLast().equals("message.groundworks.stretch_may_not_build")) {
+            helper.fail("the player was told " + player.heard);
+        }
         helper.succeed();
     }
 

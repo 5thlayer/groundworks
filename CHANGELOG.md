@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- A **Stretch** is refused whole, laying and charging nothing, when a claim mod guarding the place event protects any position it lays, as a Fast Replace and a footprint already were. The preview asks no claim mod, so it draws such a stretch accepted and the click refuses it.
+
+### Consumers
+
+- `Refusal.Stretch.MAY_NOT_BUILD` also refuses a stretch where a protection mod cancels the place event, which Groundworks fires on the click for each position of a stretch that would otherwise go through, and never in the plan the preview asks.
+
 ## 0.6.0
 
 ### Players
