@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.6.1
+
 ### Players
 
 - A **Stretch** is refused whole, laying and charging nothing, when a claim mod guarding the place event protects any position it lays, as a Fast Replace and a footprint already were. The preview asks no claim mod, so it draws such a stretch accepted and the click refuses it.
