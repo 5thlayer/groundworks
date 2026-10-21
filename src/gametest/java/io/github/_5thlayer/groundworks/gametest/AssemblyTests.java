@@ -94,6 +94,8 @@ final class AssemblyTests {
         withPack.test("an_assembly_is_placed_free_in_creative", 20, AssemblyTests::freeInCreative);
         withPack.test("an_assembly_with_a_position_taken_is_refused_whole_and_places_nothing", 20,
                 AssemblyTests::refusedWhenTaken);
+        withPack.test("an_assembly_where_the_player_may_not_build_is_refused_for_that_whatever_else_refuses_it", 20,
+                AssemblyTests::mayNotBuildBeforeTaken);
         withPack.test("an_assembly_goes_over_water_and_grass", 20, AssemblyTests::overWaterAndGrass);
         withPack.test("an_assembly_keeps_a_block_of_its_own_standing_uncharged", 20, AssemblyTests::keepsItsOwnBlock);
         withPack.test("an_assembly_tells_each_block_laid_before_its_key_it_was_placed_with_its_own_item", 20,
@@ -263,6 +265,33 @@ final class AssemblyTests {
         expectHeld(helper, player, Map.of(Items.LODESTONE, 1, Items.STONE, 2, Items.COBBLESTONE, 1));
         if (!player.heard.contains("message.groundworks.assembly_taken")) {
             helper.fail("the player heard " + player.heard + ", not that a position is taken");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * In adventure mode, with a position taken and the stone short, the player is told they may
+     * not build, as a Stretch and a Fast Replace tell them, and not to clear the position, which
+     * would not help.
+     */
+    private static void mayNotBuildBeforeTaken(GameTestHelper helper) {
+        helper.setBlock(FORWARD, Blocks.DIRT);
+        ListeningPlayer player = holding(helper, Items.LODESTONE, 1);
+        stock(player, MAIN_SLOT, Items.STONE, 1);
+        player.setGameMode(GameType.ADVENTURE);
+        PlacementPlan plan = plan(helper, player);
+        if (plan == null || plan.refusal() != Refusal.Assembly.MAY_NOT_BUILD) {
+            helper.fail("the plan was " + plan + ", not refused where the player may not build");
+        }
+        click(helper, player);
+        for (BlockPos pos : List.of(SPOT, KEY, RIGHT)) {
+            if (!helper.getBlockState(pos).isAir()) {
+                helper.fail("a refused Assembly placed " + helper.getBlockState(pos), pos);
+            }
+        }
+        expectHeld(helper, player, Map.of(Items.LODESTONE, 1, Items.STONE, 1));
+        if (!player.heard.equals(List.of("message.groundworks.assembly_may_not_build"))) {
+            helper.fail("the player heard " + player.heard + ", not that they may not build");
         }
         helper.succeed();
     }

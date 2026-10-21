@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- An **Assembly** where you may not build, in adventure mode or on protected ground, now tells you so whatever else refuses it, as a Stretch and a Fast Replace do, where before a taken position, a Key that wouldn't stand or the blocks it lacks were told first.
+
+### Consumers
+
+- `Refusal.Assembly.MAY_NOT_BUILD` now refuses an Assembly's plan ahead of `TAKEN`, `KEY_WOULD_NOT_STAND` and `NOT_ENOUGH_ITEMS`, as `Refusal.Stretch.MAY_NOT_BUILD` and `Refusal.FastReplace.MAY_NOT_BUILD` already do theirs.
+
 ## 0.6.1
 
 ### Players

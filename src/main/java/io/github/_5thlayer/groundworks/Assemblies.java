@@ -354,12 +354,13 @@ public final class Assemblies {
         // The refusal points at the first position taken in the plan's order, whatever made it taken.
         Optional<BlockPos> firstTaken = positions.stream().map(AssemblyShape.At::pos).filter(taken::contains).findFirst();
         Refusal refusal = null;
-        if (firstTaken.isPresent()) {
+        // Where the player may not build, the Assembly is refused whole, whatever else refuses it.
+        if (player != null && !Charge.mayBuildAll(level, player, changed(cleared, blocks))) {
+            refusal = Refusal.Assembly.MAY_NOT_BUILD;
+        } else if (firstTaken.isPresent()) {
             refusal = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
         } else if (key.refusal() == Refusal.Assembly.KEY_WOULD_NOT_STAND) {
             refusal = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, keyPos);
-        } else if (player != null && !Charge.mayBuildAll(level, player, changed(cleared, blocks))) {
-            refusal = Refusal.Assembly.MAY_NOT_BUILD;
         } else if (!missing.isEmpty()) {
             refusal = Refusal.Assembly.NOT_ENOUGH_ITEMS;
         }

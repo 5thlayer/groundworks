@@ -21,7 +21,7 @@ What a held item would do at an aimed spot: the blocks it would put down (each a
 _Avoid_: ghost, build plan, preview state, placement context (vanilla's own type, one input to a plan)
 
 **Refusal**:
-Why a **Placement Plan**, or a **Dismantle**'s span, would not go through. Refusals are open: the library names only the **Vanilla** one and a span's "not the same kind", and each **Consumer** names its own.
+Why a **Placement Plan**, or a **Dismantle**'s span, would not go through. Refusals are open: the library names only the **Vanilla** one and a span's "not the same kind", and each **Consumer** names its own. A plan refused for several reasons is told by one, in the same order for every click that lays: the player may not build there, whatever else refuses it; then the plan's own reason; then the items it lacks; then no room for what it hands back. A claim mod is asked last, on the click alone, before anything is laid.
 _Avoid_: error, failure, rejection
 
 **Vanilla Plan**:
