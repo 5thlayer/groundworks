@@ -9,11 +9,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -26,8 +24,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.common.util.BlockSnapshot;
-import net.neoforged.neoforge.event.EventHooks;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -222,9 +218,13 @@ public final class FastReplace {
         return held.getItem() instanceof BlockItem item && stretchesThrough(item.getBlock(), there.getBlock());
     }
 
-    /** A replace's plan, what laying it charges, and the builder that planned it, if its group has one. */
-    private record Replacing(PlacementPlan plan, Charge charge, @Nullable ReplaceBuilder builder) {
+    /** A replace's laying, and the builder that planned it, if its group has one. */
+    private record Replacing(Laying laying, @Nullable ReplaceBuilder builder) {
     }
+
+    /** The refusals a laying makes for a replace, whose held item is its whole cost. */
+    private static final Laying.Reasons REASONS = new Laying.Reasons(Refusal.FastReplace.MAY_NOT_BUILD, null,
+            Refusal.FastReplace.NO_ROOM_TO_RETURN);
 
     /**
      * The replace a plain click with the held stack at this hit would carry out, or {@code null}
@@ -233,7 +233,7 @@ public final class FastReplace {
     static @Nullable PlacementPlan planFor(Level level, @Nullable Player player, InteractionHand hand, ItemStack stack,
                                            BlockHitResult hit) {
         Replacing replacing = replacing(level, player, hand, stack, hit);
-        return replacing == null ? null : replacing.plan();
+        return replacing == null ? null : replacing.laying().plan();
     }
 
     private static @Nullable Replacing replacing(Level level, @Nullable Player player, InteractionHand hand,
@@ -268,20 +268,12 @@ public final class FastReplace {
             if (planned == null) {
                 return null;
             }
-            plan = leavesAGap(planned) ? refused(planned, Refusal.FastReplace.LEAVES_A_GAP) : planned;
+            plan = leavesAGap(planned) ? Laying.refused(planned, Refusal.FastReplace.LEAVES_A_GAP) : planned;
             ItemStack back = builder.refund(level, aimed, old);
             returned = back.isEmpty() ? List.of() : List.of(back);
         }
 
-        Charge charge = Charge.of(player, item, 1, returned);
-        // Where the player may not build, the replace is refused whatever else refused it.
-        List<BlockPos> positions = plan.blocks().stream().map(PlacementPlan.Placed::pos).toList();
-        if (player != null && !Charge.mayBuildAll(level, player, positions)) {
-            plan = refused(plan, Refusal.FastReplace.MAY_NOT_BUILD);
-        } else if (player != null && !plan.isRefused() && !charge.fits(player)) {
-            plan = refused(plan, Refusal.FastReplace.NO_ROOM_TO_RETURN);
-        }
-        return new Replacing(plan, charge, builder);
+        return new Replacing(Laying.of(level, player, plan, Charge.of(player, item, 1, returned), REASONS), builder);
     }
 
     /**
@@ -380,44 +372,11 @@ public final class FastReplace {
             return InteractionResult.PASS;
         }
         if (!level.isClientSide()) {
-            PlacementPlan plan = guarded(level, player, replacing.plan());
-            if (plan.isRefused()) {
-                tell(player, message(replacing.builder(), plan.refusal()));
-            } else {
-                // The charge may take the held stack's last item, and a placed block is told what placed it.
-                ItemStack placedWith = held.copyWithCount(1);
-                replacing.charge().lay(level, player, plan);
-                for (PlacementPlan.Placed placed : plan.blocks()) {
-                    Charge.tellPlaced(level, player, placed.pos(), placedWith);
-                }
-            }
+            Laying laying = replacing.laying();
+            laying.carryOut(level, player, refusal -> message(replacing.builder(), refusal),
+                    () -> laying.lay(level, player, held.copyWithCount(1)));
         }
         return InteractionResult.SUCCESS;
-    }
-
-    /**
-     * The plan, refused as may-not-build when a protection mod cancels the place event at any
-     * position it puts a block. The claim guard Rotate uses: NeoForge's event, fired once for each
-     * position, before the swap, which a claim mod listens to and a plan asked every frame by the
-     * preview must not fire. It is asked only of a replace that would go through, as Rotate asks
-     * only of a turn it will make, so no event is heard for a block that never goes down.
-     */
-    private static PlacementPlan guarded(Level level, Player player, PlacementPlan plan) {
-        if (plan.isRefused()) {
-            return plan;
-        }
-        for (PlacementPlan.Placed placed : plan.blocks()) {
-            BlockSnapshot before = BlockSnapshot.create(level.dimension(), level, placed.pos());
-            if (EventHooks.onBlockPlace(player, before, Direction.UP)) {
-                return refused(plan, Refusal.FastReplace.MAY_NOT_BUILD);
-            }
-        }
-        return plan;
-    }
-
-    /** The same plan, refused for {@code reason}. */
-    private static PlacementPlan refused(PlacementPlan plan, Refusal reason) {
-        return new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), reason);
     }
 
     /**
@@ -425,7 +384,7 @@ public final class FastReplace {
      * builder's, and where there is none, that the held block can't go there.
      */
     static Component message(@Nullable ReplaceBuilder builder, Refusal refusal) {
-        Refusal reason = refusal instanceof Refusal.At at ? at.reason() : refusal;
+        Refusal reason = Laying.reason(refusal);
         if (!(reason instanceof Refusal.FastReplace fastReplace)) {
             return builder == null ? Component.translatable("message.groundworks.fast_replace_refused") : builder.message(reason);
         }
@@ -435,11 +394,5 @@ public final class FastReplace {
             case PLANS_ELSEWHERE -> Component.translatable("message.groundworks.fast_replace_plans_elsewhere");
             case LEAVES_A_GAP -> Component.translatable("message.groundworks.fast_replace_leaves_a_gap");
         };
-    }
-
-    private static void tell(Player player, Component message) {
-        if (player instanceof ServerPlayer server) {
-            server.sendSystemMessage(message, true);
-        }
     }
 }

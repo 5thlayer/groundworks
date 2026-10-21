@@ -15,7 +15,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -38,8 +37,6 @@ import net.minecraft.world.ticks.BlackholeTickAccess;
 import net.minecraft.world.ticks.LevelTickAccess;
 import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
-import net.neoforged.neoforge.common.util.BlockSnapshot;
-import net.neoforged.neoforge.event.EventHooks;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -206,9 +203,9 @@ public final class Stretches {
         }
     };
 
-    /** A stretch's plan and what laying it charges. */
-    private record Laying(PlacementPlan plan, Charge charge) {
-    }
+    /** The refusals a laying makes for a stretch. */
+    private static final Laying.Reasons REASONS = new Laying.Reasons(Refusal.Stretch.MAY_NOT_BUILD,
+            Refusal.Stretch.NOT_ENOUGH_ITEMS, Refusal.Stretch.NO_ROOM_TO_RETURN);
 
     private static @Nullable Laying laying(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
         Item item = stack.getItem();
@@ -279,52 +276,16 @@ public final class Stretches {
         return new Column(stored.start(), player == null ? 0 : Raise.heightOf(player, stack).blocks(), stored.look());
     }
 
-    /** The stretch's plan refused where the player may not build or can't pay, with its charge. */
+    /** The stretch's plan, charged one held item for each block, refused in the laying's order. */
     private static Laying charged(Level level, @Nullable Player player, Item item, PlacementPlan plan) {
-        Refusal refusal = plan.refusal();
         Set<BlockPos> positions = new LinkedHashSet<>();
         plan.blocks().forEach(placed -> positions.add(placed.pos()));
-        List<BlockPos> replaces = plan.replaces();
-        // Where the player may not build, the stretch is refused whole, whatever else refused it.
-        if (player != null && !Charge.mayBuildAll(level, player, positions)) {
-            refusal = Refusal.Stretch.MAY_NOT_BUILD;
-        }
-
         // What breaking each replaced block drops, rolled on the server alone, so the preview draws the stretch accepted for room.
         List<ItemStack> returned = new ArrayList<>();
-        for (BlockPos pos : replaces) {
+        for (BlockPos pos : plan.replaces()) {
             returned.addAll(FastReplace.drops(level, player, pos, level.getBlockState(pos)));
         }
-        Charge charge = Charge.of(player, item, positions.size(), returned);
-        if (player != null && refusal == null) {
-            if (!charge.affordable(player)) {
-                refusal = Refusal.Stretch.NOT_ENOUGH_ITEMS;
-            } else if (!charge.fits(player)) {
-                refusal = Refusal.Stretch.NO_ROOM_TO_RETURN;
-            }
-        }
-        return new Laying(new PlacementPlan(plan.blocks(), replaces, plan.clears(), refusal), charge);
-    }
-
-    /**
-     * The laying, refused whole as may-not-build when a protection mod cancels the place event at
-     * any position it lays. The claim guard Rotate and Fast Replace use: NeoForge's event, fired once
-     * for each position before anything is laid, on the click alone, since the preview asks the plan
-     * every frame. It is asked only of a stretch that would go through, so no event is heard for a
-     * block that never goes down.
-     */
-    private static Laying guarded(Level level, Player player, Laying laying) {
-        PlacementPlan plan = laying.plan();
-        if (plan.isRefused()) {
-            return laying;
-        }
-        for (PlacementPlan.Placed placed : plan.blocks()) {
-            if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, placed.pos()), Direction.UP)) {
-                return new Laying(new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(),
-                        Refusal.Stretch.MAY_NOT_BUILD), laying.charge());
-            }
-        }
-        return laying;
+        return Laying.of(level, player, plan, Charge.of(player, item, positions.size(), returned), REASONS);
     }
 
     /**
@@ -382,11 +343,11 @@ public final class Stretches {
         switch (click) {
             case START -> {
                 store(held, state.started(level.dimension(), spotOf(level, player, held, hit), player.getDirection()));
-                tell(player, Component.translatable(stretchesOnlyAsColumn(held.getItem()) ? COLUMN_STARTED : STARTED));
+                Laying.tell(player, Component.translatable(stretchesOnlyAsColumn(held.getItem()) ? COLUMN_STARTED : STARTED));
             }
             case ANCHOR -> {
                 if (columnOf(level, player, held, builderOf(held.getItem()), state.stored(), hit) != null) {
-                    tell(player, message(held, Refusal.Stretch.NO_ANCHOR_IN_A_COLUMN));
+                    Laying.tell(player, message(held, Refusal.Stretch.NO_ANCHOR_IN_A_COLUMN));
                     break;
                 }
                 StretchState anchored = state.anchored(spotOf(level, player, held, hit));
@@ -395,19 +356,16 @@ public final class Stretches {
                 }
                 PlacementPlan plan = laying(level, player, held, hit).plan();
                 if (plan.isRefused()) {
-                    tell(player, message(held, plan.refusal()));
+                    Laying.tell(player, message(held, plan.refusal()));
                 } else {
                     store(held, anchored);
-                    tell(player, Component.translatable(ANCHORED));
+                    Laying.tell(player, Component.translatable(ANCHORED));
                 }
             }
             default -> {
-                Laying laying = guarded(level, player, laying(level, player, held, hit));
-                if (laying.plan().isRefused()) {
-                    tell(player, message(held, laying.plan().refusal()));
-                } else {
-                    lay(laying, level, held, player, state.reset());
-                }
+                Laying laying = laying(level, player, held, hit);
+                laying.carryOut(level, player, refusal -> message(held, refusal),
+                        () -> lay(laying, level, held, player, state.reset()));
             }
         }
         return InteractionResult.SUCCESS;
@@ -422,14 +380,14 @@ public final class Stretches {
         }
         if (!player.level().isClientSide()) {
             store(held, stateOf(player.level(), player, held).reset());
-            tell(player, Component.translatable(CLEARED));
+            Laying.tell(player, Component.translatable(CLEARED));
         }
         return InteractionResult.SUCCESS;
     }
 
     /** What the player is told of a refusal: Groundworks' own, or the builder's, at a position or not. */
     static Component message(ItemStack held, Refusal refusal) {
-        Refusal reason = refusal instanceof Refusal.At at ? at.reason() : refusal;
+        Refusal reason = Laying.reason(refusal);
         if (!(reason instanceof Refusal.Stretch stretch)) {
             return builderOf(held.getItem()).message(reason);
         }
@@ -460,10 +418,7 @@ public final class Stretches {
         Silenced previous = silenced;
         silenced = new Silenced(level, touching);
         try {
-            laying.charge().lay(level, player, laying.plan());
-            for (PlacementPlan.Placed placed : laying.plan().blocks()) {
-                Charge.tellPlaced(level, player, placed.pos(), placedWith);
-            }
+            laying.lay(level, player, placedWith);
         } finally {
             silenced = previous;
         }
@@ -499,8 +454,8 @@ public final class Stretches {
      * breaks.
      */
     static void onBlockDrops(BlockDropsEvent event) {
-        Silenced laying = silenced;
-        if (laying != null && laying.level() == event.getLevel() && laying.positions().contains(event.getPos())
+        Silenced laid = silenced;
+        if (laid != null && laid.level() == event.getLevel() && laid.positions().contains(event.getPos())
                 && isPlant(event.getState())) {
             event.setCanceled(true);
         }
@@ -515,11 +470,5 @@ public final class Stretches {
         }
         Raise.setHeight(stack, state.height());
         Rotate.setTurn(stack, state.turn());
-    }
-
-    private static void tell(Player player, Component message) {
-        if (player instanceof ServerPlayer server) {
-            server.sendSystemMessage(message, true);
-        }
     }
 }

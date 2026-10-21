@@ -29,14 +29,13 @@ import net.minecraft.world.level.gameevent.GameEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What laying a plan costs the player in items and hands back, and the laying itself: the step a
- * {@linkplain Stretches Stretch} lays through, kept apart from legs and anchors so that a Fast
- * Replace can lay through it too (ADR 0008). Its caller says what the cost is and what comes back,
- * and names its own refusals.
+ * What laying a plan costs the player in items and hands back, and the putting down of its
+ * blocks: what a {@link Laying} charges, for a Stretch, an Assembly and a Fast Replace alike (ADR
+ * 0008). Its caller says what the cost is and what comes back.
  *
  * <p>The cost is one or several items with a count each: a Stretch's and a Fast Replace's is the
- * held item alone. A player with infinite materials is charged nothing and handed nothing. The cost
- * is taken from the main inventory, all of it or none, the held stack first, and what comes back is
+ * held item alone, an Assembly's is its blocks and its Key. A player with infinite materials is
+ * charged nothing and handed nothing. The cost is taken from the main inventory, all of it or none, the held stack first, and what comes back is
  * handed back by the rules a Consumer's own replace hands back by, {@link HandBack}'s.
  */
 record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {

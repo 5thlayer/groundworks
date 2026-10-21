@@ -27,7 +27,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.FileToIdConverter;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.tags.TagKey;
@@ -56,9 +55,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.common.util.BlockSnapshot;
 import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
-import net.neoforged.neoforge.event.EventHooks;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
@@ -221,35 +218,39 @@ public final class Assemblies {
      * Assembly: the item is no Key, or the Key goes alone.
      */
     static @Nullable PlacementPlan planFor(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
-        Laying laying = laying(level, player, stack, hit);
-        return laying == null ? null : laying.plan();
+        Assembling assembling = assembling(level, player, stack, hit);
+        return assembling == null ? null : assembling.laying().plan();
     }
 
+    /** The refusals a laying makes for an Assembly, which hands nothing back. */
+    private static final Laying.Reasons REASONS = new Laying.Reasons(Refusal.Assembly.MAY_NOT_BUILD,
+            Refusal.Assembly.NOT_ENOUGH_ITEMS, null);
+
     /**
-     * An Assembly's plan, its Key last, its {@linkplain PlacementPlan#clears clears} the empty
-     * positions holding a block a placement overwrites, cleared before the rest is laid, and what it
-     * costs.
+     * An Assembly a click would lay, and what the inventory lacks for it.
      *
-     * @param cost what the blocks before the Key cost, by the fill; the Key is charged once it is
-     *     placed, and they with it
+     * @param laying its plan, the Key last, its {@linkplain PlacementPlan#clears clears} the empty
+     *     positions holding a block a placement overwrites, cleared before the rest is laid; and its
+     *     charge, the blocks by the fill and the Key, taken once the Key is placed
      * @param missing what the main inventory lacks for the plan, by the fill's count, none when it
      *     affords it
      */
-    private record Laying(PlacementPlan plan, Map<Item, Integer> cost, Map<Item, Integer> missing) {
+    private record Assembling(Laying laying, Map<Item, Integer> missing) {
 
         /** The blocks laid before the Key, in the plan's order. */
         List<PlacementPlan.Placed> others() {
-            return plan.blocks().subList(0, plan.blocks().size() - 1);
+            List<PlacementPlan.Placed> blocks = laying.plan().blocks();
+            return blocks.subList(0, blocks.size() - 1);
         }
 
         /** Where the Key goes. */
         BlockPos key() {
-            return plan.blocks().getLast().pos();
+            return laying.plan().blocks().getLast().pos();
         }
 
         /** The state the Key goes down in. */
         BlockState keyState() {
-            return plan.blocks().getLast().state();
+            return laying.plan().blocks().getLast().state();
         }
 
         /** The Key's name, as the player is told of it. */
@@ -258,14 +259,8 @@ public final class Assemblies {
         }
     }
 
-    /** Every position a laying changes: the cleared ones, then the plan's. */
-    private static List<BlockPos> changed(List<BlockPos> cleared, List<PlacementPlan.Placed> blocks) {
-        List<BlockPos> changed = new ArrayList<>(cleared);
-        blocks.forEach(placed -> changed.add(placed.pos()));
-        return changed;
-    }
-
-    private static @Nullable Laying laying(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
+    private static @Nullable Assembling assembling(Level level, @Nullable Player player, ItemStack stack,
+            BlockHitResult hit) {
         AssemblyShape shape = placed(level, player, stack);
         if (shape == null) {
             return null;
@@ -286,7 +281,7 @@ public final class Assemblies {
                 case AssemblyShape.Legend.Empty empty -> {
                     if (!there.canBeReplaced()) {
                         taken.add(at.pos());
-                    } else if (there != emptied(there)) {
+                    } else if (there != Laying.emptied(there)) {
                         cleared.add(at.pos());
                     }
                 }
@@ -340,7 +335,7 @@ public final class Assemblies {
 
         BlockPos keyPos = positions.getLast().pos();
         Map<BlockPos, BlockState> laid = new HashMap<>();
-        cleared.forEach(pos -> laid.put(pos, emptied(level.getBlockState(pos))));
+        cleared.forEach(pos -> laid.put(pos, Laying.emptied(level.getBlockState(pos))));
         others.forEach(placed -> laid.put(placed.pos(), placed.state()));
         BlockPlaceContext onTheLaid = new BlockPlaceContext(new PlannedLevel(level, laid, player), player,
                 InteractionHand.MAIN_HAND, stack, hit);
@@ -353,19 +348,17 @@ public final class Assemblies {
         blocks.add(new PlacementPlan.Placed(keyPos, key.state()));
         // The refusal points at the first position taken in the plan's order, whatever made it taken.
         Optional<BlockPos> firstTaken = positions.stream().map(AssemblyShape.At::pos).filter(taken::contains).findFirst();
-        Refusal refusal = null;
-        // Where the player may not build, the Assembly is refused whole, whatever else refuses it.
-        if (player != null && !Charge.mayBuildAll(level, player, changed(cleared, blocks))) {
-            refusal = Refusal.Assembly.MAY_NOT_BUILD;
-        } else if (firstTaken.isPresent()) {
-            refusal = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
+        Refusal own = null;
+        if (firstTaken.isPresent()) {
+            own = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
         } else if (key.refusal() == Refusal.Assembly.KEY_WOULD_NOT_STAND) {
-            refusal = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, keyPos);
-        } else if (!missing.isEmpty()) {
-            refusal = Refusal.Assembly.NOT_ENOUGH_ITEMS;
+            own = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, keyPos);
         }
-        // The Key is charged apart, once it is placed, though the fill counted it with the rest.
-        return new Laying(new PlacementPlan(blocks, List.of(), cleared, refusal), cost, missing);
+        // The Key is charged with the rest, once it is placed, as the fill counted it.
+        cost.merge(keyItem, 1, Integer::sum);
+        PlacementPlan plan = new PlacementPlan(blocks, List.of(), cleared, own);
+        return new Assembling(Laying.of(level, player, plan, Charge.of(player, cost, List.of()), REASONS,
+                missing::isEmpty), missing);
     }
 
     /**
@@ -440,15 +433,10 @@ public final class Assemblies {
             BlockState otherState = level.getBlockState(other);
             if (!shaped.contains(other) && otherState.is(there.getBlock())
                     && otherState.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != half
-                    && otherState != emptied(otherState)) {
+                    && otherState != Laying.emptied(otherState)) {
                 cleared.add(other);
             }
         }
-    }
-
-    /** What an empty position holds once cleared: nothing, or the fluid that was there. */
-    private static BlockState emptied(BlockState there) {
-        return there.getFluidState().createLegacyBlock();
     }
 
     private static TagKey<Block> blockTag(Identifier tag) {
@@ -521,35 +509,36 @@ public final class Assemblies {
         }
         Level level = player.level();
         ItemStack held = player.getItemInHand(hand);
-        Laying laying = laying(level, player, held, hit);
-        if (laying == null) {
+        Assembling assembling = assembling(level, player, held, hit);
+        if (assembling == null) {
             return InteractionResult.PASS;
         }
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        PlacementPlan plan = laying.plan();
-        if (plan.isRefused()) {
-            tell(player, message(laying, plan.refusal()));
-            return InteractionResult.SUCCESS;
-        }
-        // A claim mod's guard on the place event, at every position it changes: the click's own event never fires.
-        for (BlockPos pos : changed(plan.clears(), plan.blocks())) {
-            if (EventHooks.onBlockPlace(player, BlockSnapshot.create(level.dimension(), level, pos), Direction.UP)) {
-                tell(player, message(laying, Refusal.Assembly.MAY_NOT_BUILD));
-                return InteractionResult.SUCCESS;
-            }
-        }
+        assembling.laying().carryOut(level, player, refusal -> message(assembling, refusal),
+                () -> lay(level, player, hand, held, hit, assembling));
+        return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Lays the Assembly the click carries out: clears its empty positions, puts down the blocks
+     * before the Key, and places the Key last through vanilla's own placement; or, where vanilla
+     * refuses the Key, takes back what it laid.
+     */
+    private static void lay(Level level, Player player, InteractionHand hand, ItemStack held, BlockHitResult hit,
+            Assembling assembling) {
+        PlacementPlan plan = assembling.laying().plan();
         Map<BlockPos, BlockState> before = new HashMap<>();
-        changed(plan.clears(), laying.others()).forEach(pos -> before.put(pos, level.getBlockState(pos)));
+        Laying.changed(plan).forEach(pos -> before.put(pos, level.getBlockState(pos)));
         for (BlockPos pos : plan.clears()) {
-            level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
+            level.setBlock(pos, Laying.emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
-        Charge.put(level, player, laying.others());
+        Charge.put(level, player, assembling.others());
         // The plan let the player's own body stand in the shape: they are lifted clear of it, and
         // of the Key, which vanilla places only clear of them.
         Vec3 stood = player.position();
-        Vec3 clear = liftedClear(level, player, laying.key(), laying.keyState());
+        Vec3 clear = liftedClear(level, player, assembling.key(), assembling.keyState());
         if (clear != null && !clear.equals(stood)) {
             player.teleportTo(clear.x, clear.y, clear.z);
         }
@@ -559,29 +548,26 @@ public final class Assemblies {
         BlockItem item = (BlockItem) held.getItem();
         ItemStack key = held.copyWithCount(1);
         BlockPlaceContext context = new BlockPlaceContext(level, player, hand, key, hit);
-        if (item.place(BlockPlaceContext.at(context, laying.key(), hit.getDirection())).consumesAction()) {
+        if (item.place(BlockPlaceContext.at(context, assembling.key(), hit.getDirection())).consumesAction()) {
             // Vanilla told the Key; each block laid before it that still stands, not one a golem
             // took, is told now, with its own item, so a Key it refused tells none.
-            for (PlacementPlan.Placed placed : laying.others()) {
+            for (PlacementPlan.Placed placed : assembling.others()) {
                 if (level.getBlockState(placed.pos()).is(placed.state().getBlock())) {
                     Charge.tellPlaced(level, player, placed.pos(), new ItemStack(placed.state().getBlock()));
                 }
             }
-            Map<Item, Integer> cost = new LinkedHashMap<>(laying.cost());
-            cost.merge(item, 1, Integer::sum);
-            Charge.of(player, cost, List.of()).pay(player);
-            return InteractionResult.SUCCESS;
+            assembling.laying().charge().pay(player);
+            return;
         }
         // The plan took the Key on the world as the laying leaves it, so vanilla refuses it only
         // for what the plan doesn't plan: an entity in its way, as a golem the laying spawned, or
         // another mod's rule. What the laying set is taken back, and what is gone, as a golem's
         // blocks are, is charged; the Key, unplaced, isn't, and the player is told just that.
-        Charge.of(player, takeBack(level, laying, before), List.of()).pay(player);
+        Charge.of(player, takeBack(level, assembling, before), List.of()).pay(player);
         if (!player.position().equals(stood)) {
             player.teleportTo(stood.x, stood.y, stood.z);
         }
-        tell(player, Component.translatable("message.groundworks.assembly_key_not_placed", laying.keyName()));
-        return InteractionResult.SUCCESS;
+        Laying.tell(player, Component.translatable("message.groundworks.assembly_key_not_placed", assembling.keyName()));
     }
 
     /**
@@ -590,18 +576,18 @@ public final class Assemblies {
      * leaving only what a placement overwrites, and so still costs the player: a laid block a
      * golem the laying spawned took into itself, say.
      */
-    private static Map<Item, Integer> takeBack(Level level, Laying laying, Map<BlockPos, BlockState> before) {
+    private static Map<Item, Integer> takeBack(Level level, Assembling assembling, Map<BlockPos, BlockState> before) {
         Map<Item, Integer> gone = new LinkedHashMap<>();
-        for (PlacementPlan.Placed placed : laying.others().reversed()) {
+        for (PlacementPlan.Placed placed : assembling.others().reversed()) {
             if (level.getBlockState(placed.pos()).canBeReplaced()) {
                 gone.merge(placed.state().getBlock().asItem(), 1, Integer::sum);
             } else {
                 level.setBlock(placed.pos(), before.get(placed.pos()), Block.UPDATE_ALL);
             }
         }
-        for (BlockPos pos : laying.plan().clears().reversed()) {
+        for (BlockPos pos : assembling.laying().plan().clears().reversed()) {
             BlockState was = before.get(pos);
-            if (level.getBlockState(pos).is(emptied(was).getBlock())) {
+            if (level.getBlockState(pos).is(Laying.emptied(was).getBlock())) {
                 level.setBlock(pos, was, Block.UPDATE_ALL);
             }
         }
@@ -609,14 +595,14 @@ public final class Assemblies {
     }
 
     /** What the player is told of a laying's refusal: one of its own reasons, or one of them at a position. */
-    private static Component message(Laying laying, Refusal refusal) {
-        return switch (refusal instanceof Refusal.At at ? at.reason() : refusal) {
+    private static Component message(Assembling assembling, Refusal refusal) {
+        return switch (Laying.reason(refusal)) {
             case Refusal.Assembly.TAKEN -> Component.translatable("message.groundworks.assembly_taken");
             case Refusal.Assembly.KEY_WOULD_NOT_STAND -> Component.translatable(
-                    "message.groundworks.assembly_key_would_not_stand", laying.keyName());
+                    "message.groundworks.assembly_key_would_not_stand", assembling.keyName());
             case Refusal.Assembly.MAY_NOT_BUILD -> Component.translatable("message.groundworks.assembly_may_not_build");
             case Refusal.Assembly.NOT_ENOUGH_ITEMS -> Component.translatable(
-                    "message.groundworks.assembly_not_enough_items", missing(laying.missing()));
+                    "message.groundworks.assembly_not_enough_items", missing(assembling.missing()));
             // A laying refuses with its own reasons alone.
             default -> throw new IllegalStateException("not an Assembly's refusal: " + refusal);
         };
@@ -633,12 +619,6 @@ public final class Assemblies {
                     new ItemStack(item).getHoverName()));
         });
         return list;
-    }
-
-    private static void tell(Player player, Component message) {
-        if (player instanceof ServerPlayer server) {
-            server.sendSystemMessage(message, true);
-        }
     }
 
     /**
