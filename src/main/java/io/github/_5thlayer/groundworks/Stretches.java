@@ -238,29 +238,40 @@ public final class Stretches {
             }
         }
 
-        // A later leg's block at a position an earlier one takes, its first anchor, is the later leg's.
+        List<PlacementPlan> legs = new ArrayList<>();
+        for (Leg leg : Leg.ofStretch(stored.start(), route, rises, reachesEnd)) {
+            legs.add(Detours.plan(leg, player == null ? null : player.blockPosition(),
+                    detour -> builder.build(level, item, detour)));
+        }
+        return charged(level, player, item, merged(legs, refusal));
+    }
+
+    /**
+     * The stretch's plan from its legs' plans, in their order: a later leg's block at a position an
+     * earlier one takes, its first anchor, is the later leg's, and replaces there where the later
+     * leg's does; refused for {@code refusal}, or else for the first leg's refusal.
+     */
+    static PlacementPlan merged(List<PlacementPlan> legs, @Nullable Refusal refusal) {
         Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
         Set<BlockPos> replaces = new LinkedHashSet<>();
-        for (Leg leg : Leg.ofStretch(stored.start(), route, rises, reachesEnd)) {
-            PlacementPlan built = Detours.plan(leg, player == null ? null : player.blockPosition(),
-                    detour -> builder.build(level, item, detour));
-            for (PlacementPlan.Placed placed : built.blocks()) {
+        Refusal first = refusal;
+        for (PlacementPlan leg : legs) {
+            for (PlacementPlan.Placed placed : leg.blocks()) {
                 blocks.put(placed.pos(), placed.state());
-                if (built.replaces().contains(placed.pos())) {
+                if (leg.replaces().contains(placed.pos())) {
                     replaces.add(placed.pos());
                 } else {
                     replaces.remove(placed.pos());
                 }
             }
-            if (refusal == null) {
-                refusal = built.refusal();
+            if (first == null) {
+                first = leg.refusal();
             }
         }
-
         List<PlacementPlan.Placed> placed = blocks.entrySet().stream()
                 .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
                 .toList();
-        return charged(level, player, item, new PlacementPlan(placed, List.copyOf(replaces), refusal));
+        return new PlacementPlan(placed, List.copyOf(replaces), first);
     }
 
     /**
