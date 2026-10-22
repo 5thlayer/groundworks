@@ -72,6 +72,7 @@ final class StretchTests {
                 StretchTests::mayNotInteract);
         tests.test("a_stretch_over_a_claimed_position_is_refused_whole_on_the_click", 20, StretchTests::claimed);
         tests.test("a_replaced_block_is_returned_to_the_inventory", 20, StretchTests::returned);
+        tests.test("a_leg_plan_s_clears_are_emptied_as_the_stretch_is_laid", 20, StretchTests::clearsAreEmptied);
         tests.test("no_room_to_return_refuses_the_stretch_whole", 20, StretchTests::noRoomToReturn);
         tests.test("a_stretch_that_empties_the_held_stack_hands_back_into_the_held_slot", 20,
                 StretchTests::returnedIntoTheFreedSlot);
@@ -361,6 +362,22 @@ final class StretchTests {
         if (!player.getInventory().hasAnyMatching(stack -> stack.is(Items.LIGHT_BLUE_GLAZED_TERRACOTTA))) {
             helper.fail("the replaced block was not returned", replaced);
         }
+        helper.succeed();
+    }
+
+    private static void clearsAreEmptied(GameTestHelper helper) {
+        BlockPos cleared = new BlockPos(3, 2, 2);
+        helper.setBlock(cleared, LineOfArrows.CLEARED);
+        ListeningPlayer player = holding(helper, 16);
+        start(helper, player);
+        PlacementPlan plan = plan(helper, player, new BlockPos(5, 0, 2));
+        if (plan == null || !plan.clears().equals(List.of(helper.absolutePos(cleared)))) {
+            helper.fail("the plan clears " + (plan == null ? null : plan.clears()) + ", expected the glass", cleared);
+        }
+        List<BlockPos> laid = layAsPlanned(helper, player, new BlockPos(5, 0, 2));
+        expectLaid(helper, laid, line(1, 5, 1, 2));
+        helper.assertBlockPresent(Blocks.AIR, cleared);
+        expectHeld(helper, player, 11);
         helper.succeed();
     }
 

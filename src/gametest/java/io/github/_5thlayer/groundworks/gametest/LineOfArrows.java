@@ -32,6 +32,7 @@ final class LineOfArrows implements LegBuilder {
 
     static final Block ARROW = Blocks.MAGENTA_GLAZED_TERRACOTTA;
     static final Block REPLACED = Blocks.LIGHT_BLUE_GLAZED_TERRACOTTA;
+    static final Block CLEARED = Blocks.GLASS;
 
     enum Blocked implements Refusal {
         BLOCKED
@@ -62,7 +63,14 @@ final class LineOfArrows implements LegBuilder {
             refusal = place(level, new BlockPos(column.x(), from.getY() + leg.rise(), column.z()),
                     pointing(column.travel()), blocks, replaces, refusal);
         }
-        return new PlacementPlan(blocks, replaces, refusal);
+        return new PlacementPlan(blocks, replaces, clearedAbove(level, blocks), refusal);
+    }
+
+    /** The glass standing right above a laid block, which the plan clears. */
+    private static List<BlockPos> clearedAbove(Level level, List<PlacementPlan.Placed> blocks) {
+        List<BlockPos> laid = blocks.stream().map(PlacementPlan.Placed::pos).toList();
+        return laid.stream().map(BlockPos::above)
+                .filter(above -> !laid.contains(above) && level.getBlockState(above).is(CLEARED)).distinct().toList();
     }
 
     private static @Nullable Refusal place(Level level, BlockPos pos, BlockState state, List<PlacementPlan.Placed> blocks,

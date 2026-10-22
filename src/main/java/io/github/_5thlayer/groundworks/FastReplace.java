@@ -77,11 +77,11 @@ import org.jspecify.annotations.Nullable;
  * own plan would be, and when it plans nothing the click is the item's own, as vanilla's. The
  * builder decides which members replace which, so the same kind is not refused as it is without
  * one, and its plan is used as it is, with no orientation copied. A plan must place a block at
- * every position it replaces, since a replace swaps and never clears: one that leaves a position
- * out is refused as {@link Refusal.FastReplace#LEAVES_A_GAP}. The builder says what a replace hands
+ * every position it replaces, since a replace swaps a block for another and leaves no gap: one that
+ * leaves a position out is refused as {@link Refusal.FastReplace#LEAVES_A_GAP}. The builder says what a replace hands
  * back, one stack for the plan. The library charges one held item for the plan, checks room for
  * the refund and that the player may build at each position, fires the place event at each, and
- * lays the swaps in the plan's order, as it does the item's. A refusal of the builder's own is told
+ * empties the plan's {@linkplain PlacementPlan#clears() clears} and lays the swaps in its order, as it does the item's. A refusal of the builder's own is told
  * through its {@linkplain ReplaceBuilder#message message}, as a Stretch's leg builder's is.
  *
  * <h2>The new block keeps the old one's orientation</h2>

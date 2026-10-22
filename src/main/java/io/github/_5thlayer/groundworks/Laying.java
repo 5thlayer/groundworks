@@ -141,12 +141,17 @@ record Laying(PlacementPlan plan, Charge charge, Reasons reasons) {
      * Assembly, whose Key goes last, lays its own way.
      */
     void lay(Level level, Player player, ItemStack with) {
-        for (BlockPos pos : plan.clears()) {
-            level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
-        }
+        clear(level);
         charge.lay(level, player, plan);
         for (PlacementPlan.Placed placed : plan.blocks()) {
             Charge.tellPlaced(level, player, placed.pos(), with);
+        }
+    }
+
+    /** Empties the positions the plan clears, leaving the fluid that was in one. */
+    void clear(Level level) {
+        for (BlockPos pos : plan.clears()) {
+            level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
         }
     }
 

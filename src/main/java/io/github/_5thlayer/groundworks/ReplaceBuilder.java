@@ -32,8 +32,9 @@ public interface ReplaceBuilder {
      * group standing as {@code old}, carries out: each position it swaps and the state there, the
      * positions among them it {@linkplain PlacementPlan#replaces() replaces}, or a refusal of the
      * builder's own, still carrying its blocks so it is drawn where they would have gone. A plan
-     * that replaces a position it puts no block at is refused, since a replace swaps and never
-     * clears. {@code null} where this is no replace, and the click is the item's own.
+     * that replaces a position it puts no block at is refused, since a replace swaps a block for
+     * another and leaves no gap; positions it {@linkplain PlacementPlan#clears() clears} are
+     * emptied before the swaps are laid. {@code null} where this is no replace, and the click is the item's own.
      *
      * <p>Asked on both sides, every frame by the preview and once by the click on the server, which
      * is the authority, so it reads the world without changing it. {@code player} is {@code null}

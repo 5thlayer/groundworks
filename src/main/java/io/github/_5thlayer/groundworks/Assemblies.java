@@ -477,9 +477,7 @@ public final class Assemblies {
         PlacementPlan plan = assembling.laying().plan();
         Map<BlockPos, BlockState> before = new HashMap<>();
         Laying.changed(plan).forEach(pos -> before.put(pos, level.getBlockState(pos)));
-        for (BlockPos pos : plan.clears()) {
-            level.setBlock(pos, Laying.emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
-        }
+        assembling.laying().clear(level);
         Charge.put(level, player, assembling.others());
         // The plan let the player's own body stand in the shape: they are lifted clear of it, and
         // of the Key, which vanilla places only clear of them.
