@@ -135,12 +135,15 @@ record Laying(PlacementPlan plan, Charge charge, Reasons reasons) {
     }
 
     /**
-     * Takes the charge, puts down the plan's blocks in its order, hands back what comes back, and
-     * tells each block it was placed by the player with {@code with}, a copy of the stack taken
-     * before the charge, which may take its last item. It clears nothing: an Assembly, whose plan
-     * alone clears, lays its own way.
+     * Empties the positions the plan clears, then takes the charge, puts down the plan's blocks in
+     * its order, hands back what comes back, and tells each block it was placed by the player with
+     * {@code with}, a copy of the stack taken before the charge, which may take its last item. An
+     * Assembly, whose Key goes last, lays its own way.
      */
     void lay(Level level, Player player, ItemStack with) {
+        for (BlockPos pos : plan.clears()) {
+            level.setBlock(pos, emptied(level.getBlockState(pos)), Block.UPDATE_ALL);
+        }
         charge.lay(level, player, plan);
         for (PlacementPlan.Placed placed : plan.blocks()) {
             Charge.tellPlaced(level, player, placed.pos(), with);

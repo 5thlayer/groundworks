@@ -84,6 +84,8 @@ final class FastReplaceTests {
         // A builder whose replace is one block, which says so, so a Stretch goes through its group.
         FastReplace.group(id("gametest_one_block"), block -> block == Blocks.QUARTZ_BLOCK || block == Blocks.QUARTZ_BRICKS,
                 new ReplacesOneBlock());
+        FastReplace.group(id("gametest_clears"), block -> block == Blocks.COAL_BLOCK || block == Blocks.NETHERITE_BLOCK,
+                new ReplacesAndClears());
         FastReplace.group(id("gametest_gap"), block -> block == Blocks.COPPER_BLOCK || block == Blocks.LAPIS_BLOCK,
                 new ReplacesAColumn(ReplacesAColumn.Way.LEAVES_A_GAP));
         FastReplace.group(id("gametest_refuses"), block -> block == Blocks.EMERALD_BLOCK || block == Blocks.REDSTONE_BLOCK,
@@ -140,6 +142,7 @@ final class FastReplaceTests {
         tests.test("a_builder_s_plan_takes_no_orientation_from_the_old_blocks", 20, FastReplaceTests::builderKeepsNoOrientation);
         tests.test("a_builder_plan_that_replaces_a_block_it_does_not_place_is_refused_and_changes_nothing", 20,
                 FastReplaceTests::leavesAGap);
+        tests.test("a_builder_plan_s_clears_are_emptied_as_the_replace_is_laid", 20, FastReplaceTests::clearsAreEmptied);
         tests.test("a_builder_s_own_refusal_cancels_the_click_and_the_player_is_told_its_reason", 20,
                 FastReplaceTests::builderRefuses);
         tests.test("a_claim_on_any_block_of_a_builder_s_plan_refuses_the_replace", 20, FastReplaceTests::claimOnTheSecondBlock);
@@ -351,6 +354,22 @@ final class FastReplaceTests {
         replaceAsPlanned(helper, player, Blocks.LIME_GLAZED_TERRACOTTA);
         expectSlot(helper, player, HELD_SLOT, Items.LIME_GLAZED_TERRACOTTA, 1);
         expectHanded(helper, player, Items.PINK_GLAZED_TERRACOTTA);
+        helper.succeed();
+    }
+
+    /** The builder's plan clears the block above the aimed one: the click empties it as it swaps. */
+    private static void clearsAreEmptied(GameTestHelper helper) {
+        helper.setBlock(AIMED, Blocks.COAL_BLOCK);
+        helper.setBlock(AIMED.above(), Blocks.SAND);
+        ListeningPlayer player = holding(helper, new ItemStack(Items.NETHERITE_BLOCK, 2));
+        PlacementPlan plan = planAt(helper, player, AIMED);
+        if (plan == null || !plan.clears().equals(List.of(helper.absolutePos(AIMED.above())))) {
+            helper.fail("the plan clears " + (plan == null ? null : plan.clears()) + ", expected the block above");
+        }
+        clickAt(helper, player, AIMED);
+        helper.assertBlockPresent(Blocks.NETHERITE_BLOCK, AIMED);
+        helper.assertBlockPresent(Blocks.AIR, AIMED.above());
+        expectSlot(helper, player, HELD_SLOT, Items.NETHERITE_BLOCK, 1);
         helper.succeed();
     }
 
