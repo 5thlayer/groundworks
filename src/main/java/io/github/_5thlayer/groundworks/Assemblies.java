@@ -6,12 +6,9 @@ package io.github._5thlayer.groundworks;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
@@ -268,106 +265,102 @@ public final class Assemblies {
         BlockPlaceContext context = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, stack, hit);
         Direction facing = context.getHorizontalDirection().getOpposite();
         List<AssemblyShape.At> positions = shape.positions(context.getClickedPos(), hit.getDirection(), facing);
-
-        // Which positions want a block, which want clearing, and which are taken.
-        List<AssemblyShape.At> wanting = new ArrayList<>(positions.size());
-        List<AssemblyShape.Legend.Laid> legends = new ArrayList<>(positions.size());
-        List<BlockPos> cleared = new ArrayList<>();
-        Set<BlockPos> taken = new HashSet<>();
-        for (AssemblyShape.At at : positions.subList(0, positions.size() - 1)) {
-            BlockState there = level.getBlockState(at.pos());
-            switch (at.legend()) {
-                case AssemblyShape.Legend.Empty empty -> {
-                    if (!there.canBeReplaced()) {
-                        taken.add(at.pos());
-                    } else if (there != Laying.emptied(there)) {
-                        cleared.add(at.pos());
-                    }
-                }
-                case AssemblyShape.Legend.Block named -> {
-                    Optional<Block> block = BuiltInRegistries.BLOCK.getOptional(named.id());
-                    if (block.isEmpty()) {
-                        // A declaration a client was sent for a block it lacks: nothing honest to draw.
-                        return null;
-                    }
-                    // A block the shape takes, standing already, stays and is not charged.
-                    if (!there.is(block.get())) {
-                        wanting.add(at);
-                        legends.add(named);
-                    }
-                }
-                case AssemblyShape.Legend.Tag tag -> {
-                    if (!there.is(blockTag(tag.tag()))) {
-                        wanting.add(at);
-                        legends.add(tag);
-                    }
-                }
-            }
-        }
-
-        clearedWithTheirOtherHalves(level, cleared, positions);
-
-        legends.add(new AssemblyShape.Legend.Block(shape.keyBlock()));
         boolean free = player == null || player.hasInfiniteMaterials();
-        AssemblyShape.Fill fill = AssemblyShape.fill(legends, player == null ? Map.of() : held(player), Assemblies::members,
-                free);
-
-        Rotation turn = turnFrom(facing);
-        List<PlacementPlan.Placed> others = new ArrayList<>(wanting.size());
-        Map<Item, Integer> cost = new LinkedHashMap<>();
-        for (int i = 0; i < wanting.size(); i++) {
-            Optional<Block> block = BuiltInRegistries.BLOCK.getOptional(fill.blocks().get(i));
-            if (block.isEmpty()) {
-                return null;
-            }
-            BlockPos pos = wanting.get(i).pos();
-            BlockState state = block.get().defaultBlockState().rotate(level, pos, turn);
-            others.add(new PlacementPlan.Placed(pos, state));
-            cost.merge(block.get().asItem(), 1, Integer::sum);
-            if (!fits(level, player, pos, level.getBlockState(pos), state)) {
-                taken.add(pos);
-            }
+        AssemblyPlanning.Planned planned = AssemblyPlanning.plan(positions, shape.keyBlock(),
+                new WorldGround(level, player, stack, hit, keyItem, turnFrom(facing)),
+                player == null ? Map.of() : held(player), Assemblies::members, free);
+        if (planned == null) {
+            return null;
         }
-        Map<Item, Integer> missing = new LinkedHashMap<>();
-        fill.missing().forEach((id, count) -> BuiltInRegistries.BLOCK.getOptional(id)
-                .ifPresent(block -> missing.merge(block.asItem(), count, Integer::sum)));
-
-        BlockPos keyPos = positions.getLast().pos();
-        Map<BlockPos, BlockState> laid = new HashMap<>();
-        cleared.forEach(pos -> laid.put(pos, Laying.emptied(level.getBlockState(pos))));
-        others.forEach(placed -> laid.put(placed.pos(), placed.state()));
-        BlockPlaceContext onTheLaid = new BlockPlaceContext(new PlannedLevel(level, laid, player), player,
-                InteractionHand.MAIN_HAND, stack, hit);
-        KeyPlacing key = keyPlacing(keyItem, BlockPlaceContext.at(onTheLaid, keyPos, hit.getDirection()));
-        if (key.refusal() == Refusal.Assembly.TAKEN) {
-            taken.add(keyPos);
-        }
-
-        List<PlacementPlan.Placed> blocks = new ArrayList<>(others);
-        blocks.add(new PlacementPlan.Placed(keyPos, key.state()));
-        // The refusal points at the first position taken in the plan's order, whatever made it taken.
-        Optional<BlockPos> firstTaken = positions.stream().map(AssemblyShape.At::pos).filter(taken::contains).findFirst();
-        Refusal own = null;
-        if (firstTaken.isPresent()) {
-            own = new Refusal.At(Refusal.Assembly.TAKEN, firstTaken.get());
-        } else if (key.refusal() == Refusal.Assembly.KEY_WOULD_NOT_STAND) {
-            own = new Refusal.At(Refusal.Assembly.KEY_WOULD_NOT_STAND, keyPos);
-        }
+        PlacementPlan plan = planned.plan();
         // The Key is charged with the rest, once it is placed, as the fill counted it.
+        Map<Item, Integer> cost = new LinkedHashMap<>();
+        plan.blocks().subList(0, plan.blocks().size() - 1)
+                .forEach(placed -> cost.merge(placed.state().getBlock().asItem(), 1, Integer::sum));
         cost.merge(keyItem, 1, Integer::sum);
-        PlacementPlan plan = new PlacementPlan(blocks, List.of(), cleared, own);
+        Map<Item, Integer> missing = new LinkedHashMap<>();
+        planned.missing().forEach((id, count) -> BuiltInRegistries.BLOCK.getOptional(id)
+                .ifPresent(block -> missing.merge(block.asItem(), count, Integer::sum)));
         return new Assembling(Laying.of(level, player, plan, Charge.of(player, cost, List.of()), REASONS,
                 missing::isEmpty), missing);
     }
 
-    /**
-     * The state the Key goes down in, and why it can't go down, if it can't.
-     *
-     * @param refusal {@link Refusal.Assembly#TAKEN TAKEN} where the Key has no room, no state for
-     *     placement, or an entity in its way, {@link Refusal.Assembly#KEY_WOULD_NOT_STAND KEY_WOULD_NOT_STAND} where it has a
-     *     state that wouldn't survive, or none where it goes down
-     */
-    private record KeyPlacing(BlockState state, Refusal.@Nullable Assembly refusal) {
+    /** The world as the click finds it, read for an Assembly's planning. */
+    private record WorldGround(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit,
+            BlockItem keyItem, Rotation turn) implements AssemblyPlanning.Ground {
+
+        @Override
+        public boolean knows(Identifier block) {
+            return BuiltInRegistries.BLOCK.containsKey(block);
+        }
+
+        @Override
+        public boolean holds(BlockPos pos, AssemblyShape.Legend.Laid legend) {
+            BlockState there = level.getBlockState(pos);
+            return switch (legend) {
+                case AssemblyShape.Legend.Block named ->
+                        BuiltInRegistries.BLOCK.getOptional(named.id()).map(there::is).orElse(false);
+                case AssemblyShape.Legend.Tag tag -> there.is(blockTag(tag.tag()));
+            };
+        }
+
+        @Override
+        public boolean replaceable(BlockPos pos) {
+            return level.getBlockState(pos).canBeReplaced();
+        }
+
+        @Override
+        public boolean clearChanges(BlockPos pos) {
+            BlockState there = level.getBlockState(pos);
+            return there != Laying.emptied(there);
+        }
+
+        @Override
+        public @Nullable BlockPos otherHalf(BlockPos pos) {
+            BlockState there = level.getBlockState(pos);
+            if (!there.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
+                return null;
+            }
+            DoubleBlockHalf half = there.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF);
+            BlockPos other = half == DoubleBlockHalf.LOWER ? pos.above() : pos.below();
+            BlockState otherState = level.getBlockState(other);
+            return otherState.is(there.getBlock())
+                    && otherState.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != half
+                    && clearChanges(other) ? other : null;
+        }
+
+        @Override
+        public boolean inWorld(BlockPos pos) {
+            return level.isInWorldBounds(pos);
+        }
+
+        @Override
+        public BlockState state(Identifier block, BlockPos pos) {
+            return BuiltInRegistries.BLOCK.getValue(block).defaultBlockState().rotate(level, pos, turn);
+        }
+
+        /**
+         * The placing player's own body aside, which the click lifts out of the shape; not what
+         * they ride, which stays where it is.
+         */
+        @Override
+        public boolean entityInTheWay(BlockPos pos, BlockState state) {
+            VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty()).move(pos);
+            return !shape.isEmpty() && !level.getEntities(player, shape.bounds(), EntitySelector.NO_SPECTATORS.and(
+                    entity -> !entity.isRemoved() && entity.blocksBuilding
+                            && Shapes.joinIsNotEmpty(shape, Shapes.create(entity.getBoundingBox()), BooleanOp.AND)))
+                    .isEmpty();
+        }
+
+        @Override
+        public AssemblyPlanning.KeyPlacing key(BlockPos keyPos, List<BlockPos> cleared, List<PlacementPlan.Placed> others) {
+            Map<BlockPos, BlockState> laid = new HashMap<>();
+            cleared.forEach(pos -> laid.put(pos, Laying.emptied(level.getBlockState(pos))));
+            others.forEach(placed -> laid.put(placed.pos(), placed.state()));
+            BlockPlaceContext onTheLaid = new BlockPlaceContext(new PlannedLevel(level, laid, player), player,
+                    InteractionHand.MAIN_HAND, stack, hit);
+            return keyPlacing(keyItem, BlockPlaceContext.at(onTheLaid, keyPos, hit.getDirection()));
+        }
     }
 
     /**
@@ -376,18 +369,20 @@ public final class Assemblies {
      * a block the shape lays over it. A Key whose item needn't survive, as scaffolding's needn't,
      * stands anywhere, as vanilla's {@code BlockItem#canPlace} has it.
      */
-    private static KeyPlacing keyPlacing(BlockItem item, BlockPlaceContext context) {
+    private static AssemblyPlanning.KeyPlacing keyPlacing(BlockItem item, BlockPlaceContext context) {
         BlockState drawn = item.getBlock().defaultBlockState();
         VanillaPlacement placement = VanillaPlacement.of(item, context);
         // A Key that would move, as scaffolding moves up a tower of itself, has no place in the shape.
         if (placement.context() != null && !placement.context().getClickedPos().equals(context.getClickedPos())) {
-            return new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
+            return new AssemblyPlanning.KeyPlacing(drawn, Refusal.Assembly.TAKEN);
         }
         return switch (placement.outcome()) {
-            case PLACES -> new KeyPlacing(placement.state(), null);
-            case WOULD_NOT_SURVIVE -> new KeyPlacing(placement.state(), Refusal.Assembly.KEY_WOULD_NOT_STAND);
-            case REFUSED -> new KeyPlacing(placement.state(), Refusal.Assembly.TAKEN);
-            case DISABLED, CANNOT_PLACE, NO_CONTEXT, NO_STATE -> new KeyPlacing(drawn, Refusal.Assembly.TAKEN);
+            case PLACES -> new AssemblyPlanning.KeyPlacing(placement.state(), null);
+            case WOULD_NOT_SURVIVE -> new AssemblyPlanning.KeyPlacing(placement.state(),
+                    Refusal.Assembly.KEY_WOULD_NOT_STAND);
+            case REFUSED -> new AssemblyPlanning.KeyPlacing(placement.state(), Refusal.Assembly.TAKEN);
+            case DISABLED, CANNOT_PLACE, NO_CONTEXT, NO_STATE -> new AssemblyPlanning.KeyPlacing(drawn,
+                    Refusal.Assembly.TAKEN);
         };
     }
 
@@ -403,31 +398,6 @@ public final class Assemblies {
             case EAST -> Rotation.COUNTERCLOCKWISE_90;
             default -> Rotation.NONE;
         };
-    }
-
-    /**
-     * Adds to the cleared positions the other half of each double plant cleared, tall grass's, which
-     * goes with it, so the preview marks it too; where that half stands at one of the shape's own
-     * positions, the shape already says what becomes of it.
-     */
-    private static void clearedWithTheirOtherHalves(Level level, List<BlockPos> cleared,
-            List<AssemblyShape.At> positions) {
-        Set<BlockPos> shaped = new HashSet<>();
-        positions.forEach(at -> shaped.add(at.pos()));
-        for (BlockPos pos : List.copyOf(cleared)) {
-            BlockState there = level.getBlockState(pos);
-            if (!there.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)) {
-                continue;
-            }
-            DoubleBlockHalf half = there.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF);
-            BlockPos other = half == DoubleBlockHalf.LOWER ? pos.above() : pos.below();
-            BlockState otherState = level.getBlockState(other);
-            if (!shaped.contains(other) && otherState.is(there.getBlock())
-                    && otherState.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) != half
-                    && otherState != Laying.emptied(otherState)) {
-                cleared.add(other);
-            }
-        }
     }
 
     private static TagKey<Block> blockTag(Identifier tag) {
@@ -452,21 +422,6 @@ public final class Assemblies {
             }
         }
         return held;
-    }
-
-    /**
-     * Whether a block of the shape may go here: inside the world, on a block a placement replaces,
-     * such as air, water or grass, and clear of entities, the placing player's own body aside,
-     * which the click lifts out of the shape; not what they ride, which stays where it is.
-     */
-    private static boolean fits(Level level, @Nullable Player player, BlockPos pos, BlockState there,
-            BlockState state) {
-        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty()).move(pos);
-        return level.isInWorldBounds(pos) && there.canBeReplaced()
-                && (shape.isEmpty() || level.getEntities(player, shape.bounds(), EntitySelector.NO_SPECTATORS.and(
-                        entity -> !entity.isRemoved() && entity.blocksBuilding
-                                && Shapes.joinIsNotEmpty(shape, Shapes.create(entity.getBoundingBox()), BooleanOp.AND)))
-                        .isEmpty());
     }
 
     /**
