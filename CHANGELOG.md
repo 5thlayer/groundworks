@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.6.2
+
 ### Players
 
 - An **Assembly** where you may not build, in adventure mode or on protected ground, now tells you so whatever else refuses it, as a Stretch and a Fast Replace do, where before a taken position, a Key that wouldn't stand or the blocks it lacks were told first.
