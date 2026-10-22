@@ -56,6 +56,9 @@ public final class Rotate {
     /** How far from its block's centre a hit may land, along each axis: vanilla's bound on a click's. */
     private static final double HIT_FROM_CENTRE = 1.0000001;
 
+    /** The held stack's turn. */
+    static final HeldValue<QuarterTurn> TURN = new HeldValue<>(() -> Groundworks.QUARTER_TURN.get(), QuarterTurn.NONE);
+
     private Rotate() {
     }
 
@@ -83,7 +86,7 @@ public final class Rotate {
 
     /** The held stack's turn, which a Consumer's own plan reads if it reads the look some other way. */
     public static QuarterTurn turnOf(ItemStack stack) {
-        return stack.getOrDefault(Groundworks.QUARTER_TURN.get(), QuarterTurn.NONE);
+        return TURN.get(stack);
     }
 
     /**
@@ -145,7 +148,7 @@ public final class Rotate {
         ItemStack held = player.getMainHandItem();
         switch (RotatePress.decide(isRotatable(player, held) ? new HeldInWorld(player, held, reached) : null, reverse,
                 reached == null ? null : new AimedInWorld(player, reached.getBlockPos(), reverse))) {
-            case RotatePress.PlanTurned<BlockState>(QuarterTurn turn) -> setTurn(held, turn);
+            case RotatePress.PlanTurned<BlockState>(QuarterTurn turn) -> TURN.set(held, turn);
             case RotatePress.TurnedInPlace<BlockState>(BlockState turned) ->
                     turnInPlace(player.level(), reached.getBlockPos(), turned);
             case RotatePress.Refused<BlockState>(String reason) ->
@@ -177,15 +180,6 @@ public final class Rotate {
                 && level.mayInteract(player, pos);
     }
 
-    // No turn is no component, so a stack turned back stacks again with one never turned.
-    static void setTurn(ItemStack stack, QuarterTurn turned) {
-        if (turned.equals(QuarterTurn.NONE)) {
-            stack.remove(Groundworks.QUARTER_TURN.get());
-        } else {
-            stack.set(Groundworks.QUARTER_TURN.get(), turned);
-        }
-    }
-
     /**
      * The rotatable main-hand stack in the world, as the press rule asks of it: its plan at the
      * reached hit, asked of a copy turned each way, so the stack itself is turned only once decided.
@@ -211,7 +205,7 @@ public final class Rotate {
                 return null;
             }
             ItemStack turned = stack.copy();
-            setTurn(turned, turn);
+            TURN.set(turned, turn);
             return Placements.planFor(player.level(), player, InteractionHand.MAIN_HAND, turned, hit);
         }
 

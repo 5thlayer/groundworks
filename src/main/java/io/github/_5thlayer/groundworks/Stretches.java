@@ -76,6 +76,9 @@ public final class Stretches {
 
     private static final List<LegBuilder> BUILDERS = new CopyOnWriteArrayList<>();
 
+    /** The held stack's stretch being drawn, in any dimension. */
+    private static final HeldValue<StoredStretch> STRETCH = new HeldValue<>(() -> Groundworks.STRETCH.get(), null);
+
     private Stretches() {
     }
 
@@ -112,7 +115,7 @@ public final class Stretches {
 
     /** The stretch being drawn with the held stack, or {@code null} when none is, or it is in another dimension. */
     public static @Nullable StoredStretch storedOn(Level level, ItemStack stack) {
-        StoredStretch stored = stack.get(Groundworks.STRETCH.get());
+        StoredStretch stored = STRETCH.get(stack);
         return stored != null && stored.dimension().equals(level.dimension()) ? stored : null;
     }
 
@@ -393,7 +396,7 @@ public final class Stretches {
     static InteractionResult use(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         if (hand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown() || builderOf(held.getItem()) == null
-                || !held.has(Groundworks.STRETCH.get())) {
+                || STRETCH.get(held) == null) {
             return InteractionResult.PASS;
         }
         if (!player.level().isClientSide()) {
@@ -479,14 +482,9 @@ public final class Stretches {
         }
     }
 
-    // No stretch, no height and no turn are no components, so a stack laid or cleared stacks again with one never used.
     private static void store(ItemStack stack, StretchState state) {
-        if (state.stored() == null) {
-            stack.remove(Groundworks.STRETCH.get());
-        } else {
-            stack.set(Groundworks.STRETCH.get(), state.stored());
-        }
-        Raise.setHeight(stack, state.height());
-        Rotate.setTurn(stack, state.turn());
+        STRETCH.set(stack, state.stored());
+        Raise.HEIGHT.set(stack, state.height());
+        Rotate.TURN.set(stack, state.turn());
     }
 }

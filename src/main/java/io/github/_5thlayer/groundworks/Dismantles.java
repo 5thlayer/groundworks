@@ -73,6 +73,12 @@ public final class Dismantles {
 
     private static final List<DismantleFamily> FAMILIES = new CopyOnWriteArrayList<>();
 
+    /** The held stack's stored start, live or not. */
+    private static final HeldValue<DismantleStart> START = new HeldValue<>(() -> Groundworks.DISMANTLE_START.get(), null);
+
+    /** The held stack's queued spans, oldest first. */
+    private static final HeldValue<List<QueuedSpan>> QUEUE = new HeldValue<>(() -> Groundworks.DISMANTLE_QUEUE.get(), List.of());
+
     private Dismantles() {
     }
 
@@ -95,7 +101,7 @@ public final class Dismantles {
 
     /** The held stack's stored start, or {@code null} when none is stored or it is dead. */
     public static @Nullable DismantleStart liveStart(Level level, ItemStack held) {
-        DismantleStart start = held.get(Groundworks.DISMANTLE_START.get());
+        DismantleStart start = START.get(held);
         if (start == null) {
             return null;
         }
@@ -104,12 +110,12 @@ public final class Dismantles {
 
     /** The held stack's queued spans, oldest first, live or not. */
     public static List<QueuedSpan> queued(ItemStack held) {
-        return held.getOrDefault(Groundworks.DISMANTLE_QUEUE.get(), List.of());
+        return QUEUE.get(held);
     }
 
     /** Whether the held stack stores anything a click would confirm or a sneak-use clear. */
     public static boolean hasStored(ItemStack held) {
-        return held.has(Groundworks.DISMANTLE_START.get()) || !queued(held).isEmpty();
+        return START.get(held) != null || !queued(held).isEmpty();
     }
 
     /** Whether one more span, queued or ended by a click, fits in a pass beside {@code queued} spans. */
@@ -299,7 +305,7 @@ public final class Dismantles {
                     if (!hasRoom(queued.size())) {
                         tell(player, Component.translatable("message.groundworks.dismantle_queue_full", MAX_SPANS));
                     } else {
-                        held.set(Groundworks.DISMANTLE_START.get(), new DismantleStart(level.dimension(), member.pos(), member.state()));
+                        START.set(held, new DismantleStart(level.dimension(), member.pos(), member.state()));
                         tell(player, Component.translatable("message.groundworks.dismantle_started"));
                     }
                 }
@@ -346,8 +352,8 @@ public final class Dismantles {
         }
         List<QueuedSpan> longer = new ArrayList<>(queued);
         longer.add(new QueuedSpan(start, end));
-        held.set(Groundworks.DISMANTLE_QUEUE.get(), List.copyOf(longer));
-        held.remove(Groundworks.DISMANTLE_START.get());
+        QUEUE.set(held, List.copyOf(longer));
+        START.set(held, null);
         tell(player, Component.translatable("message.groundworks.dismantle_queued"));
     }
 
@@ -365,8 +371,8 @@ public final class Dismantles {
     }
 
     private static void clear(ItemStack held) {
-        held.remove(Groundworks.DISMANTLE_START.get());
-        held.remove(Groundworks.DISMANTLE_QUEUE.get());
+        START.set(held, null);
+        QUEUE.set(held, List.of());
     }
 
     // Every family's hook runs before any removal, so a removal's side effects -- a belt line

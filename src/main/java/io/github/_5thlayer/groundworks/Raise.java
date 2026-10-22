@@ -24,6 +24,9 @@ public final class Raise {
 
     static final String AT_REACH = "message.groundworks.height_at_reach";
 
+    /** The held stack's height, as stored and before any cap. */
+    static final HeldValue<Height> HEIGHT = new HeldValue<>(() -> Groundworks.HEIGHT.get(), Height.NONE);
+
     private Raise() {
     }
 
@@ -51,7 +54,7 @@ public final class Raise {
      */
     public static Height heightOf(Player player, ItemStack stack) {
         return Placements.isDrawn(stack.getItem())
-                ? stack.getOrDefault(Groundworks.HEIGHT.get(), Height.NONE).clampedTo(capOf(player, stack))
+                ? HEIGHT.get(stack).clampedTo(capOf(player, stack))
                 : Height.NONE;
     }
 
@@ -81,21 +84,12 @@ public final class Raise {
         if (!Placements.isDrawn(held.getItem())) {
             return;
         }
-        Height stored = held.getOrDefault(Groundworks.HEIGHT.get(), Height.NONE);
+        Height stored = HEIGHT.get(held);
         Height stepped = stored.step(lower, capOf(player, held));
         if (stepped == null) {
             player.sendOverlayMessage(Component.translatable(AT_REACH));
         } else {
-            setHeight(held, stepped);
-        }
-    }
-
-    // No height is no component, so a stack lowered back stacks again with one never raised.
-    static void setHeight(ItemStack stack, Height height) {
-        if (height.equals(Height.NONE)) {
-            stack.remove(Groundworks.HEIGHT.get());
-        } else {
-            stack.set(Groundworks.HEIGHT.get(), height);
+            HEIGHT.set(held, stepped);
         }
     }
 }

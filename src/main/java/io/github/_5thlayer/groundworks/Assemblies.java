@@ -87,6 +87,9 @@ public final class Assemblies {
 
     private static final List<Predicate<? super Block>> KEYS = new CopyOnWriteArrayList<>();
 
+    /** The held Key's choice of Assembly; none is the start its declaration names. */
+    private static final HeldValue<AssemblyChoice> CHOICE = new HeldValue<>(() -> Groundworks.ASSEMBLY_CHOICE.get(), null);
+
     private Assemblies() {
     }
 
@@ -174,7 +177,7 @@ public final class Assemblies {
         if (assemblies.isEmpty()) {
             return null;
         }
-        int choice = AssemblyChoice.current(stack.get(Groundworks.ASSEMBLY_CHOICE.get()), start(assemblies),
+        int choice = AssemblyChoice.current(CHOICE.get(stack), start(assemblies),
                 assemblies.size() + 1);
         return choice < assemblies.size() ? assemblies.get(choice) : null;
     }
@@ -199,14 +202,9 @@ public final class Assemblies {
         if (assemblies.isEmpty()) {
             return;
         }
-        AssemblyChoice next = AssemblyChoice.next(held.get(Groundworks.ASSEMBLY_CHOICE.get()), start(assemblies),
+        AssemblyChoice next = AssemblyChoice.next(CHOICE.get(held), start(assemblies),
                 assemblies.size() + 1, reverse);
-        // The start is no component, so a stack stepped back to it stacks again with a fresh one.
-        if (next == null) {
-            held.remove(Groundworks.ASSEMBLY_CHOICE.get());
-        } else {
-            held.set(Groundworks.ASSEMBLY_CHOICE.get(), next);
-        }
+        CHOICE.set(held, next);
     }
 
     /**
