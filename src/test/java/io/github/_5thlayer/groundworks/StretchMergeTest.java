@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * A stretch's plan from its legs' plans: a later leg wins a position an earlier one takes, and
- * replaces there as the later leg does; the first refusal is kept. Its states are null here, since
- * the merge reads none.
+ * replaces or clears there as the later leg does; the first refusal is kept. Its states are null
+ * here, since the merge reads none.
  */
 class StretchMergeTest {
 
@@ -26,6 +26,10 @@ class StretchMergeTest {
 
     private static Placed at(BlockPos pos) {
         return new Placed(pos, null);
+    }
+
+    private static PlacementPlan clearing(List<Placed> blocks, BlockPos... clears) {
+        return new PlacementPlan(blocks, List.of(), List.of(clears), null);
     }
 
     private static List<BlockPos> positions(PlacementPlan plan) {
@@ -68,5 +72,30 @@ class StretchMergeTest {
         PlacementPlan merged = Stretches.merged(List.of(PlacementPlan.refused(List.of(at(A)),
                 Refusal.Stretch.MAY_NOT_BUILD)), Refusal.Stretch.BEHIND_THE_LOOK);
         assertEquals(Refusal.Stretch.BEHIND_THE_LOOK, merged.refusal());
+    }
+
+    @Test
+    void eachLegsClearsAreKept() {
+        PlacementPlan merged = Stretches.merged(List.of(clearing(List.of(at(A)), A.above()),
+                clearing(List.of(at(B)), B.above())), null);
+        assertEquals(List.of(A.above(), B.above()), merged.clears());
+        assertEquals(List.of(A, B), positions(merged));
+    }
+
+    @Test
+    void aLaterLegsBlockWhereAnEarlierClearsIsLaidNotCleared() {
+        PlacementPlan merged = Stretches.merged(List.of(clearing(List.of(at(A)), B),
+                PlacementPlan.accepted(List.of(at(B)))), null);
+        assertEquals(List.of(), merged.clears());
+        assertEquals(List.of(A, B), positions(merged));
+    }
+
+    @Test
+    void aLaterLegsClearWhereAnEarlierPlacesIsClearedNotLaid() {
+        PlacementPlan merged = Stretches.merged(List.of(PlacementPlan.replacing(List.of(at(A), at(B)), null),
+                clearing(List.of(at(C)), B)), null);
+        assertEquals(List.of(B), merged.clears());
+        assertEquals(List.of(A, C), positions(merged));
+        assertEquals(List.of(A), merged.replaces());
     }
 }

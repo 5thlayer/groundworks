@@ -12,6 +12,7 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Consumers
 
 - A `ReplaceBuilder` or `LegBuilder` plan's `clears` are now emptied when a Fast Replace or a Stretch lays it, before its blocks go down, as the preview already drew them and an Assembly's always were; before, they were marked and guarded but left standing.
+- A `LegBuilder` leg's `clears` now reach its Stretch's plan, a later leg's block or clear winning a position an earlier one takes, so the preview marks them and the Stretch empties them; before, a Stretch drawn in legs dropped them, and only a Column kept its own.
 - `Refusal.Assembly.MAY_NOT_BUILD` now refuses an Assembly's plan ahead of `TAKEN`, `KEY_WOULD_NOT_STAND` and `NOT_ENOUGH_ITEMS`, as `Refusal.Stretch.MAY_NOT_BUILD` and `Refusal.FastReplace.MAY_NOT_BUILD` already do theirs.
 
 ## 0.6.1

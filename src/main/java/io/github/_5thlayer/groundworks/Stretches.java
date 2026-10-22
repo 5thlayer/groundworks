@@ -247,17 +247,24 @@ public final class Stretches {
     }
 
     /**
-     * The stretch's plan from its legs' plans, in their order: a later leg's block at a position an
-     * earlier one takes, its first anchor, is the later leg's, and replaces there where the later
-     * leg's does; refused for {@code refusal}, or else for the first leg's refusal.
+     * The stretch's plan from its legs' plans, in their order: a position an earlier leg takes, its
+     * first anchor, becomes what a later leg makes of it, a block, replacing there where the later
+     * leg's does, or a clear; refused for {@code refusal}, or else for the first leg's refusal.
      */
     static PlacementPlan merged(List<PlacementPlan> legs, @Nullable Refusal refusal) {
         Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
         Set<BlockPos> replaces = new LinkedHashSet<>();
+        Set<BlockPos> clears = new LinkedHashSet<>();
         Refusal first = refusal;
         for (PlacementPlan leg : legs) {
+            for (BlockPos pos : leg.clears()) {
+                blocks.remove(pos);
+                replaces.remove(pos);
+                clears.add(pos);
+            }
             for (PlacementPlan.Placed placed : leg.blocks()) {
                 blocks.put(placed.pos(), placed.state());
+                clears.remove(placed.pos());
                 if (leg.replaces().contains(placed.pos())) {
                     replaces.add(placed.pos());
                 } else {
@@ -271,7 +278,7 @@ public final class Stretches {
         List<PlacementPlan.Placed> placed = blocks.entrySet().stream()
                 .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
                 .toList();
-        return new PlacementPlan(placed, List.copyOf(replaces), first);
+        return new PlacementPlan(placed, List.copyOf(replaces), List.copyOf(clears), first);
     }
 
     /**
