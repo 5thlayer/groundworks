@@ -5,7 +5,6 @@ package io.github._5thlayer.groundworks;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,25 +67,7 @@ record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {
 
     /** How many of each of the cost's items the main inventory lacks, in the cost's order: none when it affords it. */
     Map<Item, Integer> missing(Player player) {
-        Map<Item, Integer> held = new HashMap<>();
-        for (ItemStack slot : player.getInventory().getNonEquipmentItems()) {
-            if (!slot.isEmpty() && cost.containsKey(slot.getItem())) {
-                held.merge(slot.getItem(), slot.getCount(), Integer::sum);
-            }
-        }
-        return missing(cost, held);
-    }
-
-    /** How many of each of {@code cost}'s keys {@code held} lacks, in {@code cost}'s order. */
-    static <K> Map<K, Integer> missing(Map<K, Integer> cost, Map<K, Integer> held) {
-        Map<K, Integer> missing = new LinkedHashMap<>();
-        cost.forEach((key, count) -> {
-            int lacking = count - held.getOrDefault(key, 0);
-            if (lacking > 0) {
-                missing.put(key, lacking);
-            }
-        });
-        return missing;
+        return HandBack.missing(player, cost);
     }
 
     /** Whether what comes back fits in the main inventory once the cost is taken, as {@link #lay} puts it. */

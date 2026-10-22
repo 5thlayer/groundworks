@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -57,38 +56,7 @@ public final class HandBack {
 
     /** Whether {@code returned} fits once {@code cost}, a count of each of its items, is {@linkplain #take taken}. */
     static boolean fits(Player player, InteractionHand hand, Map<Item, Integer> cost, List<ItemStack> returned) {
-        if (returned.isEmpty()) {
-            return true;
-        }
-        Inventory inventory = player.getInventory();
-        List<ItemStack> slots = new ArrayList<>();
-        for (ItemStack slot : inventory.getNonEquipmentItems()) {
-            slots.add(slot.copy());
-        }
-        int held = heldSlot(player, hand, slots, player.getItemInHand(hand).copy());
-        boolean freed = take(slots, held, cost);
-        for (ItemStack back : returned) {
-            ItemStack rest = back.copy();
-            if (freed && slots.get(held).isEmpty()) {
-                slots.set(held, rest.split(rest.getMaxStackSize()));
-            }
-            for (ItemStack slot : slots) {
-                if (!slot.isEmpty() && ItemStack.isSameItemSameComponents(slot, rest)) {
-                    int moved = Math.max(0, Math.min(rest.getCount(), slot.getMaxStackSize() - slot.getCount()));
-                    slot.grow(moved);
-                    rest.shrink(moved);
-                }
-            }
-            for (int i = 0; i < inventory.getNonEquipmentItems().size() && !rest.isEmpty(); i++) {
-                if (slots.get(i).isEmpty()) {
-                    slots.set(i, rest.split(rest.getMaxStackSize()));
-                }
-            }
-            if (!rest.isEmpty()) {
-                return false;
-            }
-        }
-        return true;
+        return returned.isEmpty() || view(player, hand).ledger.fits(cost, stacksOf(returned));
     }
 
     /**
@@ -97,9 +65,18 @@ public final class HandBack {
      * what comes back.
      */
     static boolean take(Player player, InteractionHand hand, Map<Item, Integer> cost) {
-        // The stacks themselves, so taking from them takes from the inventory.
-        List<ItemStack> slots = new ArrayList<>(player.getInventory().getNonEquipmentItems());
-        return take(slots, heldSlot(player, hand, slots, player.getItemInHand(hand)), cost);
+        View view = view(player, hand);
+        boolean freed = view.ledger.take(cost);
+        for (int i = 0; i < view.slots.size(); i++) {
+            ItemStack slot = view.slots.get(i);
+            slot.shrink(slot.getCount() - view.ledger.count(i));
+        }
+        return freed;
+    }
+
+    /** How many of each of the cost's items the main inventory lacks, in the cost's order. */
+    static Map<Item, Integer> missing(Player player, Map<Item, Integer> cost) {
+        return view(player, InteractionHand.MAIN_HAND).ledger.missing(cost);
     }
 
     /** Hands {@code returned} back, into the held slot first when {@code freed}. */
@@ -113,6 +90,48 @@ public final class HandBack {
         }
     }
 
+    /** A player's slots and the ledger over them: the main inventory, and the off hand after it for the off hand. */
+    private record View(List<ItemStack> slots, Ledger<Item> ledger) {
+    }
+
+    private static View view(Player player, InteractionHand hand) {
+        // The stacks themselves, so taking from them takes from the inventory.
+        List<ItemStack> slots = new ArrayList<>(player.getInventory().getNonEquipmentItems());
+        int main = slots.size();
+        int held;
+        if (hand == InteractionHand.MAIN_HAND) {
+            held = player.getInventory().getSelectedSlot();
+        } else {
+            slots.add(player.getItemInHand(hand));
+            held = main;
+        }
+        return new View(slots, new Ledger<>(stacksOf(slots), held, main));
+    }
+
+    private static List<Ledger.Stack<Item>> stacksOf(List<ItemStack> stacks) {
+        List<Ledger.Stack<Item>> list = new ArrayList<>();
+        for (ItemStack stack : stacks) {
+            list.add(stack.isEmpty() ? Ledger.Stack.empty()
+                    : new Ledger.Stack<>(stack.getItem(), new Kind(stack.copyWithCount(1)), stack.getCount(),
+                            stack.getMaxStackSize()));
+        }
+        return list;
+    }
+
+    /** What stacks together: the same item with the same components. */
+    private record Kind(ItemStack proto) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Kind kind && ItemStack.isSameItemSameComponents(proto, kind.proto);
+        }
+
+        @Override
+        public int hashCode() {
+            return ItemStack.hashItemAndComponents(proto);
+        }
+    }
+
     /** Puts {@code stack} in {@code hand}, the main hand's as the inventory's own slot, as a placement refills it. */
     private static void putInHand(Player player, InteractionHand hand, ItemStack stack) {
         if (hand == InteractionHand.MAIN_HAND) {
@@ -120,45 +139,5 @@ public final class HandBack {
         } else {
             player.setItemInHand(hand, stack);
         }
-    }
-
-    /**
-     * The index of the stack in {@code hand} among the main inventory's {@code slots}: the selected
-     * slot, or the off hand's, which is added after them as {@code offhand}.
-     */
-    private static int heldSlot(Player player, InteractionHand hand, List<ItemStack> slots, ItemStack offhand) {
-        if (hand == InteractionHand.MAIN_HAND) {
-            return player.getInventory().getSelectedSlot();
-        }
-        slots.add(offhand);
-        return slots.size() - 1;
-    }
-
-    /**
-     * Takes {@code cost} from {@code slots}, the {@code held} one first, and answers whether that
-     * emptied the held slot: only the cost is taken, so a held stack there before and gone after
-     * gave its last item to it.
-     */
-    private static boolean take(List<ItemStack> slots, int held, Map<Item, Integer> cost) {
-        boolean heldBefore = !slots.get(held).isEmpty();
-        cost.forEach((item, count) -> {
-            int toTake = count - takeFrom(slots.get(held), item, count);
-            for (ItemStack slot : slots) {
-                if (toTake == 0) {
-                    break;
-                }
-                toTake -= takeFrom(slot, item, toTake);
-            }
-        });
-        return heldBefore && slots.get(held).isEmpty();
-    }
-
-    private static int takeFrom(ItemStack slot, Item item, int toTake) {
-        if (!slot.is(item)) {
-            return 0;
-        }
-        int taken = Math.min(toTake, slot.getCount());
-        slot.shrink(taken);
-        return taken;
     }
 }
