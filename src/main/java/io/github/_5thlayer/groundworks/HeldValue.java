@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 5thlayer
+// SPDX-License-Identifier: MIT
+
 package io.github._5thlayer.groundworks;
 
 import java.util.Objects;
