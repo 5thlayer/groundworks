@@ -57,7 +57,7 @@ _Avoid_: dismantle outline, highlight
 ### Rotating
 
 **Rotate**:
-One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the held item is rotatable -- its plan is drawn and the block it places has a facing, an axis or a rotation, or it is a **Key** whose **Assembly** is drawn -- and otherwise **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
+One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the main hand holds a rotatable item -- its plan is drawn and the block it places has a facing, an axis or a rotation, or it is a **Key** whose **Assembly** is drawn -- and otherwise, whether the main hand is empty or holds anything else, **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
 _Avoid_: rotate key, turn, wrench rotate
 
 **Reverse Rotate**:
@@ -69,7 +69,7 @@ _Avoid_: counter-rotate, rotate back
 _Avoid_: rotate the preview (the preview only follows the plan), rotate the ghost, held rotate
 
 **Rotate in Place**:
-**Rotate** on a placed block: the block under the crosshair turns, and what turning means is the block's own -- a belt tile turns, a machine keeps its contents. A block that cannot take the turn is refused with its reason and nothing changes; there is no preview of it. It turns only blocks a **Consumer** has stated it turns, a statement separate from **Opt-in**: Beltworks states its own blocks, the Pack states every block.
+**Rotate** on a placed block, while the main hand holds nothing or an item that isn't rotatable: the block under the crosshair turns, and what turning means is the block's own -- a belt tile turns, a machine keeps its contents. A block that cannot take the turn is refused with its reason and nothing changes; there is no preview of it. It turns only blocks a **Consumer** has stated it turns, a statement separate from **Opt-in**: Beltworks states its own blocks, the Pack states every block.
 _Avoid_: placed rotate, wrench rotate
 
 ### Replacing
