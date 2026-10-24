@@ -59,6 +59,11 @@ final class VanillaCompanionTests {
         tests.test("vanilla_companion_a_bed_with_no_room_for_its_head_is_refused_whole", 20,
                 helper -> refusedWhole(helper, Blocks.RED_BED, Direction.EAST,
                         foot -> foot.setValue(BlockStateProperties.BED_PART, BedPart.HEAD)));
+        tests.test("vanilla_companion_a_sunflower_under_a_ceiling_is_refused_whole", 20, helper -> {
+            helper.setBlock(FLOOR, Blocks.DIRT);
+            refusedWhole(helper, Blocks.SUNFLOWER, Direction.UP,
+                    lower -> lower.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER));
+        });
         tests.optIn(Blocks.LADDER);
         tests.test("vanilla_companion_a_ladder_with_nothing_to_hang_on_has_no_plan", 20,
                 VanillaCompanionTests::ladderWithNothingToHangOn);
@@ -94,7 +99,7 @@ final class VanillaCompanionTests {
 
     /**
      * The block placed on the floor, looking east, with stone where its Companion would go, {@code
-     * toward} it: the plan is refused, the block faced east with its Companion as {@code companion}
+     * toward} it: the plan is refused, the block faced east where it faces at all, with its Companion as {@code companion}
      * makes it, and the click places nothing.
      */
     private static void refusedWhole(GameTestHelper helper, Block block, Direction toward,
@@ -108,7 +113,7 @@ final class VanillaCompanionTests {
         }
         PlacementPlan.Placed placed = plan.blocks().getFirst();
         if (!placed.pos().equals(helper.absolutePos(placing)) || !placed.state().is(block)
-                || placed.state().getValue(BlockStateProperties.HORIZONTAL_FACING) != Direction.EAST) {
+                || placed.state().getOptionalValue(BlockStateProperties.HORIZONTAL_FACING).orElse(Direction.EAST) != Direction.EAST) {
             throw helper.assertionException(placing, "the plan refuses " + placed + ", not " + block + " facing east");
         }
         var expected = List.of(new PlacementPlan.Placed(placed.pos().relative(toward), companion.apply(placed.state())));

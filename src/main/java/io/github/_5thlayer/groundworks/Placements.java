@@ -170,7 +170,11 @@ public final class Placements {
         };
     }
 
-    // The block refused whole where a Companion has no room, or null where that isn't why it has no state.
+    /**
+     * The block refused whole where a Companion of its default state, faced the way the player
+     * looks, has no room, as vanilla's own check for a door, a tall plant or a bed reads it; or
+     * {@code null} where that isn't why it has no state.
+     */
     @Nullable
     private static PlacementPlan companionBlocked(BlockItem item, BlockPlaceContext context) {
         BlockState state = item.getBlock().defaultBlockState();
