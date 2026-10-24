@@ -35,9 +35,14 @@ import org.jspecify.annotations.Nullable;
  * blocks; none of them is among {@code blocks}, and it is empty for a plan that clears nothing. A
  * position the clearing leaves as it is, air or a fluid that stays, is not named. A refused plan
  * still names them, as it does its blocks, and clears nothing.
+ *
+ * <p>{@code companions} names the Companions: the blocks a placed block puts down itself once it is
+ * placed, as a door's lower half puts down its upper half. The preview draws them as it draws the
+ * blocks, but no path that lays a plan places them or charges for them, since the placed block lays
+ * them itself; none of them is among {@code blocks}, and it is empty for a plan with none.
  */
 public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
-                            @Nullable Refusal refusal) {
+                            List<Placed> companions, @Nullable Refusal refusal) {
 
     /** One block the plan would put down. */
     public record Placed(BlockPos pos, BlockState state) {
@@ -47,6 +52,13 @@ public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<B
         blocks = List.copyOf(blocks);
         replaces = List.copyOf(replaces);
         clears = List.copyOf(clears);
+        companions = List.copyOf(companions);
+    }
+
+    /** A plan with no Companions. */
+    public PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
+                         @Nullable Refusal refusal) {
+        this(blocks, replaces, clears, List.of(), refusal);
     }
 
     /** A plan that clears nothing. */

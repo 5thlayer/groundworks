@@ -3,12 +3,14 @@
 
 package io.github._5thlayer.groundworks;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
 import io.github._5thlayer.groundworks.mixin.UseOnContextInvoker;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -18,6 +20,9 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 
@@ -129,9 +134,20 @@ public final class Placements {
      * that position draws red. A spot moved by the held stack's {@linkplain Raise height} is a
      * position the player chose, so one that is taken, or outside the world, refuses there rather
      * than drawing nothing.
+     *
+     * <p>Vanilla answers with the one part the player places, and puts down the rest in the block's
+     * {@code setPlacedBy}, so the plan names that rest as its {@linkplain #companionsOf Companions},
+     * refused or not.
      */
     @Nullable
     public static PlacementPlan vanillaPlan(BlockItem item, BlockPlaceContext context) {
+        PlacementPlan plan = placedPlan(item, context);
+        return plan == null ? null
+                : new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), companionsOf(plan.blocks()), plan.refusal());
+    }
+
+    @Nullable
+    private static PlacementPlan placedPlan(BlockItem item, BlockPlaceContext context) {
         VanillaPlacement placement = VanillaPlacement.of(item, context);
         return switch (placement.outcome()) {
             case DISABLED, NO_CONTEXT, NO_STATE -> null;
@@ -148,6 +164,31 @@ public final class Placements {
                     placement.state(), Refusal.Vanilla.VANILLA);
             case PLACES -> PlacementPlan.accepted(placement.context().getClickedPos(), placement.state());
         };
+    }
+
+    /**
+     * The Companions vanilla puts down once these blocks are placed: the upper half above a lower
+     * {@code DOUBLE_BLOCK_HALF}, as a door's or a tall plant's, and the head a bed's foot faces.
+     *
+     * <p>Read from the placed states' own properties rather than asked of the game, since asking
+     * means running {@code setPlacedBy}, which changes the world, and which a bed skips on the
+     * client. A modded block that uses the same properties gets the same Companions.
+     */
+    static List<PlacementPlan.Placed> companionsOf(List<PlacementPlan.Placed> blocks) {
+        List<PlacementPlan.Placed> companions = new ArrayList<>();
+        for (PlacementPlan.Placed placed : blocks) {
+            BlockState state = placed.state();
+            if (state.getOptionalValue(BlockStateProperties.DOUBLE_BLOCK_HALF).orElse(null) == DoubleBlockHalf.LOWER) {
+                companions.add(new PlacementPlan.Placed(placed.pos().above(),
+                        state.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER)));
+            }
+            Direction facing = state.getOptionalValue(BlockStateProperties.HORIZONTAL_FACING).orElse(null);
+            if (state.getOptionalValue(BlockStateProperties.BED_PART).orElse(null) == BedPart.FOOT && facing != null) {
+                companions.add(new PlacementPlan.Placed(placed.pos().relative(facing),
+                        state.setValue(BlockStateProperties.BED_PART, BedPart.HEAD)));
+            }
+        }
+        return companions;
     }
 
     /**

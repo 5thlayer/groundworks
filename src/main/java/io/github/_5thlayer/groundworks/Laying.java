@@ -107,7 +107,7 @@ record Laying(PlacementPlan plan, Charge charge, Reasons reasons) {
     /** The same plan, refused for {@code refusal}, or the plan as it is where that is its own. */
     static PlacementPlan refused(PlacementPlan plan, @Nullable Refusal refusal) {
         return refusal == plan.refusal() ? plan
-                : new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), refusal);
+                : new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), plan.companions(), refusal);
     }
 
     /**

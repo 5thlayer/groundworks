@@ -167,6 +167,7 @@ public final class GroundworksGameTests {
         var environment = event.registerEnvironment(id("default"), new TestEnvironmentDefinition.AllOf(List.of()));
         var tests = new Registrar(event, environment, new ConcurrentHashMap<>());
         VanillaPlanTests.register(tests);
+        VanillaCompanionTests.register(tests);
         PlanOptInTests.register(tests);
         RotateTests.register(tests);
         RotateInPlaceTests.register(tests);

@@ -163,15 +163,25 @@ public final class Stretches {
     /**
      * The plan with each block reshaped against its neighbours, as the game reshapes a block when
      * one goes down beside it: the planned block where the stretch lays one, the world elsewhere.
-     * Neighbours are read as planned, not as reshaped, as each is when the next goes down.
+     * Neighbours are read as planned, not as reshaped, as each is when the next goes down; a
+     * Companion is a neighbour as planned, and is reshaped as a block is.
      */
     private static PlacementPlan reshaped(Level level, PlacementPlan plan) {
         Map<BlockPos, BlockState> planned = new LinkedHashMap<>();
         for (PlacementPlan.Placed placed : plan.blocks()) {
             planned.put(placed.pos(), placed.state());
         }
+        for (PlacementPlan.Placed companion : plan.companions()) {
+            planned.put(companion.pos(), companion.state());
+        }
+        return new PlacementPlan(reshaped(level, plan.blocks(), planned), plan.replaces(), plan.clears(),
+                reshaped(level, plan.companions(), planned), plan.refusal());
+    }
+
+    private static List<PlacementPlan.Placed> reshaped(Level level, List<PlacementPlan.Placed> placing,
+                                                       Map<BlockPos, BlockState> planned) {
         List<PlacementPlan.Placed> blocks = new ArrayList<>();
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        for (PlacementPlan.Placed placed : placing) {
             BlockState state = placed.state();
             for (Direction direction : Direction.values()) {
                 BlockPos beside = placed.pos().relative(direction);
@@ -180,7 +190,7 @@ public final class Stretches {
             }
             blocks.add(new PlacementPlan.Placed(placed.pos(), state));
         }
-        return new PlacementPlan(blocks, plan.replaces(), plan.clears(), plan.refusal());
+        return blocks;
     }
 
     /** Where a reshape in the preview schedules its ticks: nowhere, since the preview changes nothing. */
@@ -252,10 +262,12 @@ public final class Stretches {
     /**
      * The stretch's plan from its legs' plans, in their order: a position an earlier leg takes, its
      * first anchor, becomes what a later leg makes of it, a block, replacing there where the later
-     * leg's does, or a clear; refused for {@code refusal}, or else for the first leg's refusal.
+     * leg's does, or a clear; refused for {@code refusal}, or else for the first leg's refusal. Each
+     * leg's Companions are the stretch's, but where a block or a clear takes their position.
      */
     static PlacementPlan merged(List<PlacementPlan> legs, @Nullable Refusal refusal) {
         Map<BlockPos, BlockState> blocks = new LinkedHashMap<>();
+        Map<BlockPos, BlockState> companions = new LinkedHashMap<>();
         Set<BlockPos> replaces = new LinkedHashSet<>();
         Set<BlockPos> clears = new LinkedHashSet<>();
         Refusal first = refusal;
@@ -274,14 +286,22 @@ public final class Stretches {
                     replaces.remove(placed.pos());
                 }
             }
+            for (PlacementPlan.Placed companion : leg.companions()) {
+                companions.put(companion.pos(), companion.state());
+            }
             if (first == null) {
                 first = leg.refusal();
             }
         }
-        List<PlacementPlan.Placed> placed = blocks.entrySet().stream()
+        companions.keySet().removeAll(blocks.keySet());
+        companions.keySet().removeAll(clears);
+        return new PlacementPlan(placed(blocks), List.copyOf(replaces), List.copyOf(clears), placed(companions), first);
+    }
+
+    private static List<PlacementPlan.Placed> placed(Map<BlockPos, BlockState> states) {
+        return states.entrySet().stream()
                 .map(entry -> new PlacementPlan.Placed(entry.getKey(), entry.getValue()))
                 .toList();
-        return new PlacementPlan(placed, List.copyOf(replaces), List.copyOf(clears), first);
     }
 
     /**

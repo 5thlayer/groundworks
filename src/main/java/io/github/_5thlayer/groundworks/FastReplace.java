@@ -290,7 +290,11 @@ public final class FastReplace {
         if (planned.blocks().stream().noneMatch(placed -> placed.pos().equals(aimed))) {
             return PlacementPlan.refused(planned.blocks(), Refusal.FastReplace.PLANS_ELSEWHERE);
         }
-        return new PlacementPlan(keepingOrientation(planned.blocks(), aimed, old, stack), List.of(aimed), planned.refusal());
+        List<PlacementPlan.Placed> blocks = keepingOrientation(planned.blocks(), aimed, old, stack);
+        // A vanilla plan's Companions follow its blocks' new orientation, as a bed's head follows its foot.
+        List<PlacementPlan.Placed> companions = item instanceof PlansPlacement ? planned.companions()
+                : Placements.companionsOf(blocks);
+        return new PlacementPlan(blocks, List.of(aimed), List.of(), companions, planned.refusal());
     }
 
     /**

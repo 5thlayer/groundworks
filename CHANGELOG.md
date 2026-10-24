@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- A door, a bed or a tall plant, such as a sunflower, is now previewed whole, its upper half or its head drawn with the part you place, where before only that part was drawn; so is each one a Fast Replace or a Stretch lays. A Stretch of doors, which a pack may add to `groundworks:stretches`, now draws its doors, where before it planned air in their place.
+
+### Consumers
+
+- `PlacementPlan` gains `companions`: the blocks its placed blocks put down themselves, as a door's lower half puts down its upper half. The preview draws them with the plan's tint, never the replace tint, and no laying path places them or charges for them. Every Vanilla Plan names them, for a lower `DOUBLE_BLOCK_HALF` and a `BED_PART` foot, a Stretch's vanilla legs and a Fast Replace included; every existing constructor and factory stays, with none.
+
 ## 0.6.2
 
 ### Players

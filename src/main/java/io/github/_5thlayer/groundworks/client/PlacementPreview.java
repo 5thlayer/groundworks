@@ -49,7 +49,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * The Placement Preview, after Factorio's build preview: the blocks a held item would place, drawn translucent where they would
  * land, blue where they replace and red where placing would be refused, with an amber outline round
- * each block the placement would clear.
+ * each block the placement would clear. A plan's Companions are drawn with it, plain or red, never
+ * blue, since they replace nothing.
  *
  * <p>It draws a {@link PlacementPlan} and decides nothing itself. The renderer asks the same
  * question the click does, so the preview cannot promise a placement the game will not perform.
@@ -181,7 +182,7 @@ final class PlacementPreview {
         PoseStack poseStack = event.getPoseStack();
         SubmitNodeCollector collector = event.getSubmitNodeCollector();
         RandomSource random = RandomSource.create();
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        for (PlacementPlan.Placed placed : drawn(plan)) {
             BlockPos pos = placed.pos();
             Set<Direction> faces = shown.getOrDefault(pos, Set.of());
             BlockStateModel model = Minecraft.getInstance().getModelManager()
@@ -196,7 +197,7 @@ final class PlacementPreview {
             if (parts.isEmpty()) {
                 continue;
             }
-            // Per block, since a plan may replace some of its blocks and place the rest.
+            // Per block, since a plan may replace some of its blocks and place the rest; a Companion is no replace.
             QuadInstance instance = new QuadInstance();
             instance.setColor(Tint.of(plan, pos));
             poseStack.pushPose();
@@ -226,11 +227,12 @@ final class PlacementPreview {
 
     /**
      * The plan's outside faces, less those the world already hides -- a multiblock's underside
-     * against the ground -- so the preview draws what the placed blocks will.
+     * against the ground -- so the preview draws what the placed blocks will. The Companions are of
+     * the hull, so the face between a door's two halves is not drawn.
      */
     private static Map<BlockPos, Set<Direction>> shownFaces(ClientLevel level, PlacementPlan plan) {
         Map<BlockPos, BlockState> states = new HashMap<>();
-        for (PlacementPlan.Placed placed : plan.blocks()) {
+        for (PlacementPlan.Placed placed : drawn(plan)) {
             states.put(placed.pos(), placed.state());
         }
         Map<BlockPos, Set<Direction>> faces = new HashMap<>();
@@ -245,6 +247,13 @@ final class PlacementPreview {
             }
         }
         return faces;
+    }
+
+    /** What the plan draws: its blocks, then the Companions they put down. */
+    private static List<PlacementPlan.Placed> drawn(PlacementPlan plan) {
+        List<PlacementPlan.Placed> drawn = new ArrayList<>(plan.blocks());
+        drawn.addAll(plan.companions());
+        return drawn;
     }
 
     private static void emit(VertexConsumer buffer, PoseStack.Pose pose, List<BakedQuad> quads,

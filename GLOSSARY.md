@@ -17,8 +17,12 @@ _Avoid_: client (collides with the game's client side), dependent, integration
 ### Plans
 
 **Placement Plan**:
-What a held item would do at an aimed spot: the blocks it would put down (each a position and a blockstate), the positions among them it replaces, the positions apart from them it clears, as an **Assembly** clears the grass from its empty positions, and a **Refusal** or none. Placing executes a plan and the preview draws one, so both ask one rule. A refused plan still carries its blocks, because a refusal is drawn where they would have gone; no plan at all means nothing to draw.
+What a held item would do at an aimed spot: the blocks it would put down (each a position and a blockstate), the positions among them it replaces, the positions apart from them it clears, as an **Assembly** clears the grass from its empty positions, its **Companions**, and a **Refusal** or none. Placing executes a plan and the preview draws one, so both ask one rule. A refused plan still carries its blocks, because a refusal is drawn where they would have gone; no plan at all means nothing to draw.
 _Avoid_: ghost, build plan, preview state, placement context (vanilla's own type, one input to a plan)
+
+**Companion**:
+A block a **Placement Plan**'s placed block puts down itself once it is placed: a door's upper half, a bed's head, a tall plant's top. The **Placement Preview** draws it with its plan, but nothing that lays a plan places it or charges for it. A **Vanilla Plan** names them from the placed state's own properties.
+_Avoid_: other half, second part
 
 **Refusal**:
 Why a **Placement Plan**, or a **Dismantle**'s span, would not go through. Refusals are open: the library names only the **Vanilla** one and a span's "not the same kind", and each **Consumer** names its own. A plan refused for several reasons is told by one, in the same order for every click that lays: the player may not build there, whatever else refuses it; then the plan's own reason; then the items it lacks; then no room for what it hands back. A claim mod is asked last, on the click alone, before anything is laid.
