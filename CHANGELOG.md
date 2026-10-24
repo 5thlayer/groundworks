@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.6.3
+
 ### Players
 
 - Once a Stretch's start is stored, Raise and Lower are no longer capped by your reach, only by the world's build height, so a Leg's rise climbs as high as a Column does. An item that stretches both in legs and as a column draws a Column past your reach too. A press past the build height says "That is as far as the world goes." The start's own height and a single placement's keep the reach cap.
