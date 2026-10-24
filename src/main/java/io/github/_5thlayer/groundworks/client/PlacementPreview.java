@@ -25,21 +25,29 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.block.BlockModelRenderState;
+import net.minecraft.client.renderer.block.BlockModelSet;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.model.BlockDisplayContext;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
@@ -50,7 +58,9 @@ import org.jspecify.annotations.Nullable;
  * The Placement Preview, after Factorio's build preview: the blocks a held item would place, drawn translucent where they would
  * land, blue where they replace and red where placing would be refused, with an amber outline round
  * each block the placement would clear. A plan's Companions are drawn with it, plain or red, never
- * blue, since they replace nothing.
+ * blue, since they replace nothing. A block its block entity draws, such as a bed or a chest, is
+ * drawn by the special renderer vanilla keeps for it outside the world, through a
+ * {@link TintedCollector}; a block with nothing at all to draw it by is outlined in its tint.
  *
  * <p>It draws a {@link PlacementPlan} and decides nothing itself. The renderer asks the same
  * question the click does, so the preview cannot promise a placement the game will not perform.
@@ -80,6 +90,7 @@ import org.jspecify.annotations.Nullable;
 final class PlacementPreview {
 
     private static final float REPLACE_SCALE = 1.004F;
+    private static final BlockDisplayContext DISPLAY_CONTEXT = BlockDisplayContext.create();
 
     private static @Nullable Key key;
     private static @Nullable PlacementPlan cached;
@@ -182,6 +193,8 @@ final class PlacementPreview {
         PoseStack poseStack = event.getPoseStack();
         SubmitNodeCollector collector = event.getSubmitNodeCollector();
         RandomSource random = RandomSource.create();
+        BlockModelSet blockModels = Minecraft.getInstance().getModelManager().getBlockModelSet();
+        BlockModelRenderState specialState = new BlockModelRenderState();
         for (PlacementPlan.Placed placed : drawn(plan)) {
             BlockPos pos = placed.pos();
             Set<Direction> faces = shown.getOrDefault(pos, Set.of());
@@ -194,12 +207,10 @@ final class PlacementPreview {
             // not there yet -- a model that reads its neighbours previews unconnected, which is
             // honest, since nothing has connected to it.
             model.collectParts(BlockAndTintGetter.EMPTY, pos, placed.state(), random, parts);
-            if (parts.isEmpty()) {
-                continue;
-            }
             // Per block, since a plan may replace some of its blocks and place the rest; a Companion is no replace.
+            int tint = Tint.of(plan, pos);
             QuadInstance instance = new QuadInstance();
-            instance.setColor(Tint.of(plan, pos));
+            instance.setColor(tint);
             poseStack.pushPose();
             poseStack.translate(pos.getX() - camera.x(), pos.getY() - camera.y(), pos.getZ() - camera.z());
             if (plan.replaces().contains(pos)) {
@@ -208,19 +219,32 @@ final class PlacementPreview {
                 poseStack.scale(REPLACE_SCALE, REPLACE_SCALE, REPLACE_SCALE);
                 poseStack.translate(-0.5, -0.5, -0.5);
             }
-            collector.submitCustomGeometry(poseStack,
-                    RenderTypes.entityTranslucent(TextureAtlas.LOCATION_BLOCKS),
-                    (pose, buffer) -> {
-                        for (BlockStateModelPart part : parts) {
-                            emit(buffer, pose, part.getQuads(null), instance);
-                            // A quad keyed by a direction is culled against that neighbour, the way
-                            // vanilla culls a placed block's faces; an unkeyed one always draws.
-                            for (Direction direction : faces) {
-                                emit(buffer, pose, part.getQuads(direction), instance);
+            if (!parts.isEmpty()) {
+                collector.submitCustomGeometry(poseStack,
+                        RenderTypes.entityTranslucent(TextureAtlas.LOCATION_BLOCKS),
+                        (pose, buffer) -> {
+                            for (BlockStateModelPart part : parts) {
+                                emit(buffer, pose, part.getQuads(null), instance);
+                                // A quad keyed by a direction is culled against that neighbour, the way
+                                // vanilla culls a placed block's faces; an unkeyed one always draws.
+                                for (Direction direction : faces) {
+                                    emit(buffer, pose, part.getQuads(direction), instance);
+                                }
                             }
-                        }
-                    });
+                        });
+            }
+            // What a block entity draws -- a bed, a chest, a sign -- is the special renderer vanilla
+            // keeps for the block outside the world, oriented by its state as a block display's is.
+            TintedCollector special = new TintedCollector(collector, tint);
+            blockModels.get(placed.state()).update(specialState, placed.state(), DISPLAY_CONTEXT, placed.state().getSeed(pos));
+            specialState.submit(poseStack, special, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
+            specialState.clear();
             poseStack.popPose();
+            if (parts.isEmpty() && !special.drew()) {
+                // A block with nothing to draw it by still shows where it would go.
+                VoxelShape shape = placed.state().getShape(EmptyBlockGetter.INSTANCE, pos);
+                Outline.draw(event, Map.of(pos, shape.isEmpty() ? Shapes.block() : shape), ARGB.opaque(tint));
+            }
         }
         Outline.draw(event, clearing, ClearMark.COLOUR);
     }
