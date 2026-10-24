@@ -13,7 +13,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
  * Raise and Lower (ADR 0004). A press moves the held stack's next placement one block up or down,
  * wherever a Placement Preview is drawn for it, and the height stays on the stack, as
  * {@link Groundworks#HEIGHT}, until its last item is placed. It is capped by the player's reach in
- * whole blocks.
+ * whole blocks, but only by the world's build height once a stretch's start is stored (ADR 0013).
  *
  * <p>Nothing implements a contract to be raised. The position a block placement's context reports
  * is moved by the stack's height, so the plan and the click, which both read that context, move
@@ -23,6 +23,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 public final class Raise {
 
     static final String AT_REACH = "message.groundworks.height_at_reach";
+    static final String AT_BUILD_LIMIT = "message.groundworks.height_at_build_limit";
 
     /** The held stack's height, as stored and before any cap. */
     static final HeldValue<Height> HEIGHT = new HeldValue<>(() -> Groundworks.HEIGHT.get(), Height.NONE);
@@ -36,21 +37,24 @@ public final class Raise {
     }
 
     /**
-     * How far this player may raise or lower the held stack: their reach, but for the length of a
-     * {@link Column} being drawn, which only the world's build height caps (ADR 0006), since a
-     * stretch is meant to reach past the player's arm.
+     * How far this player may raise or lower the held stack: their reach, but while a stretch's
+     * start is stored, only the world's build height, so a Leg's rise and a {@link Column}'s length
+     * reach past the player's arm (ADR 0013). The start's own height is set before it is stored, so
+     * reach caps it as it caps a single placement's.
      */
     static int capOf(Player player, ItemStack stack) {
-        return Stretches.stretchesOnlyAsColumn(stack.getItem()) && Stretches.storedOn(player.level(), stack) != null
-                ? player.level().getHeight()
-                : capOf(player);
+        return drawsStretch(player, stack) ? player.level().getHeight() : capOf(player);
+    }
+
+    /** Whether a stretch is being drawn with the held stack: it stretches, and its start is stored. */
+    private static boolean drawsStretch(Player player, ItemStack stack) {
+        return Stretches.builderOf(stack.getItem()) != null && Stretches.storedOn(player.level(), stack) != null;
     }
 
     /**
      * The held stack's height as this player may use it, clamped to their reach, or to the build
-     * height for a Column's length. A stack no
-     * Placement Preview is drawn for has none, whatever it carries, so a height is never one the
-     * player cannot see.
+     * height while a stretch is being drawn. A stack no Placement Preview is drawn for has none,
+     * whatever it carries, so a height is never one the player cannot see.
      */
     public static Height heightOf(Player player, ItemStack stack) {
         return Placements.isDrawn(stack.getItem())
@@ -76,8 +80,8 @@ public final class Raise {
     /**
      * A press of Raise, or of Lower, decided on the server. It moves the main hand's stack if a
      * Placement Preview is drawn for it, so the height is never one the player cannot see, and
-     * does nothing otherwise. A press past the player's reach changes nothing and is told on the
-     * action bar.
+     * does nothing otherwise. A press past the cap changes nothing and is told on the action bar:
+     * the player's reach, or the world's build height while a stretch is being drawn.
      */
     public static void press(Player player, boolean lower) {
         ItemStack held = player.getMainHandItem();
@@ -87,7 +91,7 @@ public final class Raise {
         Height stored = HEIGHT.get(held);
         Height stepped = stored.step(lower, capOf(player, held));
         if (stepped == null) {
-            player.sendOverlayMessage(Component.translatable(AT_REACH));
+            player.sendOverlayMessage(Component.translatable(drawsStretch(player, held) ? AT_BUILD_LIMIT : AT_REACH));
         } else {
             HEIGHT.set(held, stepped);
         }

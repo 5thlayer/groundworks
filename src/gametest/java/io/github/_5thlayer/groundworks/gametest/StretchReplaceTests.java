@@ -18,6 +18,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -86,6 +87,8 @@ final class StretchReplaceTests {
         road.test("a_stretch_goes_through_a_group_whose_builder_replaces_one_block_and_hands_back_drops_not_its_refund", 20,
                 StretchReplaceTests::oneBlockBuilderGroup);
         road.test("a_column_through_its_group_replaces_each_block", 20, StretchReplaceTests::column);
+        road.test("an_item_that_also_stretches_in_legs_draws_a_column_past_the_players_reach", 20,
+                StretchReplaceTests::columnPastTheReach);
         road.test("a_consumer_asks_a_block_s_replace_group_and_whether_a_stretch_goes_through_it", 20,
                 StretchReplaceTests::groupQuery);
     }
@@ -387,6 +390,28 @@ final class StretchReplaceTests {
         }
         expectHeld(helper, player, HELD - 3);
         expectCount(helper, player, Items.DIRT, 3);
+        helper.succeed();
+    }
+
+    /**
+     * Stone bricks stretch in legs as well as in a column. A reach of two, a column of four podzol
+     * and three presses of Raise past the reach: four stone bricks.
+     */
+    private static void columnPastTheReach(GameTestHelper helper) {
+        for (int y = 1; y <= 4; y++) {
+            helper.setBlock(new BlockPos(1, y, 2), Blocks.PODZOL);
+        }
+        ListeningPlayer player = holding(helper, Items.STONE_BRICKS);
+        player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE).setBaseValue(2.0);
+        start(helper, player, WEST_END);
+        for (int press = 0; press < 3; press++) {
+            Raise.press(player, false);
+        }
+        click(helper, player, WEST_END, false);
+        for (int y = 1; y <= 4; y++) {
+            expectBlock(helper, new BlockPos(1, y, 2), Blocks.STONE_BRICKS);
+        }
+        expectHeld(helper, player, HELD - 4);
         helper.succeed();
     }
 

@@ -56,6 +56,10 @@ final class VanillaStretchTests {
                 VanillaStretchTests::risingStairs);
         tests.test("stairs_stretched_down_a_fall_lay_a_staircase_facing_back_up_the_leg", 20,
                 VanillaStretchTests::fallingStairs);
+        tests.test("stairs_stretched_over_a_rise_past_the_players_reach_climb_it", 20,
+                VanillaStretchTests::risingStairsPastTheReach);
+        tests.test("a_raise_past_the_build_height_while_a_stretch_is_drawn_is_refused_and_told", 20,
+                VanillaStretchTests::refusedPastTheBuildHeight);
         tests.test("fences_stretched_round_a_corner_to_a_standing_fence_are_planned_joined_as_they_are_laid", 20,
                 helper -> plannedAsLaid(helper, Blocks.OAK_FENCE));
         tests.test("walls_stretched_round_a_corner_to_a_standing_wall_are_planned_joined_as_they_are_laid", 20,
@@ -246,6 +250,35 @@ final class VanillaStretchTests {
         for (BlockPos pos : List.of(new BlockPos(1, 1, 2), new BlockPos(2, 2, 2), new BlockPos(3, 3, 2),
                 new BlockPos(4, 3, 2), new BlockPos(5, 3, 2))) {
             expectStair(helper, pos, Direction.EAST);
+        }
+        helper.succeed();
+    }
+
+    /** A reach of two, and a rise of three past it, which caps no leg's rise: the staircase climbs all three. */
+    private static void risingStairsPastTheReach(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.OAK_STAIRS, 16);
+        player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE).setBaseValue(2.0);
+        start(helper, player);
+        press(player, 3);
+        click(helper, player, new BlockPos(5, 0, 2), false);
+        for (BlockPos pos : List.of(new BlockPos(1, 1, 2), new BlockPos(2, 2, 2), new BlockPos(3, 3, 2),
+                new BlockPos(4, 4, 2), new BlockPos(5, 4, 2))) {
+            expectStair(helper, pos, Direction.EAST);
+        }
+        expectHeld(helper, player, 11);
+        helper.succeed();
+    }
+
+    /** With a start stored, Raise steps up to the world's height and no further, and says so. */
+    private static void refusedPastTheBuildHeight(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.OAK_STAIRS, 16);
+        start(helper, player);
+        int cap = helper.getLevel().getHeight();
+        press(player, cap + 1);
+        int height = Raise.heightOf(player, player.getMainHandItem()).blocks();
+        if (height != cap || !player.heard.getLast().equals("message.groundworks.height_at_build_limit")) {
+            helper.fail(cap + 1 + " presses with a build height of " + cap + " raised " + height
+                    + " and told " + player.heard);
         }
         helper.succeed();
     }

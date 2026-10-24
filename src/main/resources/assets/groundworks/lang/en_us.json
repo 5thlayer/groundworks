@@ -11,6 +11,7 @@
   "message.groundworks.dismantle_not_same_kind": "That is not the same kind of block as the dismantle's start, %s.",
   "message.groundworks.height": "Height %s",
   "message.groundworks.height_at_reach": "That is as far as your reach goes.",
+  "message.groundworks.height_at_build_limit": "That is as far as the world goes.",
   "message.groundworks.stretch_started": "Stretch started. Sneak-click to add an anchor, click to lay it, or sneak-use in the air to clear it.",
   "message.groundworks.column_started": "Column started. Raise or Lower to set its height, click to lay it, or sneak-use in the air to clear it.",
   "message.groundworks.stretch_anchored": "Anchor added.",
