@@ -6,7 +6,7 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ### Players
 
-- A door or a tall plant, such as a sunflower, is now previewed whole, its upper half drawn with the half you place, where before only that half was drawn; so is each one a Fast Replace or a Stretch lays. A Stretch of doors, which a pack may add to `groundworks:stretches`, now draws its doors, where before it planned air in their place.
+- A door, a bed or a tall plant, such as a sunflower, is now previewed whole, its upper half or its head drawn with the part you place, where before only that part was drawn; so is each one a Fast Replace or a Stretch lays. A Stretch of doors, which a pack may add to `groundworks:stretches`, now draws its doors, where before it planned air in their place.
 - A door, a tall plant or a bed aimed where its other half has no room, such as a door under a ceiling or a bed against a wall, is now previewed red, both halves, where before nothing was drawn.
 - A bed, a chest, a sign, a banner, a shulker box, a head or skull, a decorated pot, a copper chest or a copper golem statue is now previewed, translucent in the preview's tint as other blocks are, where before nothing was drawn; a mob head or skull draws tinted but solid. A bell is now previewed with its bell, where before only its frame was drawn. A block a pack opts in that has nothing to draw it by is outlined where it would go.
 
