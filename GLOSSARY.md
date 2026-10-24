@@ -21,7 +21,7 @@ What a held item would do at an aimed spot: the blocks it would put down (each a
 _Avoid_: ghost, build plan, preview state, placement context (vanilla's own type, one input to a plan)
 
 **Companion**:
-A block a **Placement Plan**'s placed block puts down itself once it is placed: a door's upper half, a bed's head, a tall plant's top. The **Placement Preview** draws it with its plan, but nothing that lays a plan places it or charges for it. A **Vanilla Plan** names them from the placed state's own properties.
+A block a **Placement Plan**'s placed block puts down itself once it is placed: a door's upper half, a bed's head, a tall plant's top. The **Placement Preview** draws it with its plan, but nothing that lays a plan places it or charges for it. A **Vanilla Plan** names them from the placed state's own properties, and where a Companion's spot is taken, as a door's with no room above, refuses its block whole there rather than drawing nothing.
 _Avoid_: other half, second part
 
 **Refusal**:

@@ -133,7 +133,10 @@ public final class Placements {
      * null state -- there is no plan, so nothing is drawn. Where it refuses <em>at</em> a position,
      * that position draws red. A spot moved by the held stack's {@linkplain Raise height} is a
      * position the player chose, so one that is taken, or outside the world, refuses there rather
-     * than drawing nothing.
+     * than drawing nothing. So is a block whose Companion's spot is taken or outside the world, as a
+     * door's with no room above or a bed's with no room for its head: vanilla has no state for it,
+     * and the block is refused whole where the player aimed, faced the way they look. A block with
+     * no state for any other reason, as a ladder with nothing to hang on, still draws nothing.
      *
      * <p>Vanilla answers with the one part the player places, and puts down the rest in the block's
      * {@code setPlacedBy}, so the plan names that rest as its {@linkplain #companionsOf Companions},
@@ -150,7 +153,8 @@ public final class Placements {
     private static PlacementPlan placedPlan(BlockItem item, BlockPlaceContext context) {
         VanillaPlacement placement = VanillaPlacement.of(item, context);
         return switch (placement.outcome()) {
-            case DISABLED, NO_CONTEXT, NO_STATE -> null;
+            case DISABLED, NO_CONTEXT -> null;
+            case NO_STATE -> companionBlocked(item, placement.context());
             case CANNOT_PLACE -> {
                 if (Raise.heightOf(context).equals(Height.NONE)) {
                     yield null;
@@ -164,6 +168,22 @@ public final class Placements {
                     placement.state(), Refusal.Vanilla.VANILLA);
             case PLACES -> PlacementPlan.accepted(placement.context().getClickedPos(), placement.state());
         };
+    }
+
+    // The block refused whole where a Companion has no room, or null where that isn't why it has no state.
+    @Nullable
+    private static PlacementPlan companionBlocked(BlockItem item, BlockPlaceContext context) {
+        BlockState state = item.getBlock().defaultBlockState();
+        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
+            state = state.setValue(BlockStateProperties.HORIZONTAL_FACING, context.getHorizontalDirection());
+        }
+        BlockPos pos = context.getClickedPos();
+        Level level = context.getLevel();
+        boolean blocked = companionsOf(List.of(new PlacementPlan.Placed(pos, state))).stream()
+                .map(PlacementPlan.Placed::pos)
+                .anyMatch(at -> level.isOutsideBuildHeight(at) || !level.getWorldBorder().isWithinBounds(at)
+                        || !level.getBlockState(at).canBeReplaced(context));
+        return blocked ? PlacementPlan.refused(pos, state, Refusal.Vanilla.VANILLA) : null;
     }
 
     /**

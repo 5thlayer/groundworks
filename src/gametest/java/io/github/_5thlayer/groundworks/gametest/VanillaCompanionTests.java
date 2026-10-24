@@ -27,7 +27,7 @@ import org.jspecify.annotations.Nullable;
  * A Vanilla Plan names its block's Companions, the part vanilla puts down itself once the block is
  * placed: a door's upper half, a bed's head, a tall plant's top. The click places them as planned,
  * through the block's own {@code setPlacedBy}, and nothing that lays the plan places them again or
- * charges for them.
+ * charges for them. Where a Companion has no room, the block is refused whole there.
  */
 final class VanillaCompanionTests {
 
@@ -53,6 +53,15 @@ final class VanillaCompanionTests {
             namesOne(helper, Blocks.SUNFLOWER, Direction.UP,
                     lower -> lower.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER));
         });
+        tests.test("vanilla_companion_a_door_with_no_room_above_is_refused_whole", 20,
+                helper -> refusedWhole(helper, Blocks.OAK_DOOR, Direction.UP,
+                        lower -> lower.setValue(BlockStateProperties.DOUBLE_BLOCK_HALF, DoubleBlockHalf.UPPER)));
+        tests.test("vanilla_companion_a_bed_with_no_room_for_its_head_is_refused_whole", 20,
+                helper -> refusedWhole(helper, Blocks.RED_BED, Direction.EAST,
+                        foot -> foot.setValue(BlockStateProperties.BED_PART, BedPart.HEAD)));
+        tests.optIn(Blocks.LADDER);
+        tests.test("vanilla_companion_a_ladder_with_nothing_to_hang_on_has_no_plan", 20,
+                VanillaCompanionTests::ladderWithNothingToHangOn);
         var packed = tests.withPack(LAYS_COMPANIONS);
         packed.test("vanilla_companion_a_stretch_of_doors_names_each_door_s_upper_half", 20,
                 VanillaCompanionTests::stretchOfDoors);
@@ -80,6 +89,46 @@ final class VanillaCompanionTests {
         expectStanding(helper, plan.blocks());
         expectStanding(helper, expected);
         expectHeld(helper, player, 15);
+        helper.succeed();
+    }
+
+    /**
+     * The block placed on the floor, looking east, with stone where its Companion would go, {@code
+     * toward} it: the plan is refused, the block faced east with its Companion as {@code companion}
+     * makes it, and the click places nothing.
+     */
+    private static void refusedWhole(GameTestHelper helper, Block block, Direction toward,
+                                     UnaryOperator<BlockState> companion) {
+        BlockPos placing = FLOOR.above();
+        helper.setBlock(placing.relative(toward), Blocks.STONE);
+        ListeningPlayer player = holding(helper, block, new BlockPos(0, 1, 4));
+        PlacementPlan plan = planAt(helper, player, FLOOR);
+        if (plan == null || !plan.isRefused() || plan.blocks().size() != 1) {
+            throw helper.assertionException(FLOOR, "the plan is " + plan + ", not one refused " + block);
+        }
+        PlacementPlan.Placed placed = plan.blocks().getFirst();
+        if (!placed.pos().equals(helper.absolutePos(placing)) || !placed.state().is(block)
+                || placed.state().getValue(BlockStateProperties.HORIZONTAL_FACING) != Direction.EAST) {
+            throw helper.assertionException(placing, "the plan refuses " + placed + ", not " + block + " facing east");
+        }
+        var expected = List.of(new PlacementPlan.Placed(placed.pos().relative(toward), companion.apply(placed.state())));
+        if (!plan.companions().equals(expected)) {
+            helper.fail("the plan's Companions are " + plan.companions() + ", expected " + expected, FLOOR);
+        }
+        clickAt(helper, player, FLOOR);
+        helper.assertBlockPresent(Blocks.AIR, placing);
+        helper.assertBlockPresent(Blocks.STONE, placing.relative(toward));
+        expectHeld(helper, player, 16);
+        helper.succeed();
+    }
+
+    /** A ladder on the floor with no wall beside it has no state for a reason other than a Companion, and no plan. */
+    private static void ladderWithNothingToHangOn(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Blocks.LADDER, new BlockPos(0, 1, 4));
+        PlacementPlan plan = planAt(helper, player, FLOOR);
+        if (plan != null) {
+            helper.fail("the plan is " + plan + ", where a ladder with nothing to hang on has none", FLOOR);
+        }
         helper.succeed();
     }
 
