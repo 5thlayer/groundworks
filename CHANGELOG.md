@@ -6,7 +6,7 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ### Players
 
-- A door, a bed or a tall plant, such as a sunflower, is now previewed whole, its upper half or its head drawn with the part you place, where before only that part was drawn; so is each one a Fast Replace or a Stretch lays. A Stretch of doors, which a pack may add to `groundworks:stretches`, now draws its doors, where before it planned air in their place.
+- A door or a tall plant, such as a sunflower, is now previewed whole, its upper half drawn with the half you place, where before only that half was drawn; so is each one a Fast Replace or a Stretch lays. A Stretch of doors, which a pack may add to `groundworks:stretches`, now draws its doors, where before it planned air in their place.
 
 ### Consumers
 
