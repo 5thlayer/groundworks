@@ -97,7 +97,7 @@ A point of a **Stretch**'s route that the player fixed: its start, each point a 
 _Avoid_: corner (a block's shape, not a point of a route), waypoint, node
 
 **Leg**:
-The part of a **Stretch** from one **Anchor** to the next. It rises or falls by the height the player set right after its first anchor, along its first direction, then runs level to the next anchor. Seen from above it is one straight line or two joined by one turn. What a rise is built of is the item's: slopes for a belt, a straight climb for a pipe.
+The part of a **Stretch** from one **Anchor** to the next. It rises or falls by the height the player set right after its first anchor, however far past the player's reach, along its first direction, then runs level to the next anchor. Seen from above it is one straight line or two joined by one turn. What a rise is built of is the item's: slopes for a belt, a straight climb for a pipe.
 _Avoid_: segment, section
 
 **Column**:
@@ -105,7 +105,7 @@ A **Stretch** that goes only straight up or down from its start, with no **Leg**
 _Avoid_: vertical leg, climb (what a pipe's rise is built of), shaft
 
 **Raise** / **Lower**:
-The two actions (`G` and `B` by default) that move the held item's next placement one block up or down, wherever a **Placement Preview** is drawn. The height is capped by the player's reach, in whole blocks. On a single placement it moves the block straight up or down from where it would go, and it stays with the held stack until the stack's last item is placed. Storing a **Stretch**'s start uses it up as the start's height. From then on they set the rise of the **Leg** being drawn, one net height per leg, which the next stored anchor freezes into it.
+The two actions (`G` and `B` by default) that move the held item's next placement one block up or down, wherever a **Placement Preview** is drawn. The height is capped by the player's reach, in whole blocks, until a **Stretch**'s start is stored; from then on only by the world's build height. On a single placement it moves the block straight up or down from where it would go, and it stays with the held stack until the stack's last item is placed. Storing a **Stretch**'s start uses it up as the start's height. From then on they set the rise of the **Leg** being drawn, one net height per leg, which the next stored anchor freezes into it.
 _Avoid_: height gesture (the pair's old working name), elevate, lift
 
 **Detour**:
