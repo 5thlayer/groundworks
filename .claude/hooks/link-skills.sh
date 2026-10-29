@@ -1,4 +1,7 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2026 5thlayer
+# SPDX-License-Identifier: MIT
+
 # Links into .claude/skills each engineering and productivity skill the mattpocock/skills submodule has and the
 # checkout lacks, so a submodule bump brings its new skills with it. diagnosing-bugs and implement stay unlinked: a
 # project skill of either name would hide skillworks' one.
