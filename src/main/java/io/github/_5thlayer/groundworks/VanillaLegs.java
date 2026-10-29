@@ -177,9 +177,12 @@ final class VanillaLegs implements LegBuilder {
             return replacing || super.canPlace();
         }
 
+        // The click is on a block beside the spot, unless the stretch lies in a block of its Replace group.
+        // Vanilla answers from canPlace, and a slab or a snow layer of the held kind asks this from
+        // canBeReplaced, so the two would recurse.
         @Override
         public boolean replacingClickedOnBlock() {
-            return replacing || super.replacingClickedOnBlock();
+            return replacing;
         }
 
         @Override

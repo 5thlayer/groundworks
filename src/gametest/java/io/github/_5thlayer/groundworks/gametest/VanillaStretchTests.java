@@ -5,6 +5,7 @@ package io.github._5thlayer.groundworks.gametest;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.PlacementPlan;
@@ -24,9 +25,14 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChainBlock;
 import net.minecraft.world.level.block.LadderBlock;
 import net.minecraft.world.level.block.RailBlock;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Half;
 import net.minecraft.world.level.block.state.properties.RailShape;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.block.state.properties.StairsShape;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -46,6 +52,19 @@ final class VanillaStretchTests {
 
     private static final BlockPos START = new BlockPos(1, 0, 2);
 
+    /** The floor block {@link #layEastOver} aims the stretch's end at, east of {@link #START}. */
+    private static final BlockPos END_EAST = new BlockPos(5, 0, 2);
+
+    /** What a stretch from {@link #START} to {@link #END_EAST} lays: one block above the floor, all the way. */
+    private static final List<BlockPos> LINE_EAST = IntStream.rangeClosed(START.getX(), END_EAST.getX())
+            .mapToObj(x -> new BlockPos(x, START.getY() + 1, START.getZ())).toList();
+
+    /** Where {@link #layEastOver} sets the held block first, between the line's ends. */
+    private static final List<BlockPos> STANDING_EAST = List.of(new BlockPos(2, 1, 2), new BlockPos(4, 1, 2));
+
+    /** Stretches snow layers and oak trapdoors, which the shipped tag doesn't hold. */
+    private static final String STRETCHES_SNOW_AND_TRAPDOORS = "stretches_snow_and_trapdoors";
+
     private VanillaStretchTests() {
     }
 
@@ -64,6 +83,13 @@ final class VanillaStretchTests {
                 helper -> plannedAsLaid(helper, Blocks.OAK_FENCE));
         tests.test("walls_stretched_round_a_corner_to_a_standing_wall_are_planned_joined_as_they_are_laid", 20,
                 helper -> plannedAsLaid(helper, Blocks.COBBLESTONE_WALL));
+        tests.test("stretch_of_slabs_over_single_slabs_of_its_kind_makes_them_double_slabs", 20,
+                VanillaStretchTests::slabsOverSlabs);
+        var withPack = tests.withPack(STRETCHES_SNOW_AND_TRAPDOORS);
+        withPack.test("stretch_of_snow_layers_over_snow_layers_adds_a_layer_to_each", 20,
+                VanillaStretchTests::snowOverSnow);
+        withPack.test("stretch_of_trapdoors_in_a_line_hangs_them_in_their_bottom_half_on_the_block_ahead", 20,
+                VanillaStretchTests::trapdoorsInALine);
         tests.test("rails_stretched_over_a_rise_slope_up_it", 20, VanillaStretchTests::risingRails);
         tests.test("rails_stretched_over_a_rise_with_nothing_under_it_are_refused_where_vanilla_refuses", 20,
                 VanillaStretchTests::railsInMidAir);
@@ -139,6 +165,40 @@ final class VanillaStretchTests {
             helper.fail("the stretch's end didn't join the block already standing", standing);
         }
         helper.succeed();
+    }
+
+    /** Two bottom slabs of the held kind: each merges with the one laid there into a double slab, as a player's would. */
+    private static void slabsOverSlabs(GameTestHelper helper) {
+        layEastOver(helper, Blocks.OAK_SLAB, STANDING_EAST);
+        LINE_EAST.forEach(pos -> expectSlab(helper, pos, STANDING_EAST.contains(pos) ? SlabType.DOUBLE : SlabType.BOTTOM));
+        helper.succeed();
+    }
+
+    /** Two single snow layers: each gains a layer, and the rest lie as one. */
+    private static void snowOverSnow(GameTestHelper helper) {
+        layEastOver(helper, Blocks.SNOW, STANDING_EAST);
+        LINE_EAST.forEach(pos -> expectSnow(helper, pos, STANDING_EAST.contains(pos) ? 2 : 1));
+        helper.succeed();
+    }
+
+    /** Each trapdoor hangs on the block ahead of it, in its bottom half, as a player clicking that face places it. */
+    private static void trapdoorsInALine(GameTestHelper helper) {
+        layEastOver(helper, Blocks.OAK_TRAPDOOR, List.of());
+        LINE_EAST.forEach(pos -> expectTrapdoor(helper, pos, Direction.WEST, Half.BOTTOM));
+        helper.succeed();
+    }
+
+    /**
+     * Sets {@code block} at each of {@code standing}, then stretches it from the start to {@link #END_EAST}:
+     * the plan covers {@link #LINE_EAST}, and each of its positions is charged one held item.
+     */
+    private static void layEastOver(GameTestHelper helper, Block block, List<BlockPos> standing) {
+        standing.forEach(pos -> helper.setBlock(pos, block));
+        ListeningPlayer player = holding(helper, block, 16);
+        start(helper, player);
+        expectPlannedWhereLaid(helper, plannedPositions(helper, player, END_EAST), LINE_EAST);
+        click(helper, player, END_EAST, false);
+        expectHeld(helper, player, 16 - LINE_EAST.size());
     }
 
     /** A wall east of the start's column, three presses of Raise, and a click: four ladders. */
@@ -365,6 +425,28 @@ final class VanillaStretchTests {
         BlockState there = helper.getBlockState(pos);
         if (!there.is(Blocks.RAIL) || there.getValue(RailBlock.SHAPE) != shape) {
             helper.fail("laid " + there + ", not a rail " + shape, pos);
+        }
+    }
+
+    private static void expectSlab(GameTestHelper helper, BlockPos pos, SlabType type) {
+        BlockState there = helper.getBlockState(pos);
+        if (!there.is(Blocks.OAK_SLAB) || there.getValue(SlabBlock.TYPE) != type) {
+            helper.fail("laid " + there + ", not a " + type + " oak slab", pos);
+        }
+    }
+
+    private static void expectSnow(GameTestHelper helper, BlockPos pos, int layers) {
+        BlockState there = helper.getBlockState(pos);
+        if (!there.is(Blocks.SNOW) || there.getValue(SnowLayerBlock.LAYERS) != layers) {
+            helper.fail("laid " + there + ", not " + layers + " snow layers", pos);
+        }
+    }
+
+    private static void expectTrapdoor(GameTestHelper helper, BlockPos pos, Direction facing, Half half) {
+        BlockState there = helper.getBlockState(pos);
+        if (!there.is(Blocks.OAK_TRAPDOOR) || there.getValue(TrapDoorBlock.FACING) != facing
+                || there.getValue(TrapDoorBlock.HALF) != half) {
+            helper.fail("laid " + there + ", not a " + half + " oak trapdoor facing " + facing, pos);
         }
     }
 
