@@ -4,6 +4,14 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+### Players
+
+- A Stretch of slabs over a single slab of its own kind no longer crashes the game when it is aimed or laid: each such slab becomes a double slab, as placing one there by hand does. A Stretch of snow layers, which a pack may add to `groundworks:stretches`, no longer crashes over snow either: each snow layer it meets, short of a full block, gains one. A Stretch's Leg of trapdoors a pack adds still hangs each on the block ahead of it, now in its bottom half rather than its top, as a player clicking that face would place it.
+
+### Consumers
+
+- A block placed through the vanilla Consumer's Stretch or Column is now told `replacingClickedOnBlock()` is false, the click being on a block beside it, unless the Stretch lies in a block of the held block's Replace group, where it is true. Before, it was told vanilla's `DirectionalPlaceContext` answer, which asks `canPlace()`.
+
 ## 0.6.3
 
 ### Players
