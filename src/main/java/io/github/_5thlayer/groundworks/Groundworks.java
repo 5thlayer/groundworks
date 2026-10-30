@@ -91,6 +91,7 @@ public final class Groundworks {
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
         modBus.addListener(NextChoicePayload::register);
+        modBus.addListener(UndoPastePayload::register);
         modBus.addListener(Footprint::forwardCapabilities);
         // An event rather than an item's own use: the tools that dismantle, the items that
         // stretch, and the blocks that replace, are no one's in particular.

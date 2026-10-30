@@ -44,4 +44,39 @@ class BlueprintLandingTest {
         assertEquals(new BlockPos(9, 64, 20), BlueprintLanding.of(size, SPOT, Direction.SOUTH).at(BlockPos.ZERO));
         assertEquals(new BlockPos(9, 64, 18), BlueprintLanding.of(size, SPOT, Direction.NORTH).at(BlockPos.ZERO));
     }
+
+    @Test
+    void aQuarterTurnTurnsTheBoxClockwiseSeenFromAboveAboutItsLanding() {
+        BlueprintLanding landing = BlueprintLanding.of(new Vec3i(3, 1, 2), SPOT, Direction.UP, QuarterTurn.of(1));
+        assertEquals(new BlockPos(10, 64, 19), landing.at(BlockPos.ZERO));
+        assertEquals(new BlockPos(9, 64, 21), landing.at(new BlockPos(2, 0, 1)));
+        assertEquals(new BlockPos(10, 64, 21), landing.at(new BlockPos(2, 0, 0)));
+    }
+
+    @Test
+    void aHalfTurnKeepsTheFootprintAndSwapsItsCorners() {
+        BlueprintLanding landing = BlueprintLanding.of(new Vec3i(3, 1, 2), SPOT, Direction.UP, QuarterTurn.of(2));
+        assertEquals(new BlockPos(11, 64, 20), landing.at(BlockPos.ZERO));
+        assertEquals(new BlockPos(9, 64, 19), landing.at(new BlockPos(2, 0, 1)));
+    }
+
+    @Test
+    void threeQuartersTurnTheBoxCounterclockwise() {
+        BlueprintLanding landing = BlueprintLanding.of(new Vec3i(3, 1, 2), SPOT, Direction.UP, QuarterTurn.of(3));
+        assertEquals(new BlockPos(9, 64, 21), landing.at(BlockPos.ZERO));
+        assertEquals(new BlockPos(10, 64, 19), landing.at(new BlockPos(2, 0, 1)));
+    }
+
+    @Test
+    void aTurnedBoxRestsOnASideFaceByItsTurnedFootprint() {
+        BlueprintLanding landing = BlueprintLanding.of(new Vec3i(3, 1, 1), SPOT, Direction.EAST, QuarterTurn.of(1));
+        assertEquals(new BlockPos(10, 64, 19), landing.at(BlockPos.ZERO));
+        assertEquals(new BlockPos(10, 64, 21), landing.at(new BlockPos(2, 0, 0)));
+    }
+
+    @Test
+    void aTurnLeavesEachLayerAtItsHeight() {
+        BlueprintLanding landing = BlueprintLanding.of(new Vec3i(2, 3, 2), SPOT, Direction.UP, QuarterTurn.of(1));
+        assertEquals(new BlockPos(10, 66, 19), landing.at(new BlockPos(0, 2, 0)));
+    }
 }

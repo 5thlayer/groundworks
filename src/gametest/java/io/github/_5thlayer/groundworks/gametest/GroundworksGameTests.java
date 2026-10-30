@@ -186,6 +186,8 @@ public final class GroundworksGameTests {
         VanillaAssemblyTests.register(tests);
         BlueprintTests.register(tests);
         BlueprintPasteAirTests.register(tests);
+        BlueprintTurnTests.register(tests);
+        BlueprintUndoTests.register(tests);
     }
 
     private static Identifier id(String path) {
