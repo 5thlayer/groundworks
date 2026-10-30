@@ -45,7 +45,9 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  * #ASSEMBLY_KEYS}; a Key places the Assemblies declared for it as data.
  *
  * <p>Its {@linkplain Blueprints#sheets sheets}, which copy a box of blocks and paste it, are the
- * items in the item tag {@link #BLUEPRINTS}, shipped holding paper.
+ * items in the item tag {@link #BLUEPRINTS}, shipped holding paper; the blocks a capture leaves
+ * out silently are the block tag {@link #BLUEPRINT_DENY}, shipped holding bedrock, piston heads,
+ * end portal frames and {@code #minecraft:portals}.
  */
 public final class VanillaConsumer {
 
@@ -76,6 +78,13 @@ public final class VanillaConsumer {
     public static final TagKey<Item> BLUEPRINTS =
             TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "blueprints"));
 
+    /**
+     * The blocks a {@linkplain Blueprints Blueprint}'s capture leaves out, silently. Read as the
+     * tag is now, so a datapack reload reaches the next capture.
+     */
+    public static final TagKey<Block> BLUEPRINT_DENY =
+            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "blueprint_deny"));
+
     private VanillaConsumer() {
     }
 
@@ -92,6 +101,7 @@ public final class VanillaConsumer {
         Rotate.turnsInPlace(block -> block.defaultBlockState().is(ROTATES_IN_PLACE));
         Assemblies.keys(block -> block.defaultBlockState().is(ASSEMBLY_KEYS));
         Blueprints.sheets(stack -> stack.is(BLUEPRINTS));
+        Blueprints.denies(state -> state.is(BLUEPRINT_DENY));
         modBus.addListener(FMLCommonSetupEvent.class, event -> {
             Stretches.register(new VanillaLegs());
             Dismantles.register(new VanillaFamilies());

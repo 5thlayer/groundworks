@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 import com.mojang.serialization.Codec;
@@ -19,6 +20,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
@@ -71,8 +73,11 @@ record BlueprintBlocks(Vec3i size, List<BlockState> palette, int[] indices) {
         return indices;
     }
 
-    /** The blocks standing in the box, both corners included, as the level holds them now. */
-    static BlueprintBlocks capture(Level level, BoundingBox box) {
+    /**
+     * The blocks standing in the box, both corners included, as the level holds them now, each
+     * position left out captured as air.
+     */
+    static BlueprintBlocks capture(Level level, BoundingBox box, Set<BlockPos> leftOut) {
         Vec3i size = new Vec3i(box.getXSpan(), box.getYSpan(), box.getZSpan());
         List<BlockState> palette = new ArrayList<>();
         Map<BlockState, Integer> indexOf = new HashMap<>();
@@ -82,7 +87,8 @@ record BlueprintBlocks(Vec3i size, List<BlockState> palette, int[] indices) {
         for (int y = 0; y < size.getY(); y++) {
             for (int z = 0; z < size.getZ(); z++) {
                 for (int x = 0; x < size.getX(); x++) {
-                    BlockState state = level.getBlockState(at.set(box.minX() + x, box.minY() + y, box.minZ() + z));
+                    at.set(box.minX() + x, box.minY() + y, box.minZ() + z);
+                    BlockState state = leftOut.contains(at) ? Blocks.AIR.defaultBlockState() : level.getBlockState(at);
                     indices[i++] = indexOf.computeIfAbsent(state, added -> {
                         palette.add(added);
                         return palette.size() - 1;

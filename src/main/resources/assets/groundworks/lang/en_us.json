@@ -59,5 +59,8 @@
   "message.groundworks.blueprint_taken": "Something stands where that would go.",
   "message.groundworks.blueprint_may_not_build": "You may not build everywhere that would go.",
   "message.groundworks.blueprint_not_enough_items": "You need %s more to paste that.",
-  "tag.item.groundworks.blueprints": "Blueprint Sheets"
+  "message.groundworks.blueprint_copied_left_out": "Copied %s blocks, leaving out %s.",
+  "message.groundworks.blueprint_left_out.straddling": "%s standing partly outside the Selection, such as %s",
+  "tag.item.groundworks.blueprints": "Blueprint Sheets",
+  "tag.block.groundworks.blueprint_deny": "Blocks Blueprints Leave Out"
 }
