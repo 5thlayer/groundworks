@@ -60,6 +60,8 @@ final class BlueprintCutTests {
         tests.tallTest("blueprint_cut_torch_that_cant_stand_drops_at_the_player_s_feet", 20,
                 BlueprintCutTests::torchDrops);
         tests.tallTest("blueprint_cut_undo_paste_is_refused", 20, BlueprintCutTests::undoRefused);
+        tests.tallTest("blueprint_cut_sneak_use_with_a_second_sheet_after_the_paste_finds_it_gone", 20,
+                BlueprintCutTests::secondSheetSneakUse);
     }
 
     /**
@@ -258,6 +260,26 @@ final class BlueprintCutTests {
     }
 
     // ---- Helpers ---------------------------------------------------------------------------------
+
+    /** A sneak-use in the air with a sheet whose Cut another sheet pasted makes it blank, saying the Cut is gone. */
+    private static void secondSheetSneakUse(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper);
+        helper.setBlock(FIRST, STONE);
+        cut(helper, player, FIRST, FIRST);
+        ItemStack second = player.getMainHandItem().copy();
+        paste(helper, player, SPOT);
+        player.setItemInHand(InteractionHand.MAIN_HAND, second);
+        player.heard.clear();
+        player.setShiftKeyDown(true);
+        player.gameMode.useItem(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND);
+        player.setShiftKeyDown(false);
+        expectHeard(helper, player, "message.groundworks.blueprint_gone");
+        if (player.heard.contains("message.groundworks.blueprint_cleared")) {
+            helper.fail("the player heard " + player.heard + ": a gone Cut is not a Copy cleared");
+        }
+        expectBlank(helper, player);
+        helper.succeed();
+    }
 
     private static void fill(GameTestHelper helper, BlockPos chest) {
         ChestBlockEntity entity = helper.getBlockEntity(chest, ChestBlockEntity.class);

@@ -388,7 +388,10 @@ public final class Blueprints {
         return InteractionResult.SUCCESS;
     }
 
-    /** A use in the air: a sneak clears the stored Corner, or the sheet's Copy; a Cut's is refused. */
+    /**
+     * A use in the air: a sneak clears the stored Corner, or the sheet's Copy; a Cut's is refused,
+     * and a sheet whose Blueprint is gone is made blank, the player told so.
+     */
     static InteractionResult use(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         if (hand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown() || !isSheet(held)
@@ -403,10 +406,13 @@ public final class Blueprints {
         Blueprint blueprint = heldBlueprint(level, held);
         if (blueprint != null && blueprint.isCut()) {
             refuse(player, Refusal.Blueprint.CANT_CLEAR_A_CUT);
-        } else if (id != null) {
+        } else if (blueprint != null) {
             BlueprintStore.of(level.getServer()).remove(id);
             blank(held);
             Laying.tell(player, Component.translatable("message.groundworks.blueprint_cleared"));
+        } else if (id != null) {
+            blank(held);
+            Laying.tell(player, Component.translatable("message.groundworks.blueprint_gone"));
         } else {
             CORNER.set(held, null);
             Laying.tell(player, Component.translatable("message.groundworks.blueprint_corner_cleared"));
