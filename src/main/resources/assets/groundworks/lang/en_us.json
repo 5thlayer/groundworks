@@ -56,7 +56,7 @@
   "message.groundworks.blueprint_gone": "This Blueprint is gone.",
   "command.groundworks.blueprint.none": "No Cut is waiting to be pasted.",
   "command.groundworks.blueprint.cuts": "%s Cuts are waiting to be pasted. Click an id for a sheet naming it:",
-  "command.groundworks.blueprint.cut": "%s by %s, %s, unused for %s",
+  "command.groundworks.blueprint.cut": "%s by %s, %s, captured %s ago, unused for %s",
   "command.groundworks.blueprint.give_hint": "Give yourself a sheet naming this Cut",
   "command.groundworks.blueprint.days": "%s days",
   "command.groundworks.blueprint.hours": "%s hours",

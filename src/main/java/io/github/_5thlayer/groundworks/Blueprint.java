@@ -6,6 +6,7 @@ package io.github._5thlayer.groundworks;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.mojang.serialization.Codec;
@@ -16,13 +17,13 @@ import net.minecraft.nbt.CompoundTag;
 
 /**
  * One {@linkplain Blueprints Blueprint} as the world data keeps it (ADR 0014): its blocks, whether
- * it is a Copy or a Cut, who captured it, and when it was last held or pasted, in milliseconds
- * since the epoch, which a prune of unused Copies reads; a Copy's last few pastes, latest last,
+ * it is a Copy or a Cut, who captured it and when, and when it was last held or pasted, both in
+ * milliseconds since the epoch, the last of which a prune of unused Copies reads; a Copy's last few pastes, latest last,
  * which {@link UndoPaste} takes back; and what a Cut's blocks held, each block entity's data by its
  * place in the box, which a Copy never keeps.
  */
-record Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long lastUsed, List<BlueprintPaste> pastes,
-        List<Held> held) {
+record Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long captured, long lastUsed,
+        List<BlueprintPaste> pastes, List<Held> held) {
 
     /** How many of a Copy's pastes Undo Paste can take back. */
     static final int UNDO_DEPTH = 10;
@@ -32,9 +33,9 @@ record Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long lastUsed, L
         held = List.copyOf(held);
     }
 
-    /** A Blueprint not yet pasted. */
-    Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long lastUsed, List<Held> held) {
-        this(blocks, kind, owner, lastUsed, List.of(), held);
+    /** A Blueprint captured at {@code now}, not yet pasted. */
+    Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long now, List<Held> held) {
+        this(blocks, kind, owner, now, now, List.of(), held);
     }
 
     /** Whether it is a Cut, pasted once, uncharged, with what its blocks held. */
@@ -71,27 +72,31 @@ record Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long lastUsed, L
                 BlueprintBlocks.codec().fieldOf("blocks").forGetter(Blueprint::blocks),
                 Kind.CODEC.fieldOf("kind").forGetter(Blueprint::kind),
                 UUIDUtil.CODEC.fieldOf("owner").forGetter(Blueprint::owner),
+                // Saved data from before the capture time was kept has its last use instead.
+                Codec.LONG.optionalFieldOf("captured").forGetter(blueprint -> Optional.of(blueprint.captured())),
                 Codec.LONG.fieldOf("last_used").forGetter(Blueprint::lastUsed),
                 BlueprintPaste.codec().listOf().optionalFieldOf("pastes", List.of()).forGetter(Blueprint::pastes),
                 Held.CODEC.listOf().optionalFieldOf("held", List.of()).forGetter(Blueprint::held)
-        ).apply(instance, Blueprint::new));
+        ).apply(instance, (blocks, kind, owner, captured, lastUsed, pastes, held) -> new Blueprint(blocks, kind,
+                owner, captured.orElse(lastUsed), lastUsed, pastes, held)));
     }
 
     /** The same Blueprint, last used at {@code now}. */
     Blueprint usedAt(long now) {
-        return new Blueprint(blocks, kind, owner, now, pastes, held);
+        return new Blueprint(blocks, kind, owner, captured, now, pastes, held);
     }
 
     /** The same Blueprint with this paste its latest, the oldest dropped past {@link #UNDO_DEPTH}. */
     Blueprint pasted(BlueprintPaste paste) {
         List<BlueprintPaste> kept = new ArrayList<>(pastes);
         kept.add(paste);
-        return new Blueprint(blocks, kind, owner, lastUsed,
+        return new Blueprint(blocks, kind, owner, captured, lastUsed,
                 kept.subList(Math.max(0, kept.size() - UNDO_DEPTH), kept.size()), held);
     }
 
     /** The same Blueprint without its latest paste. */
     Blueprint undone() {
-        return new Blueprint(blocks, kind, owner, lastUsed, pastes.subList(0, Math.max(0, pastes.size() - 1)), held);
+        return new Blueprint(blocks, kind, owner, captured, lastUsed, pastes.subList(0, Math.max(0, pastes.size() - 1)),
+                held);
     }
 }

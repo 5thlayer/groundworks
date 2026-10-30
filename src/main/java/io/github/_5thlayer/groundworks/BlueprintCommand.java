@@ -25,8 +25,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 
 /**
  * {@code /groundworks blueprint}, an operator's (permission level 2) recovery of Cuts whose sheets
- * were lost (ADR 0014): alone, it lists every Cut not yet pasted, with its owner, its size and how
- * long since it was last held; {@code give <id>} gives the operator a new sheet naming one. The
+ * were lost (ADR 0014): alone, it lists every Cut not yet pasted, with its owner, its size, how
+ * long since it was captured and how long since it was last held; {@code give <id>} gives the operator a new sheet naming one. The
  * Cut is pasted once, by whichever of its sheets is pasted first.
  */
 final class BlueprintCommand {
@@ -78,6 +78,7 @@ final class BlueprintCommand {
             source.sendSuccess(() -> Component.translatable("command.groundworks.blueprint.cut", id,
                     ownerOf(server, blueprint.owner()),
                     size.getX() + "×" + size.getY() + "×" + size.getZ(),
+                    age(Duration.ofMillis(Math.max(0, now - blueprint.captured()))),
                     age(Duration.ofMillis(Math.max(0, now - blueprint.lastUsed())))), false);
         }
         return cuts.size();
