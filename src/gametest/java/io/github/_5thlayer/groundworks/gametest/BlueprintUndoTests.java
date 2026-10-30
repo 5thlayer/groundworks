@@ -4,14 +4,21 @@
 package io.github._5thlayer.groundworks.gametest;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import com.mojang.serialization.Codec;
 
 import io.github._5thlayer.groundworks.BlueprintStore;
 import io.github._5thlayer.groundworks.UndoPaste;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
@@ -63,6 +70,7 @@ final class BlueprintUndoTests {
         tests.tallTest("blueprint_undo_paste_with_no_paste_is_refused", 20, BlueprintUndoTests::noPaste);
         tests.tallTest("blueprint_undo_paste_history_survives_a_save_and_reload_of_the_world_data", 20,
                 BlueprintUndoTests::survivesReload);
+        tests.tallTest("blueprint_undo_paste_over_a_chunk_not_loaded_is_refused", 20, BlueprintUndoTests::unloaded);
         tests.tallTest("blueprint_undo_paste_hands_back_a_chest_and_its_contents", 20,
                 BlueprintUndoTests::chestContents);
     }
@@ -204,6 +212,42 @@ final class BlueprintUndoTests {
         UndoPaste.press(player);
         helper.assertBlockPresent(Blocks.AIR, ORIGIN);
         helper.assertBlockPresent(Blocks.AIR, ORIGIN.above());
+        helper.succeed();
+    }
+
+    /**
+     * The paste's history moved, through the world data's own codec, to a far chunk no player
+     * holds loaded: the undo is refused whole, and the paste stays.
+     */
+    private static void unloaded(GameTestHelper helper) {
+        ListeningPlayer player = creative(helper);
+        build(helper);
+        copy(helper, player);
+        paste(helper, player, SPOT);
+        MinecraftServer server = helper.getLevel().getServer();
+        BlockPos far = new BlockPos(1_000_000, 64, 1_000_000);
+        if (helper.getLevel().isLoaded(far)) {
+            helper.fail("the far chunk is loaded");
+            return;
+        }
+        @SuppressWarnings("deprecation")
+        Codec<BlueprintStore> codec = BlueprintStore.TYPE.codec();
+        RegistryOps<Tag> ops = server.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        CompoundTag saved = (CompoundTag) codec.encodeStart(ops, server.getDataStorage().computeIfAbsent(
+                BlueprintStore.TYPE)).getOrThrow();
+        for (String id : saved.keySet()) {
+            for (Tag paste : saved.getCompoundOrEmpty(id).getListOrEmpty("pastes")) {
+                CompoundTag laid = (CompoundTag) paste;
+                long[] positions = laid.getLongArray("positions").orElseThrow();
+                Arrays.fill(positions, positions.length - 1, positions.length, far.asLong());
+                laid.putLongArray("positions", positions);
+            }
+        }
+        server.getDataStorage().set(BlueprintStore.TYPE, codec.parse(ops, saved).getOrThrow());
+        UndoPaste.press(player);
+        expectHeard(helper, player, "message.groundworks.blueprint_undo_unloaded");
+        helper.assertBlockPresent(Blocks.OAK_PLANKS, ORIGIN);
+        helper.assertBlockPresent(Blocks.COBBLESTONE, ORIGIN.above());
         helper.succeed();
     }
 
