@@ -252,6 +252,8 @@ final class PlacementPreview {
             }
         }
         Outline.draw(event, clearing, ClearMark.COLOUR);
+        // What the plan leaves out, each alone, red whether or not the rest goes through.
+        Outline.draw(event, plan.leftOut());
     }
 
     /**

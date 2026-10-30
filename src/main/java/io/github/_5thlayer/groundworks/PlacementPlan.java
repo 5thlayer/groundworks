@@ -40,9 +40,15 @@ import org.jspecify.annotations.Nullable;
  * placed, as a door's lower half puts down its upper half. The preview draws them as it draws the
  * blocks, but no path that lays a plan places them or charges for them, since the placed block lays
  * them itself; none of them is among {@code blocks}, and it is empty for a plan with none.
+ *
+ * <p>{@code leftOut} names the positions the plan leaves out, each alone, while the rest is laid:
+ * a {@linkplain Blueprints paste}'s block that can't stand where it lands, as a torch whose wall
+ * stayed outside the box. The preview outlines them red, a block at a time, since unlike a refusal
+ * they refuse nothing else; none of them is among {@code blocks}, nothing is laid or charged there,
+ * and it is empty for a plan that leaves nothing out.
  */
 public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
-                            List<Placed> companions, @Nullable Refusal refusal) {
+                            List<Placed> companions, List<BlockPos> leftOut, @Nullable Refusal refusal) {
 
     /** One block the plan would put down. */
     public record Placed(BlockPos pos, BlockState state) {
@@ -53,6 +59,13 @@ public record PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<B
         replaces = List.copyOf(replaces);
         clears = List.copyOf(clears);
         companions = List.copyOf(companions);
+        leftOut = List.copyOf(leftOut);
+    }
+
+    /** A plan that leaves nothing out. */
+    public PlacementPlan(List<Placed> blocks, List<BlockPos> replaces, List<BlockPos> clears,
+                         List<Placed> companions, @Nullable Refusal refusal) {
+        this(blocks, replaces, clears, companions, List.of(), refusal);
     }
 
     /** A plan with no Companions. */
