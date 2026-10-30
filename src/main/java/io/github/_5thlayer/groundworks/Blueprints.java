@@ -139,6 +139,11 @@ public final class Blueprints {
         return isSheet(stack) && holdsBlueprint(stack);
     }
 
+    /** The id of the Blueprint the sheet holds, or {@code null} on a blank sheet. */
+    static @Nullable UUID heldId(ItemStack stack) {
+        return HELD.get(stack);
+    }
+
     /** Whether the sheet holds a Blueprint, whether or not this side has its blocks yet. */
     public static boolean holdsBlueprint(ItemStack stack) {
         return HELD.get(stack) != null;
@@ -430,7 +435,7 @@ public final class Blueprints {
             UUID id = HELD.get(held);
             Blueprint blueprint = store.get(id);
             if (blueprint != null) {
-                store.put(id, blueprint.usedAt(System.currentTimeMillis()));
+                store.put(id, UndoPaste.recorded(blueprint, level, laying.plan()).usedAt(System.currentTimeMillis()));
             }
         });
     }
