@@ -51,7 +51,8 @@ import org.jspecify.annotations.Nullable;
  * <p>A sheet is a held item a Consumer has {@linkplain #sheets stated} captures, as the
  * {@linkplain VanillaConsumer vanilla Consumer} does for paper through its tag. A blank sheet's
  * sneak-click on a block stores the first Corner, and a click on a block with a Corner stored
- * captures the Selection between the two, both included, as a Copy: one sheet comes off the held
+ * captures the Selection between the two, both included, as a Copy, leaving out what it can't take
+ * {@linkplain BlueprintSelection whole} and saying so: one sheet comes off the held
  * stack and holds the Blueprint, alone in its stack. The Blueprint's blocks go into the server's
  * world data, under an id the sheet holds; the client is sent them while it holds the sheet.
  *
@@ -68,6 +69,8 @@ import org.jspecify.annotations.Nullable;
 public final class Blueprints {
 
     private static final List<Predicate<? super ItemStack>> SHEETS = new CopyOnWriteArrayList<>();
+
+    private static final List<Predicate<? super BlockState>> DENIED = new CopyOnWriteArrayList<>();
 
     /** A blank sheet's stored first Corner. */
     private static final HeldValue<BlueprintCorner> CORNER = new HeldValue<>(() -> Groundworks.BLUEPRINT_CORNER.get(), null);
@@ -116,6 +119,25 @@ public final class Blueprints {
         }
         for (Predicate<? super ItemStack> items : SHEETS) {
             if (items.test(stack)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * States that a capture leaves the blocks this matches out, silently, as the vanilla Consumer
+     * does for bedrock through its tag. Called at mod construction, on both sides, since the
+     * Selection's outline asks on the client; this may be called from several threads at once.
+     */
+    public static void denies(Predicate<? super BlockState> blocks) {
+        DENIED.add(blocks);
+    }
+
+    /** Whether some Consumer has stated a capture leaves this block out. */
+    static boolean isDenied(BlockState state) {
+        for (Predicate<? super BlockState> blocks : DENIED) {
+            if (blocks.test(state)) {
                 return true;
             }
         }
@@ -368,7 +390,8 @@ public final class Blueprints {
             refuse(player, Refusal.Blueprint.NO_ROOM_FOR_THE_SHEET);
             return;
         }
-        BlueprintBlocks blocks = BlueprintBlocks.capture(level, box);
+        Map<BlockPos, BlueprintSelection.LeftOut> leftOut = BlueprintSelection.leftOut(level, player, box);
+        BlueprintBlocks blocks = BlueprintBlocks.capture(level, box, leftOut.keySet());
         UUID id = UUID.randomUUID();
         BlueprintStore.of(level.getServer()).put(id, new Blueprint(blocks, Blueprint.Kind.COPY, player.getUUID(),
                 System.currentTimeMillis()));
@@ -380,7 +403,10 @@ public final class Blueprints {
             held.shrink(1);
             player.getInventory().add(sheet);
         }
-        Laying.tell(player, Component.translatable("message.groundworks.blueprint_copied", blocks.standing()));
+        Component told = BlueprintSelection.told(level, leftOut);
+        Laying.tell(player, told == null
+                ? Component.translatable("message.groundworks.blueprint_copied", blocks.standing())
+                : Component.translatable("message.groundworks.blueprint_copied_left_out", blocks.standing(), told));
     }
 
     private static void refuse(Player player, Refusal.Blueprint refusal, Object... args) {

@@ -1,0 +1,8 @@
+{
+  "values": [
+    "minecraft:bedrock",
+    "minecraft:piston_head",
+    "minecraft:end_portal_frame",
+    "#minecraft:portals"
+  ]
+}
