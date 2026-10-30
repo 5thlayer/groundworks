@@ -97,10 +97,14 @@ record Laying(PlacementPlan plan, Charge charge, Reasons reasons) {
         return null;
     }
 
-    /** Every position the plan changes: those it clears, then those it puts a block at. */
+    /**
+     * Every position the plan changes: those it clears, then those it puts a block at, then those
+     * its blocks' Companions take.
+     */
     static List<BlockPos> changed(PlacementPlan plan) {
         List<BlockPos> changed = new ArrayList<>(plan.clears());
         plan.blocks().forEach(placed -> changed.add(placed.pos()));
+        plan.companions().forEach(placed -> changed.add(placed.pos()));
         return changed;
     }
 
