@@ -27,6 +27,7 @@ final class BlueprintPreview {
     private static final int REASK_TICKS = 10;
 
     private static @Nullable BoundingBox shownBox;
+    private static boolean shownCut;
     private static long shownAt;
     private static List<BlockPos> shown = List.of();
 
@@ -55,14 +56,16 @@ final class BlueprintPreview {
     }
 
     /**
-     * The blocks the capture would leave out and tell of, asked again when the Selection changes
-     * and every few ticks, since asking walks the whole box.
+     * The blocks the capture would leave out and tell of, asked again when the Selection or the
+     * sheet's choice of Copy or Cut changes and every few ticks, since asking walks the whole box.
      */
     private static List<BlockPos> leftOut(PlacementPreviewEvent.Marker event, BoundingBox box) {
         long tick = event.getLevel().getGameTime();
-        if (!box.equals(shownBox) || tick - shownAt >= REASK_TICKS || tick < shownAt) {
-            shown = BlueprintSelection.shown(event.getLevel(), event.getPlayer(), box);
+        boolean cut = Blueprints.cuts(event.getStack());
+        if (!box.equals(shownBox) || cut != shownCut || tick - shownAt >= REASK_TICKS || tick < shownAt) {
+            shown = BlueprintSelection.shown(event.getLevel(), event.getPlayer(), box, cut);
             shownBox = box;
+            shownCut = cut;
             shownAt = tick;
         }
         return shown;

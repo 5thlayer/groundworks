@@ -58,7 +58,7 @@ public final class UndoPaste {
             refuse(player, Refusal.Blueprint.NOTHING_TO_UNDO);
             return;
         }
-        // A Cut's paste is never undone; Cut itself comes with 5thlayer/groundworks#83.
+        // A Cut's paste is never undone.
         if (blueprint.kind() != Blueprint.Kind.COPY) {
             refuse(player, Refusal.Blueprint.UNDO_ON_A_CUT);
             return;

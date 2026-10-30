@@ -33,6 +33,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 /**
  * Rotate in Place on vanilla blocks: with nothing rotatable held, a press turns the block under the
@@ -109,9 +110,17 @@ final class RotateInPlaceTests {
         helper.succeed();
     }
 
-    /** A claim mod's guard, stood in for: the place event is cancelled at each {@linkplain #CLAIMED claimed} position. */
+    /**
+     * A claim mod's guard, stood in for: the place event and the break event are cancelled at each
+     * {@linkplain #CLAIMED claimed} position.
+     */
     static void guardClaims() {
         NeoForge.EVENT_BUS.addListener(BlockEvent.EntityPlaceEvent.class, event -> {
+            if (CLAIMED.contains(event.getPos())) {
+                event.setCanceled(true);
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(BreakBlockEvent.class, event -> {
             if (CLAIMED.contains(event.getPos())) {
                 event.setCanceled(true);
             }

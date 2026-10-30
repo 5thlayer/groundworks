@@ -13,15 +13,23 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * What a {@linkplain Blueprints sheet} is set to do, stepped by Next Choice among the choices its
- * state offers: a sheet holding a Blueprint skips its air, its start, or pastes it. A sheet with
+ * state offers: a blank sheet captures a Copy, its start, or a Cut; a sheet holding a Blueprint
+ * skips its air, its start, or pastes it. A sheet with
  * none stored is on its start, and one stepped back to it stores none, so it stacks again with one
  * never touched.
  */
 public enum SheetChoice {
+    /** A capture leaves the world as it was. */
+    COPY("message.groundworks.blueprint_copying"),
+    /** A capture takes its blocks out of the world, with what they hold. */
+    CUT("message.groundworks.blueprint_cutting"),
     /** A paste leaves what stands where the Blueprint has air. */
     SKIP_AIR("message.groundworks.blueprint_skipping_air"),
     /** A paste clears what stands where the Blueprint has air, as the player would break it. */
     PASTE_AIR("message.groundworks.blueprint_pasting_air");
+
+    /** The choices of a blank sheet, its start first. */
+    static final List<SheetChoice> CAPTURE = List.of(COPY, CUT);
 
     /** The choices of a sheet holding a Blueprint, its start first. */
     static final List<SheetChoice> PASTE = List.of(SKIP_AIR, PASTE_AIR);

@@ -16,9 +16,12 @@ import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntitySelector;
@@ -27,6 +30,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.DamageResistant;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -76,6 +80,12 @@ import org.jspecify.annotations.Nullable;
  * block states alone, so a chest pastes empty and a sign blank; a charged paste lays waterlogged
  * blocks dry and skips fluid sources and blocks with no item of their own, which creative's lays.
  * A block that can't stand where it lands is left out, uncharged, and the rest is laid.
+ *
+ * <p>Next Choice sets a blank sheet to capture a {@linkplain BlueprintCut Cut} instead, which takes
+ * its blocks out of the world with what they hold, leaving out those the player could not break.
+ * A Cut is pasted once, uncharged, with what its blocks held, a block that can't stand dropped at
+ * the player's feet, and the sheet is blank again; it is never cleared, and its sheet survives
+ * fire and lava and never despawns.
  */
 public final class Blueprints {
 
@@ -96,11 +106,14 @@ public final class Blueprints {
     private static final Laying.Reasons REASONS = new Laying.Reasons(Refusal.Blueprint.MAY_NOT_BUILD,
             Refusal.Blueprint.NOT_ENOUGH_ITEMS, null);
 
-    /** The Blueprints the server sent this client, by id, the latest few: apart from the server's store. */
-    private static final Map<UUID, BlueprintBlocks> CLIENT = Collections.synchronizedMap(
+    /**
+     * The Blueprints the server sent this client, by id, the latest few: apart from the server's
+     * store, each its blocks and kind alone.
+     */
+    private static final Map<UUID, Blueprint> CLIENT = Collections.synchronizedMap(
             new LinkedHashMap<>(16, 0.75F, true) {
                 @Override
-                protected boolean removeEldestEntry(Map.Entry<UUID, BlueprintBlocks> eldest) {
+                protected boolean removeEldestEntry(Map.Entry<UUID, Blueprint> eldest) {
                     return size() > 8;
                 }
             });
@@ -170,14 +183,21 @@ public final class Blueprints {
     // ---- The sheet's choice --------------------------------------------------------------------
 
     /**
-     * The choices a sheet offers Next Choice, its start first: a sheet holding a Blueprint skips
-     * its air or pastes it. None for a blank sheet, or an item that is no sheet.
+     * The choices a sheet offers Next Choice, its start first: a blank sheet captures a Copy or a
+     * Cut, and a sheet holding a Blueprint skips its air or pastes it. None for an item that is no
+     * sheet.
      */
     private static List<SheetChoice> choicesOf(ItemStack stack) {
         if (!isSheet(stack)) {
             return List.of();
         }
-        return holdsBlueprint(stack) ? SheetChoice.PASTE : List.of();
+        return holdsBlueprint(stack) ? SheetChoice.PASTE : SheetChoice.CAPTURE;
+    }
+
+    /** Whether the stack is a blank sheet set to capture a Cut. */
+    public static boolean cuts(ItemStack stack) {
+        return isSheet(stack) && !holdsBlueprint(stack)
+                && SheetChoice.current(CHOICE.get(stack), choicesOf(stack)) == SheetChoice.CUT;
     }
 
     /**
@@ -214,6 +234,14 @@ public final class Blueprints {
         return isSheet(stack) && holdsBlueprint(stack);
     }
 
+    /** Whether the stack is a sheet whose Blueprint, in the server's store, is a Cut. */
+    private static boolean holdsCut(Level level, ItemStack stack) {
+        UUID id = isSheet(stack) ? HELD.get(stack) : null;
+        MinecraftServer server = level.getServer();
+        Blueprint blueprint = id == null || server == null ? null : BlueprintStore.of(server).get(id);
+        return blueprint != null && blueprint.kind() == Blueprint.Kind.CUT;
+    }
+
     /** The id of the Blueprint the sheet holds, or {@code null} on a blank sheet. */
     static @Nullable UUID heldId(ItemStack stack) {
         return HELD.get(stack);
@@ -226,9 +254,10 @@ public final class Blueprints {
 
     // ---- The client's copies -------------------------------------------------------------------
 
-    /** A Blueprint's blocks, as the server sent them to this client. */
-    static void received(UUID id, BlueprintBlocks blocks) {
-        CLIENT.put(id, blocks);
+    /** A Blueprint's blocks, and whether it is a Cut, as the server sent them to this client. */
+    static void received(UUID id, BlueprintBlocks blocks, boolean cut) {
+        CLIENT.put(id, new Blueprint(blocks, cut ? Blueprint.Kind.CUT : Blueprint.Kind.COPY, new UUID(0, 0), 0,
+                List.of()));
         arrivals++;
     }
 
@@ -258,18 +287,18 @@ public final class Blueprints {
         if (blueprint == null || player.connection == null || !player.connection.hasChannel(BlueprintPayload.TYPE)) {
             return;
         }
-        PacketDistributor.sendToPlayer(player, new BlueprintPayload(id, blueprint.blocks()));
+        PacketDistributor.sendToPlayer(player,
+                new BlueprintPayload(id, blueprint.blocks(), blueprint.kind() == Blueprint.Kind.CUT));
         SENT.put(player.getUUID(), id);
     }
 
-    /** The blocks of the Blueprint the sheet holds, as this side has them, or {@code null}. */
-    private static @Nullable BlueprintBlocks blocksOf(Level level, UUID id) {
+    /**
+     * The Blueprint the sheet holds, as this side has it, or {@code null}: the client's, sent it,
+     * lacks its owner, its pastes and what a Cut's blocks hold.
+     */
+    private static @Nullable Blueprint blueprintOf(Level level, UUID id) {
         MinecraftServer server = level.getServer();
-        if (server == null) {
-            return CLIENT.get(id);
-        }
-        Blueprint blueprint = BlueprintStore.of(server).get(id);
-        return blueprint == null ? null : blueprint.blocks();
+        return server == null ? CLIENT.get(id) : BlueprintStore.of(server).get(id);
     }
 
     // ---- The click on a block ------------------------------------------------------------------
@@ -340,7 +369,7 @@ public final class Blueprints {
         return InteractionResult.SUCCESS;
     }
 
-    /** A use in the air: a sneak clears the stored Corner, or the sheet's Copy. */
+    /** A use in the air: a sneak clears the stored Corner, or the sheet's Copy; a Cut's is refused. */
     static InteractionResult use(Player player, InteractionHand hand) {
         ItemStack held = player.getItemInHand(hand);
         if (hand != InteractionHand.MAIN_HAND || !player.isShiftKeyDown() || !isSheet(held)
@@ -352,8 +381,12 @@ public final class Blueprints {
             return InteractionResult.SUCCESS;
         }
         UUID id = HELD.get(held);
-        if (id != null) {
-            BlueprintStore.of(level.getServer()).remove(id);
+        BlueprintStore store = BlueprintStore.of(level.getServer());
+        Blueprint blueprint = id == null ? null : store.get(id);
+        if (blueprint != null && blueprint.kind() == Blueprint.Kind.CUT) {
+            refuse(player, Refusal.Blueprint.CANT_CLEAR_A_CUT);
+        } else if (id != null) {
+            store.remove(id);
             blank(held);
             Laying.tell(player, Component.translatable("message.groundworks.blueprint_cleared"));
         } else {
@@ -369,15 +402,17 @@ public final class Blueprints {
         CHOICE.set(sheet, null);
         // Set back to the item's own, which drops the stack's patch: a removal would patch it out.
         sheet.set(DataComponents.MAX_STACK_SIZE, sheet.getItem().components().get(DataComponents.MAX_STACK_SIZE));
+        sheet.set(DataComponents.DAMAGE_RESISTANT, sheet.getItem().components().get(DataComponents.DAMAGE_RESISTANT));
     }
 
     // ---- Capture --------------------------------------------------------------------------------
 
     /**
-     * Captures the Selection between the Corners as a Copy, onto one sheet off the held stack: the
-     * held sheet itself where it is the last, else a new one put in the inventory. Refused, with
-     * its reason and nothing changed, over the server's cap, reaching a chunk not loaded, or with
-     * no room for the new sheet.
+     * Captures the Selection between the Corners as a Copy, or as a Cut where the sheet is set to
+     * one, onto one sheet off the held stack: the held sheet itself where it is the last, else a
+     * new one put in the inventory. A Cut takes its blocks out of the world with what they hold,
+     * and its sheet survives fire and lava. Refused, with its reason and nothing changed, over the
+     * server's cap, reaching a chunk not loaded, or with no room for the new sheet.
      */
     private static void capture(Player player, ItemStack held, BlockPos first, BlockPos second) {
         Level level = player.level();
@@ -401,23 +436,31 @@ public final class Blueprints {
             refuse(player, Refusal.Blueprint.NO_ROOM_FOR_THE_SHEET);
             return;
         }
-        Map<BlockPos, BlueprintSelection.LeftOut> leftOut = BlueprintSelection.leftOut(level, player, box);
+        boolean cut = cuts(held);
+        Map<BlockPos, BlueprintSelection.LeftOut> leftOut = BlueprintSelection.leftOut(level, player, box, cut);
         BlueprintBlocks blocks = BlueprintBlocks.capture(level, box, leftOut.keySet());
+        List<Blueprint.Held> contents = cut ? BlueprintCut.takeOut(level, box, leftOut.keySet()) : List.of();
         UUID id = UUID.randomUUID();
-        BlueprintStore.of(level.getServer()).put(id, new Blueprint(blocks, Blueprint.Kind.COPY, player.getUUID(),
-                System.currentTimeMillis()));
+        BlueprintStore.of(level.getServer()).put(id, new Blueprint(blocks,
+                cut ? Blueprint.Kind.CUT : Blueprint.Kind.COPY, player.getUUID(), System.currentTimeMillis(), contents));
         CORNER.set(held, null);
         ItemStack sheet = split ? held.copyWithCount(1) : held;
         HELD.set(sheet, id);
+        CHOICE.set(sheet, null);
         sheet.set(DataComponents.MAX_STACK_SIZE, 1);
+        if (cut) {
+            sheet.set(DataComponents.DAMAGE_RESISTANT, new DamageResistant(
+                    level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(DamageTypeTags.IS_FIRE)));
+        }
         if (split) {
             held.shrink(1);
             player.getInventory().add(sheet);
         }
         Component told = BlueprintSelection.told(level, leftOut);
+        String key = cut ? "message.groundworks.blueprint_cut" : "message.groundworks.blueprint_copied";
         Laying.tell(player, told == null
-                ? Component.translatable("message.groundworks.blueprint_copied", blocks.standing())
-                : Component.translatable("message.groundworks.blueprint_copied_left_out", blocks.standing(), told));
+                ? Component.translatable(key, blocks.standing())
+                : Component.translatable(key + "_left_out", blocks.standing(), told));
     }
 
     private static void refuse(Player player, Refusal.Blueprint refusal, Object... args) {
@@ -434,20 +477,30 @@ public final class Blueprints {
      *     pick item
      * @param items the item each placed block is charged as, by its position, which it is told it
      *     was placed with
+     * @param cut whether the Blueprint is a Cut, pasted once and uncharged
+     * @param held what a Cut's blocks hold, by where they land; none for a Copy, or on the client
+     * @param cantStand a Cut's blocks that can't stand where they land, which drop at the player's feet
      */
-    private record Pasting(Laying laying, Map<BlockPos, Item> items) {
+    private record Pasting(Laying laying, Map<BlockPos, Item> items, boolean cut, Map<BlockPos, CompoundTag> held,
+            List<PlacementPlan.Placed> cantStand) {
     }
 
     /** The paste of the sheet's Blueprint at this aim, or {@code null} where this side lacks its blocks. */
     private static @Nullable Pasting pasting(Level level, @Nullable Player player, ItemStack stack, BlockHitResult hit) {
         UUID id = HELD.get(stack);
-        BlueprintBlocks blocks = id == null ? null : blocksOf(level, id);
-        if (blocks == null) {
+        Blueprint blueprint = id == null ? null : blueprintOf(level, id);
+        if (blueprint == null) {
             return null;
         }
+        BlueprintBlocks blocks = blueprint.blocks();
+        boolean cut = blueprint.kind() == Blueprint.Kind.CUT;
         BlockPos spot = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, stack, hit).getClickedPos();
         BlueprintLanding landing = BlueprintLanding.of(blocks.size(), spot, hit.getDirection(), Rotate.turnOf(stack));
-        boolean charged = player != null && !player.hasInfiniteMaterials();
+        boolean charged = !cut && player != null && !player.hasInfiniteMaterials();
+        Map<BlockPos, CompoundTag> held = new LinkedHashMap<>();
+        for (Blueprint.Held contents : blueprint.held()) {
+            held.put(landing.at(contents.local()), contents.data());
+        }
         List<PlacementPlan.Placed> wanted = new ArrayList<>();
         Map<BlockPos, Item> items = new LinkedHashMap<>();
         List<BlockPos> clears = new ArrayList<>();
@@ -471,7 +524,8 @@ public final class Blueprints {
             // A Companion, a fluid that isn't a source, or an itemless block a charged paste skips
             // is not air: it is never cleared, nor is a block left out because it can't stand.
             BlockState state = carried(landing.turned(level, pos, captured.state()), charged);
-            if (state == null || level.getBlockState(pos) == state) {
+            // A Cut's block is the only one of it: a block standing as wanted is in its way, as any block is.
+            if (state == null || (!cut && level.getBlockState(pos) == state)) {
                 continue;
             }
             Item item = pickItem(level, player, pos, state);
@@ -500,7 +554,8 @@ public final class Blueprints {
         }
         PlacementPlan plan = new PlacementPlan(standing.laid(), List.of(), clears, companions,
                 standing.cantStand().stream().map(PlacementPlan.Placed::pos).toList(), refusal);
-        return new Pasting(Laying.of(level, player, plan, Charge.of(player, cost, List.of()), REASONS), items);
+        return new Pasting(Laying.of(level, player, plan, Charge.of(player, cut ? Map.of() : cost, List.of()), REASONS),
+                items, cut, held, standing.cantStand());
     }
 
     /**
@@ -552,7 +607,9 @@ public final class Blueprints {
 
     /**
      * Pastes the sheet's Blueprint at the aim, all or none, the player told why where it is
-     * refused; a sheet whose Blueprint is gone from the world data is made blank.
+     * refused; a sheet whose Blueprint is gone from the world data is made blank. A Cut's blocks
+     * are laid with what they held, those that can't stand where they land dropped at the
+     * player's feet, and the Cut is gone from the world data, its sheet blank.
      */
     private static void paste(Player player, ItemStack held, BlockHitResult hit) {
         Level level = player.level();
@@ -573,6 +630,13 @@ public final class Blueprints {
             }
             BlueprintStore store = BlueprintStore.of(level.getServer());
             UUID id = HELD.get(held);
+            if (pasting.cut()) {
+                BlueprintCut.putBack(level, laying.plan(), pasting.held());
+                BlueprintCut.drop(level, player, pasting.cantStand(), pasting.items(), pasting.held());
+                store.remove(id);
+                blank(held);
+                return;
+            }
             Blueprint blueprint = store.get(id);
             if (blueprint != null) {
                 store.put(id, UndoPaste.recorded(blueprint, level, laying.plan()).usedAt(System.currentTimeMillis()));
@@ -611,8 +675,15 @@ public final class Blueprints {
         return handed;
     }
 
-    /** Catches an item that the removal being cleared spills inside its own position, instead of letting it fall. */
+    /**
+     * Catches an item that the removal being cleared spills inside its own position, instead of
+     * letting it fall; and gives a dropped Cut's sheet an unlimited lifetime, so it never despawns.
+     */
     private static void onEntityJoin(EntityJoinLevelEvent event) {
+        if (!event.getLevel().isClientSide() && event.getEntity() instanceof ItemEntity dropped
+                && holdsCut(event.getLevel(), dropped.getItem())) {
+            dropped.setUnlimitedLifetime();
+        }
         List<ItemStack> into = caught;
         BlockPos at = catching;
         if (into != null && at != null && !event.getLevel().isClientSide()

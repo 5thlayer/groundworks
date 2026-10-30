@@ -12,13 +12,17 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.GameMasterBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -32,8 +36,11 @@ public final class BlueprintSelection {
     private BlueprintSelection() {
     }
 
-    /** A capture being asked of: the level, the player capturing, and the Selection's box. */
-    public record Capturing(Level level, @Nullable Player player, BoundingBox box) {
+    /**
+     * A capture being asked of: the level, the player capturing, the Selection's box, and whether
+     * it is a Cut, which takes its blocks out of the world.
+     */
+    public record Capturing(Level level, @Nullable Player player, BoundingBox box, boolean cut) {
     }
 
     /**
@@ -62,6 +69,24 @@ public final class BlueprintSelection {
                 }
                 return false;
             }
+        },
+        /**
+         * For a Cut, a block the player could not break: an unbreakable one, a game master block
+         * for a player who may not use them, or one a claim mod guards by cancelling the break
+         * event, asked on the server alone.
+         */
+        UNBREAKABLE("message.groundworks.blueprint_left_out.unbreakable") {
+            @Override
+            boolean leaves(Capturing capturing, BlockPos pos, BlockState state) {
+                if (!capturing.cut()) {
+                    return false;
+                }
+                Level level = capturing.level();
+                if (state.getDestroySpeed(level, pos) < 0) {
+                    return true;
+                }
+                return capturing.player() instanceof ServerPlayer player && !mayBreak(level, player, pos, state);
+            }
         };
 
         private final @Nullable String message;
@@ -79,9 +104,26 @@ public final class BlueprintSelection {
         }
     }
 
-    /** The blocks the capture of this box leaves out, by position, in the box's order, with why. */
-    static Map<BlockPos, LeftOut> leftOut(Level level, @Nullable Player player, BoundingBox box) {
-        Capturing capturing = new Capturing(level, player, box);
+    /**
+     * Whether the player may break the block, as a claim mod and the game mode say: the break
+     * event NeoForge fires for a player's break, cancelled where they may not, and the client not
+     * told, since nothing was broken.
+     */
+    private static boolean mayBreak(Level level, ServerPlayer player, BlockPos pos, BlockState state) {
+        BreakBlockEvent event = new BreakBlockEvent(level, pos, state, player);
+        event.setCanceled(player.blockActionRestricted(level, pos, player.gameMode.getGameModeForPlayer())
+                || (state.getBlock() instanceof GameMasterBlock && !player.canUseGameMasterBlocks()));
+        event.setNotifyClient(false);
+        NeoForge.EVENT_BUS.post(event);
+        return !event.isCanceled();
+    }
+
+    /**
+     * The blocks the capture of this box leaves out, by position, in the box's order, with why;
+     * {@code cut} where it is a Cut.
+     */
+    static Map<BlockPos, LeftOut> leftOut(Level level, @Nullable Player player, BoundingBox box, boolean cut) {
+        Capturing capturing = new Capturing(level, player, box, cut);
         Map<BlockPos, LeftOut> leftOut = new LinkedHashMap<>();
         for (int y = box.minY(); y <= box.maxY(); y++) {
             for (int z = box.minZ(); z <= box.maxZ(); z++) {
@@ -105,14 +147,15 @@ public final class BlueprintSelection {
 
     /**
      * The blocks the Selection's outline draws red: those the capture of this box leaves out for a
-     * told reason, or none for a box over the server's cap, which the capture refuses.
+     * told reason, or none for a box over the server's cap, which the capture refuses; {@code cut}
+     * where the sheet is set to Cut.
      */
-    public static List<BlockPos> shown(Level level, @Nullable Player player, BoundingBox box) {
+    public static List<BlockPos> shown(Level level, @Nullable Player player, BoundingBox box, boolean cut) {
         if ((long) box.getXSpan() * box.getYSpan() * box.getZSpan() > GroundworksConfig.maxSelection()) {
             return List.of();
         }
         List<BlockPos> shown = new ArrayList<>();
-        leftOut(level, player, box).forEach((pos, reason) -> {
+        leftOut(level, player, box, cut).forEach((pos, reason) -> {
             if (reason.isTold()) {
                 shown.add(pos);
             }

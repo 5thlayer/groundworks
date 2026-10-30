@@ -141,7 +141,9 @@ public interface Refusal {
         /** The paste Undo Paste would take back reaches a chunk that isn't loaded. */
         UNDO_UNLOADED("message.groundworks.blueprint_undo_unloaded"),
         /** The held sheet holds a Cut, whose paste Undo Paste never takes back. */
-        UNDO_ON_A_CUT("message.groundworks.blueprint_undo_on_a_cut");
+        UNDO_ON_A_CUT("message.groundworks.blueprint_undo_on_a_cut"),
+        /** A sneak-use in the air would clear the held sheet's Cut, which is never cleared. */
+        CANT_CLEAR_A_CUT("message.groundworks.blueprint_cant_clear_a_cut");
 
         private final String message;
 
