@@ -146,7 +146,8 @@ public final class Placements {
     public static PlacementPlan vanillaPlan(BlockItem item, BlockPlaceContext context) {
         PlacementPlan plan = placedPlan(item, context);
         return plan == null ? null
-                : new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), companionsOf(plan.blocks()), plan.refusal());
+                : new PlacementPlan(plan.blocks(), plan.replaces(), plan.clears(), companionsOf(plan.blocks()),
+                        plan.leftOut(), plan.refusal());
     }
 
     @Nullable

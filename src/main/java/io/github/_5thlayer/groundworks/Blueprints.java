@@ -29,7 +29,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -65,6 +69,13 @@ import org.jspecify.annotations.Nullable;
  * kept uncharged, refused whole where a position
  * it places is taken, and each block charged as the item a player would pick it with, all or none,
  * and free in creative. A sneak-use in the air clears a stored Corner or a sheet's Copy.
+ *
+ * <p>The paste stands as it was captured: what hangs or stands on another block is laid after
+ * it, and vanilla's rules, each block told it was placed, run on the finished paste. A Companion,
+ * a door's upper half or a bed's head, is placed by its block and not charged. A Copy carries
+ * block states alone, so a chest pastes empty and a sign blank; a charged paste lays waterlogged
+ * blocks dry and skips fluid sources and blocks with no item of their own, which creative's lays.
+ * A block that can't stand where it lands is left out, uncharged, and the rest is laid.
  */
 public final class Blueprints {
 
@@ -418,8 +429,9 @@ public final class Blueprints {
     /**
      * A paste a click would lay.
      *
-     * @param laying its plan, each block the captured state where it lands, in the box's order;
-     *     and its charge, each block's pick item
+     * @param laying its plan, each block the captured state where it lands, {@linkplain SupportOrder
+     *     support first}, a block that can't stand there left out; and its charge, each laid block's
+     *     pick item
      * @param items the item each placed block is charged as, by its position, which it is told it
      *     was placed with
      */
@@ -435,9 +447,9 @@ public final class Blueprints {
         }
         BlockPos spot = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, stack, hit).getClickedPos();
         BlueprintLanding landing = BlueprintLanding.of(blocks.size(), spot, hit.getDirection(), Rotate.turnOf(stack));
-        List<PlacementPlan.Placed> placed = new ArrayList<>();
+        boolean charged = player != null && !player.hasInfiniteMaterials();
+        List<PlacementPlan.Placed> wanted = new ArrayList<>();
         Map<BlockPos, Item> items = new LinkedHashMap<>();
-        Map<Item, Integer> cost = new LinkedHashMap<>();
         List<BlockPos> clears = new ArrayList<>();
         boolean pastesAir = pastesAir(stack);
         Refusal refusal = null;
@@ -456,24 +468,69 @@ public final class Blueprints {
                 }
                 continue;
             }
-            BlockState state = landing.turned(level, pos, captured.state());
-            BlockState there = level.getBlockState(pos);
-            if (there == state) {
+            // A Companion, a fluid that isn't a source, or an itemless block a charged paste skips
+            // is not air: it is never cleared, nor is a block left out because it can't stand.
+            BlockState state = carried(landing.turned(level, pos, captured.state()), charged);
+            if (state == null || level.getBlockState(pos) == state) {
                 continue;
             }
-            if (refusal == null && (!level.isInWorldBounds(pos) || !there.canBeReplaced()
-                    || entityInTheWay(level, pos, state))) {
-                refusal = new Refusal.At(Refusal.Blueprint.TAKEN, pos);
-            }
-            placed.add(new PlacementPlan.Placed(pos, state));
             Item item = pickItem(level, player, pos, state);
+            if (charged && item == Items.AIR) {
+                continue;
+            }
+            wanted.add(new PlacementPlan.Placed(pos, state));
             items.put(pos, item);
+        }
+        SupportOrder.Standing standing = SupportOrder.inWorld(level, player, wanted);
+        List<PlacementPlan.Placed> companions = Placements.companionsOf(standing.laid());
+        Map<Item, Integer> cost = new LinkedHashMap<>();
+        BlockPos taken = null;
+        for (PlacementPlan.Placed placed : standing.laid()) {
+            taken = taken == null ? takenAt(level, placed) : taken;
+            Item item = items.get(placed.pos());
             if (item != Items.AIR) {
                 cost.merge(item, 1, Integer::sum);
             }
         }
-        PlacementPlan plan = new PlacementPlan(placed, List.of(), clears, List.of(), refusal);
+        for (PlacementPlan.Placed companion : companions) {
+            taken = taken == null ? takenAt(level, companion) : taken;
+        }
+        if (refusal == null && taken != null) {
+            refusal = new Refusal.At(Refusal.Blueprint.TAKEN, taken);
+        }
+        PlacementPlan plan = new PlacementPlan(standing.laid(), List.of(), clears, companions,
+                standing.cantStand().stream().map(PlacementPlan.Placed::pos).toList(), refusal);
         return new Pasting(Laying.of(level, player, plan, Charge.of(player, cost, List.of()), REASONS), items);
+    }
+
+    /**
+     * What a Copy carries of a captured state, or {@code null} where it places nothing: nothing for
+     * air, for a Companion, which its block places, and for a fluid that isn't a source; and,
+     * where the paste is charged, a waterlogged block dry. A block entity is never carried, so a
+     * chest pastes empty and a sign blank.
+     */
+    private static @Nullable BlockState carried(BlockState state, boolean charged) {
+        if (state.isAir() || isCompanion(state)
+                || (state.getBlock() instanceof LiquidBlock && !state.getFluidState().isSource())) {
+            return null;
+        }
+        if (charged && state.getOptionalValue(BlockStateProperties.WATERLOGGED).orElse(false)) {
+            return state.setValue(BlockStateProperties.WATERLOGGED, false);
+        }
+        return state;
+    }
+
+    /** Whether the state is a Companion, the half its block places itself: a door's upper half, a bed's head. */
+    private static boolean isCompanion(BlockState state) {
+        return state.getOptionalValue(BlockStateProperties.DOUBLE_BLOCK_HALF).orElse(null) == DoubleBlockHalf.UPPER
+                || state.getOptionalValue(BlockStateProperties.BED_PART).orElse(null) == BedPart.HEAD;
+    }
+
+    /** The position, where the block can't be put down there; else {@code null}. */
+    private static @Nullable BlockPos takenAt(Level level, PlacementPlan.Placed placed) {
+        BlockPos pos = placed.pos();
+        return !level.isInWorldBounds(pos) || !level.getBlockState(pos).canBeReplaced()
+                || entityInTheWay(level, pos, placed.state()) ? pos : null;
     }
 
     /** The item a player would pick the block with, where it lands; air for a block with none. */

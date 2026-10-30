@@ -72,8 +72,9 @@ final class BlueprintLeftOutTests {
         capture(helper, player, FIRST, FIRST.above());
         lastTold(helper, player, "message.groundworks.blueprint_copied");
         PlacementPlan plan = plan(helper, player);
-        if (plan == null || plan.blocks().size() != 2) {
-            helper.fail("the paste's plan was " + plan + ", not the door's two halves");
+        // The upper half is the lower half's Companion, placed by it.
+        if (plan == null || plan.blocks().size() != 1 || plan.companions().size() != 1) {
+            helper.fail("the paste's plan was " + plan + ", not the door's lower half and its upper half's Companion");
         }
         helper.succeed();
     }
