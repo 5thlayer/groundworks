@@ -61,7 +61,7 @@ _Avoid_: dismantle outline, highlight
 ### Rotating
 
 **Rotate**:
-One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the main hand holds a rotatable item -- its plan is drawn and the block it places has a facing, an axis or a rotation, or it is a **Key** whose **Assembly** is drawn -- and otherwise, whether the main hand is empty or holds anything else, **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
+One action on one key (`R` by default) that turns a quarter at a time. It **Rotates the Plan** when the main hand holds a rotatable item -- its plan is drawn and the block it places has a facing, an axis or a rotation, or it is a **Key** whose **Assembly** is drawn, or a sheet holding a **Blueprint** -- and otherwise, whether the main hand is empty or holds anything else, **Rotates in Place** the block under the crosshair. That is Factorio's rule for which target the key takes, and to the player it is one verb.
 _Avoid_: rotate key, turn, wrench rotate
 
 **Reverse Rotate**:
@@ -129,16 +129,16 @@ _Avoid_: slave, dummy block
 ### Assemblies
 
 **Assembly**:
-A shape of real blocks, each its own item, placed in one step from its **Key** and then standing block by block: breaking one breaks only that block, and nothing remembers they were placed together. It rests on the aimed face, facing the player, with its other blocks taken from the inventory, all or none, free in creative, or nothing when any of its positions is taken, by a block or by an entity other than the placing player, whom the click lifts straight up out of the shape, or the Key would not stand on the shape laid round it, as a cactus won't beside a block, and the **Placement Preview** draws it whole, refused or not. A position may take any block of a tag, filled as uniformly as the inventory allows; one that already holds a block it takes keeps it, uncharged. A position may instead be one that stays empty, such as a portal's inside, refused when taken. A Key may have several Assemblies, such as a beacon's four pyramids, and the held stack keeps which one it places, chosen by **Next Assembly**. The Key is placed last, so vanilla's own rules, such as a golem's, see the finished shape; its placement is asked beforehand of the world as the shape will stand, so a torch hangs on a wall the shape builds, and a door with a block of the shape over it refuses the whole. Should vanilla still refuse the Key once the rest is laid, for what the plan can't see, as a golem the shape spawns in its way, the click takes back what it laid, and only what is gone is paid for. **Rotate in Place** turns its blocks one by one, never the whole. Each is declared as data, by a **Consumer** or a pack: vanilla's beacon pyramid, conduit frame, nether portal frame and iron, snow and copper golems are Assemblies.
+A shape of real blocks, each its own item, placed in one step from its **Key** and then standing block by block: breaking one breaks only that block, and nothing remembers they were placed together. It rests on the aimed face, facing the player, with its other blocks taken from the inventory, all or none, free in creative, or nothing when any of its positions is taken, by a block or by an entity other than the placing player, whom the click lifts straight up out of the shape, or the Key would not stand on the shape laid round it, as a cactus won't beside a block, and the **Placement Preview** draws it whole, refused or not. A position may take any block of a tag, filled as uniformly as the inventory allows; one that already holds a block it takes keeps it, uncharged. A position may instead be one that stays empty, such as a portal's inside, refused when taken. A Key may have several Assemblies, such as a beacon's four pyramids, and the held stack keeps which one it places, chosen by **Next Choice**. The Key is placed last, so vanilla's own rules, such as a golem's, see the finished shape; its placement is asked beforehand of the world as the shape will stand, so a torch hangs on a wall the shape builds, and a door with a block of the shape over it refuses the whole. Should vanilla still refuse the Key once the rest is laid, for what the plan can't see, as a golem the shape spawns in its way, the click takes back what it laid, and only what is gone is paid for. **Rotate in Place** turns its blocks one by one, never the whole. Each is declared as data, by a **Consumer** or a pack: vanilla's beacon pyramid, conduit frame, nether portal frame and iron, snow and copper golems are Assemblies.
 _Avoid_: multiblock, structure (vanilla's villages and templates), kit
 
 **Key**:
 The block of an **Assembly** it is placed from: the held item that places it is the Key's own, and the shape is set in the Key's frame. A block is a Key only where a **Consumer** has stated it one, as the vanilla Consumer does through a tag. Sneak-placing it places the Key alone, as vanilla would. It may be a block the shape uses at other positions too: a nether portal's frame is keyed by its obsidian, and is placed unlit.
 _Avoid_: core (a Consumer's own name, such as the Void Well's), origin (a **Footprint**'s), controller
 
-**Next Assembly**:
-One action on one key (`V` by default) that chooses the held **Key**'s next **Assembly**, or the Key alone, and round; **Reverse Next Assembly** (`Shift+V` by default) steps back. The **Placement Preview** redraws with either. A fresh stack starts on the Key's first Assembly, or on the Key alone when its declaration says so, as obsidian's does.
-_Avoid_: cycle size, next level
+**Next Choice**:
+One action on one key (`V` by default) that steps the held item's choice, and round; **Reverse Next Choice** (`Shift+V` by default) steps back. For a held **Key** it chooses the next **Assembly**, or the Key alone; the **Placement Preview** redraws with either, and a fresh stack starts on the Key's first Assembly, or on the Key alone when its declaration says so, as obsidian's does. For a blank sheet it chooses **Copy** or **Cut**; for a sheet holding a **Blueprint**, whether its air is skipped or pasted.
+_Avoid_: Next Assembly (its old name), cycle size, next level
 
 ### Dismantling
 
@@ -149,3 +149,29 @@ _Avoid_: deconstruct, mass mine, unstretch
 **Dismantle family**:
 A kind of connected block that a **Dismantle** takes up as one span, with its own rule for which blocks a span follows between its two ends and what the span takes. A **Consumer** supplies each one: Beltworks' belt family follows one transport line and takes the tiles' wedges and items with them, and the Pack's pipe family takes the shortest joined path. Vanilla's families are block tags under `groundworks:dismantle_family/`, one family per tag, shipped as fences, walls, bars and rails: a span takes the shortest joined path through one tag's blocks, where two touching blocks are joined if the block's own sides say they connect, or simply by touching for a block with no sides to say, and only with the tool vanilla breaks every one of them with. Groundworks runs the gesture for every family alike, and a span never crosses from one family to another.
 _Avoid_: dismantle group, connected type
+
+### Blueprints
+
+**Blueprint**:
+A box of blocks the player captured from the world onto one sheet of paper, or another item a pack names, to paste elsewhere: each block with its full state, at its place in the box. A sheet holds one Blueprint and stands alone in its stack, so a Blueprint is never split or merged. It is a **Copy** or a **Cut**. Pasting it is planned as an **Assembly** is, without a **Key**: it rests on the aimed face, drawn whole by the **Placement Preview**, laid all or none, refused whole when a position it places is taken, and remembered by nothing once laid. It keeps the orientation it was captured in; **Rotate the Plan** turns it and **Raise** and **Lower** move it. Air in the box is skipped by default, or, when the sheet is set to paste air, clears what stands there as the player would break it, handed back as a **Dismantle** hands back what it takes; a block there the player could not break refuses the paste. Whoever holds the sheet may paste it, in any dimension.
+_Avoid_: template, schematic, structure (vanilla's), clipboard
+
+**Copy**:
+A **Blueprint** that leaves the world as it was. It holds its blocks' states but not what they hold: a pasted chest is empty, a pasted sign blank, a waterlogged block dry, and a fluid source or a block with no item of its own is pasted only in creative. Each paste is charged from the inventory, all or none, each block the item a player would pick it with, and free in creative; a block of it that cannot stand where it lands is left out, uncharged; the sheet keeps the Copy for the next paste, until a sneak-use in the air clears it.
+_Avoid_: clone, duplicate
+
+**Undo Paste**:
+One action on one key (`U` by default) that takes back the last paste of the held sheet's **Copy**, up to ten pastes deep: it takes up only the blocks still standing as the paste laid them, leaves what was placed or changed since, and hands back what they drop as a **Dismantle** hands back what it takes; a creative player is handed nothing. What the paste cleared or replaced is not restored. It is refused whole, with its reason, in another dimension than the paste's or over a chunk not loaded, and has no preview. A **Cut** has no undo, neither of its capture nor of its paste; clearing a Copy clears its history.
+_Avoid_: undo (alone, too wide: nothing else in Groundworks is undone), revert
+
+**Cut**:
+A **Blueprint** that takes its blocks out of the world onto the sheet, silently, with everything they hold: a chest moves with its contents. What stood outside the box on them falls or breaks as vanilla says. It is pasted once, uncharged, and the sheet is blank again; a block of it that cannot stand where it lands drops as an item at the player's feet, with what it held; it is never cleared, and its sheet survives fire and lava and never despawns.
+_Avoid_: move, cut-paste
+
+**Corner**:
+One of the two blocks that bound a **Selection**, both included. A sneak-click with a blank sheet stores the first; a sneak-use in the air clears it, and one in another dimension is no Corner. Not an **Anchor**, which is a point of a **Stretch**'s route.
+_Avoid_: bound, endpoint, anchor
+
+**Selection**:
+The box between two **Corners** that a blank sheet captures as a **Blueprint**, capped in size by the server. The capture leaves out, with a message, what it cannot take whole: a block standing partly outside the box, as a door half in it, and for a **Cut**, a block the player could not break; and it leaves out, silently, blocks a pack denies Blueprints, such as bedrock. Entities are never captured.
+_Avoid_: region, area, volume
