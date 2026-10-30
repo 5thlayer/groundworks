@@ -40,6 +40,7 @@
   "key.groundworks.lower": "Lower",
   "key.groundworks.next_choice": "Next Choice",
   "key.groundworks.reverse_next_choice": "Reverse Next Choice",
+  "key.groundworks.undo_paste": "Undo Paste",
   "groundworks.configuration.planOptInNamespaces": "Namespaces opted in for a Vanilla Plan",
   "message.groundworks.stretch_no_anchor_in_a_column": "A column has no anchors. Click without sneaking to lay it.",
   "message.groundworks.footprint_turn_blocked": "No room to turn it here.",
@@ -59,5 +60,13 @@
   "message.groundworks.blueprint_taken": "Something stands where that would go.",
   "message.groundworks.blueprint_may_not_build": "You may not build everywhere that would go.",
   "message.groundworks.blueprint_not_enough_items": "You need %s more to paste that.",
-  "tag.item.groundworks.blueprints": "Blueprint Sheets"
+  "message.groundworks.blueprint_undone": "Took back %s blocks of the last paste.",
+  "message.groundworks.blueprint_nothing_to_undo": "No paste of this Copy is left to undo.",
+  "message.groundworks.blueprint_undo_in_another_dimension": "That paste was laid in another dimension.",
+  "message.groundworks.blueprint_undo_unloaded": "That paste reaches a chunk that isn't loaded.",
+  "message.groundworks.blueprint_undo_on_a_cut": "A Cut's paste can't be undone.",
+  "message.groundworks.blueprint_copied_left_out": "Copied %s blocks, leaving out %s.",
+  "message.groundworks.blueprint_left_out.straddling": "%s standing partly outside the Selection, such as %s",
+  "tag.item.groundworks.blueprints": "Blueprint Sheets",
+  "tag.block.groundworks.blueprint_deny": "Blocks Blueprints Leave Out"
 }

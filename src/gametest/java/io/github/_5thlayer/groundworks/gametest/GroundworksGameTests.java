@@ -185,6 +185,9 @@ public final class GroundworksGameTests {
         AssemblyRotateTests.register(tests);
         VanillaAssemblyTests.register(tests);
         BlueprintTests.register(tests);
+        BlueprintTurnTests.register(tests);
+        BlueprintUndoTests.register(tests);
+        BlueprintLeftOutTests.register(tests);
         BlueprintStandingTests.register(tests);
     }
 

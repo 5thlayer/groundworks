@@ -53,13 +53,15 @@ import org.jspecify.annotations.Nullable;
  * <p>A sheet is a held item a Consumer has {@linkplain #sheets stated} captures, as the
  * {@linkplain VanillaConsumer vanilla Consumer} does for paper through its tag. A blank sheet's
  * sneak-click on a block stores the first Corner, and a click on a block with a Corner stored
- * captures the Selection between the two, both included, as a Copy: one sheet comes off the held
+ * captures the Selection between the two, both included, as a Copy, leaving out what it can't take
+ * {@linkplain BlueprintSelection whole} and saying so: one sheet comes off the held
  * stack and holds the Blueprint, alone in its stack. The Blueprint's blocks go into the server's
  * world data, under an id the sheet holds; the client is sent them while it holds the sheet.
  *
  * <p>A sheet holding a Blueprint plans its paste at the aim, as every Groundworks plan is planned:
  * resting on the aimed face in the {@linkplain BlueprintLanding orientation it was captured in},
- * air skipped, a block already standing as wanted kept uncharged, refused whole where a position
+ * turned from it by {@linkplain Rotate Rotate the Plan} and moved by {@linkplain Raise Raise and
+ * Lower} as any held stack's placement is, air skipped, a block already standing as wanted kept uncharged, refused whole where a position
  * it places is taken, and each block charged as the item a player would pick it with, all or none,
  * and free in creative. A sneak-use in the air clears a stored Corner or a sheet's Copy.
  *
@@ -73,6 +75,8 @@ import org.jspecify.annotations.Nullable;
 public final class Blueprints {
 
     private static final List<Predicate<? super ItemStack>> SHEETS = new CopyOnWriteArrayList<>();
+
+    private static final List<Predicate<? super BlockState>> DENIED = new CopyOnWriteArrayList<>();
 
     /** A blank sheet's stored first Corner. */
     private static final HeldValue<BlueprintCorner> CORNER = new HeldValue<>(() -> Groundworks.BLUEPRINT_CORNER.get(), null);
@@ -124,6 +128,25 @@ public final class Blueprints {
         return false;
     }
 
+    /**
+     * States that a capture leaves the blocks this matches out, silently, as the vanilla Consumer
+     * does for bedrock through its tag. Called at mod construction, on both sides, since the
+     * Selection's outline asks on the client; this may be called from several threads at once.
+     */
+    public static void denies(Predicate<? super BlockState> blocks) {
+        DENIED.add(blocks);
+    }
+
+    /** Whether some Consumer has stated a capture leaves this block out. */
+    static boolean isDenied(BlockState state) {
+        for (Predicate<? super BlockState> blocks : DENIED) {
+            if (blocks.test(state)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     static void register(IEventBus modBus) {
         modBus.addListener(BlueprintPayload::register);
         NeoForge.EVENT_BUS.addListener(PlayerTickEvent.Post.class, event -> {
@@ -139,6 +162,19 @@ public final class Blueprints {
     public static @Nullable BlueprintCorner liveCorner(Level level, ItemStack stack) {
         BlueprintCorner corner = CORNER.get(stack);
         return corner != null && corner.dimension().equals(level.dimension()) ? corner : null;
+    }
+
+    /**
+     * Whether this stack is a sheet holding a Blueprint, so its paste is planned: Rotate turns it
+     * and Raise moves it, where a blank sheet is no plan and neither does.
+     */
+    static boolean pastes(ItemStack stack) {
+        return isSheet(stack) && holdsBlueprint(stack);
+    }
+
+    /** The id of the Blueprint the sheet holds, or {@code null} on a blank sheet. */
+    static @Nullable UUID heldId(ItemStack stack) {
+        return HELD.get(stack);
     }
 
     /** Whether the sheet holds a Blueprint, whether or not this side has its blocks yet. */
@@ -322,7 +358,8 @@ public final class Blueprints {
             refuse(player, Refusal.Blueprint.NO_ROOM_FOR_THE_SHEET);
             return;
         }
-        BlueprintBlocks blocks = BlueprintBlocks.capture(level, box);
+        Map<BlockPos, BlueprintSelection.LeftOut> leftOut = BlueprintSelection.leftOut(level, player, box);
+        BlueprintBlocks blocks = BlueprintBlocks.capture(level, box, leftOut.keySet());
         UUID id = UUID.randomUUID();
         BlueprintStore.of(level.getServer()).put(id, new Blueprint(blocks, Blueprint.Kind.COPY, player.getUUID(),
                 System.currentTimeMillis()));
@@ -334,7 +371,10 @@ public final class Blueprints {
             held.shrink(1);
             player.getInventory().add(sheet);
         }
-        Laying.tell(player, Component.translatable("message.groundworks.blueprint_copied", blocks.standing()));
+        Component told = BlueprintSelection.told(level, leftOut);
+        Laying.tell(player, told == null
+                ? Component.translatable("message.groundworks.blueprint_copied", blocks.standing())
+                : Component.translatable("message.groundworks.blueprint_copied_left_out", blocks.standing(), told));
     }
 
     private static void refuse(Player player, Refusal.Blueprint refusal, Object... args) {
@@ -363,17 +403,17 @@ public final class Blueprints {
             return null;
         }
         BlockPos spot = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, stack, hit).getClickedPos();
-        BlueprintLanding landing = BlueprintLanding.of(blocks.size(), spot, hit.getDirection());
+        BlueprintLanding landing = BlueprintLanding.of(blocks.size(), spot, hit.getDirection(), Rotate.turnOf(stack));
         boolean charged = player != null && !player.hasInfiniteMaterials();
         List<PlacementPlan.Placed> wanted = new ArrayList<>();
         Map<BlockPos, Item> items = new LinkedHashMap<>();
         for (BlueprintBlocks.Captured captured : blocks.blocks()) {
-            BlockState state = carried(captured.state(), charged);
-            if (state == null) {
+            if (captured.state().isAir()) {
                 continue;
             }
             BlockPos pos = landing.at(captured.local());
-            if (level.getBlockState(pos) == state) {
+            BlockState state = carried(landing.turned(level, pos, captured.state()), charged);
+            if (state == null || level.getBlockState(pos) == state) {
                 continue;
             }
             Item item = pickItem(level, player, pos, state);
@@ -472,7 +512,7 @@ public final class Blueprints {
             UUID id = HELD.get(held);
             Blueprint blueprint = store.get(id);
             if (blueprint != null) {
-                store.put(id, blueprint.usedAt(System.currentTimeMillis()));
+                store.put(id, UndoPaste.recorded(blueprint, level, laying.plan()).usedAt(System.currentTimeMillis()));
             }
         });
     }

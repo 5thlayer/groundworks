@@ -46,6 +46,14 @@ public final class Raise {
         return drawsStretch(player, stack) ? player.level().getHeight() : capOf(player);
     }
 
+    /**
+     * Whether a press moves this stack: a Placement Preview is drawn for its item, or it is a
+     * sheet holding a {@linkplain Blueprints Blueprint}, whose paste is drawn.
+     */
+    private static boolean isRaised(ItemStack stack) {
+        return Placements.isDrawn(stack.getItem()) || Blueprints.pastes(stack);
+    }
+
     /** Whether a stretch is being drawn with the held stack: it stretches, and its start is stored. */
     private static boolean drawsStretch(Player player, ItemStack stack) {
         return Stretches.builderOf(stack.getItem()) != null && Stretches.storedOn(player.level(), stack) != null;
@@ -57,7 +65,7 @@ public final class Raise {
      * whatever it carries, so a height is never one the player cannot see.
      */
     public static Height heightOf(Player player, ItemStack stack) {
-        return Placements.isDrawn(stack.getItem())
+        return isRaised(stack)
                 ? HEIGHT.get(stack).clampedTo(capOf(player, stack))
                 : Height.NONE;
     }
@@ -85,7 +93,7 @@ public final class Raise {
      */
     public static void press(Player player, boolean lower) {
         ItemStack held = player.getMainHandItem();
-        if (!Placements.isDrawn(held.getItem())) {
+        if (!isRaised(held)) {
             return;
         }
         Height stored = HEIGHT.get(held);
