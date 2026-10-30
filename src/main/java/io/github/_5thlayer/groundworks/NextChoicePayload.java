@@ -12,30 +12,30 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** Next Assembly, or its reverse, was pressed. The client only says which; the server steps the held Key. */
-public record NextAssemblyPayload(boolean reverse) implements CustomPacketPayload {
+/** Next Choice, or its reverse, was pressed. The client only says which; the server steps the held item's choice. */
+public record NextChoicePayload(boolean reverse) implements CustomPacketPayload {
 
-    public static final Type<NextAssemblyPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "next_assembly"));
+    public static final Type<NextChoicePayload> TYPE =
+            new Type<>(Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "next_choice"));
 
-    static final StreamCodec<ByteBuf, NextAssemblyPayload> STREAM_CODEC =
-            ByteBufCodecs.BOOL.map(NextAssemblyPayload::new, NextAssemblyPayload::reverse);
+    static final StreamCodec<ByteBuf, NextChoicePayload> STREAM_CODEC =
+            ByteBufCodecs.BOOL.map(NextChoicePayload::new, NextChoicePayload::reverse);
 
     /** Bumped when a payload's shape changes, so a client on the old shape is refused rather than misread. */
     private static final String VERSION = "1";
 
     @Override
-    public Type<NextAssemblyPayload> type() {
+    public Type<NextChoicePayload> type() {
         return TYPE;
     }
 
     static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar(VERSION).playToServer(TYPE, STREAM_CODEC, NextAssemblyPayload::handle);
+        event.registrar(VERSION).playToServer(TYPE, STREAM_CODEC, NextChoicePayload::handle);
     }
 
-    private static void handle(NextAssemblyPayload payload, IPayloadContext context) {
+    private static void handle(NextChoicePayload payload, IPayloadContext context) {
         if (context.player() instanceof ServerPlayer player) {
-            Assemblies.press(player, payload.reverse());
+            NextChoice.press(player, payload.reverse());
         }
     }
 }

@@ -19,7 +19,7 @@ import net.neoforged.neoforge.common.NeoForge;
 /**
  * The client half: the Placement Preview, which has no toggle and no state beyond its own cache,
  * the Dismantle's preview, which takes the frame before any Consumer's Takeover, the Stretch's
- * markers, and the keys for Rotate, for Raise and Lower, and for Next Assembly.
+ * markers, and the keys for Rotate, for Raise and Lower, and for Next Choice.
  */
 @Mod(value = Groundworks.MOD_ID, dist = Dist.CLIENT)
 public final class GroundworksClient {
@@ -37,8 +37,8 @@ public final class GroundworksClient {
         NeoForge.EVENT_BUS.addListener(RotateKeys::onClientTick);
         modBus.addListener(RaiseKeys::onRegisterKeys);
         NeoForge.EVENT_BUS.addListener(RaiseKeys::onClientTick);
-        modBus.addListener(NextAssemblyKeys::onRegisterKeys);
-        NeoForge.EVENT_BUS.addListener(NextAssemblyKeys::onClientTick);
+        modBus.addListener(NextChoiceKeys::onRegisterKeys);
+        NeoForge.EVENT_BUS.addListener(NextChoiceKeys::onClientTick);
         // A server's Assemblies are its own, so a later server without them draws none.
         NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> Assemblies.forget());
     }

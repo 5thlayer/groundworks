@@ -4,7 +4,7 @@
 package io.github._5thlayer.groundworks.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import io.github._5thlayer.groundworks.NextAssemblyPayload;
+import io.github._5thlayer.groundworks.NextChoicePayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -15,18 +15,18 @@ import net.neoforged.neoforge.client.settings.KeyModifier;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * The keys for Next Assembly ({@code V}) and its reverse ({@code Shift+V}), in the game only, two
+ * The keys for Next Choice ({@code V}) and its reverse ({@code Shift+V}), in the game only, two
  * actions as Rotate's are, so each rebinds alone. A press only tells the server; the stack's choice
  * comes back on the synced stack, and the preview redraws from it.
  */
-final class NextAssemblyKeys {
+final class NextChoiceKeys {
 
-    private static final KeyMapping NEXT = new KeyMapping("key.groundworks.next_assembly",
+    private static final KeyMapping NEXT = new KeyMapping("key.groundworks.next_choice",
             KeyConflictContext.IN_GAME, KeyModifier.NONE, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, GroundworksClient.KEYS);
-    private static final KeyMapping REVERSE_NEXT = new KeyMapping("key.groundworks.reverse_next_assembly",
+    private static final KeyMapping REVERSE_NEXT = new KeyMapping("key.groundworks.reverse_next_choice",
             KeyConflictContext.IN_GAME, KeyModifier.SHIFT, InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, GroundworksClient.KEYS);
 
-    private NextAssemblyKeys() {
+    private NextChoiceKeys() {
     }
 
     static void onRegisterKeys(RegisterKeyMappingsEvent event) {
@@ -45,7 +45,7 @@ final class NextAssemblyKeys {
 
     private static void press(boolean reverse) {
         if (Minecraft.getInstance().player != null) {
-            ClientPacketDistributor.sendToServer(new NextAssemblyPayload(reverse));
+            ClientPacketDistributor.sendToServer(new NextChoicePayload(reverse));
         }
     }
 }

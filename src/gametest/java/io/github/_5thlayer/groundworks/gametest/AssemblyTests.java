@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import io.github._5thlayer.groundworks.Assemblies;
+import io.github._5thlayer.groundworks.NextChoice;
 import io.github._5thlayer.groundworks.Groundworks;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.Placements;
@@ -55,7 +55,7 @@ import org.jspecify.annotations.Nullable;
  * <p>The player stands west of {@link #SPOT} looking east and clicks the floor's top under it, so
  * forward is east and the player's right is south.
  *
- * <p>Next Assembly runs on the {@code assembly_choices} pack: a lodestone stands on one stone, its
+ * <p>Next Choice runs on the {@code assembly_choices} pack: a lodestone stands on one stone, its
  * first Assembly, or on two, its second; a fletching table has two declarations, the second by id
  * starting alone. The Key placed last is proved on vanilla's own Assemblies, a golem, in {@link
  * VanillaAssemblyTests}.
@@ -70,7 +70,7 @@ final class AssemblyTests {
     private static final BlockPos FORWARD_RIGHT = FORWARD.south();
     private static final List<BlockPos> BASE = List.of(SPOT, RIGHT, FORWARD, FORWARD_RIGHT);
 
-    /** Next Assembly's pack, and a second spot, clear of the first's Assembly, for a second click. */
+    /** Next Choice's pack, and a second spot, clear of the first's Assembly, for a second click. */
     private static final String CHOICES_PACK = "assembly_choices";
     private static final BlockPos OTHER_SPOT = SPOT.north(2);
 
@@ -140,9 +140,11 @@ final class AssemblyTests {
                 20, AssemblyTests::keyRefusedTakesBackTheRest);
 
         var withChoices = tests.withPack(CHOICES_PACK);
-        withChoices.test("next_assembly_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
+        withChoices.test("next_choice_steps_through_every_choice_and_the_key_alone_and_wraps", 20,
                 AssemblyTests::nextStepsAndWraps);
-        withChoices.test("reverse_next_assembly_steps_back", 20, AssemblyTests::reverseStepsBack);
+        withChoices.test("reverse_next_choice_steps_back", 20, AssemblyTests::reverseStepsBack);
+        withChoices.test("next_choice_leaves_an_item_that_is_no_key_as_it_is", 20,
+                AssemblyTests::nextIgnoresOtherItems);
         withChoices.test("a_stack_remembers_its_assembly_across_clicks", 20, AssemblyTests::remembersItsChoice);
         withChoices.test("any_one_declaration_starting_alone_starts_the_key_alone", 20,
                 AssemblyTests::anyOneStartsAlone);
@@ -367,11 +369,11 @@ final class AssemblyTests {
         ListeningPlayer player = holding(helper, Items.LODESTONE, 1);
         player.setGameMode(GameType.CREATIVE);
         expectPlanned(helper, player, 2, "the short tower, the first Assembly");
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         expectPlanned(helper, player, 3, "the tall tower, the second Assembly");
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         expectKeyAlone(helper, player);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         expectPlanned(helper, player, 2, "the short tower again");
         if (player.getMainHandItem().has(Groundworks.ASSEMBLY_CHOICE.get())) {
             helper.fail("a stack stepped back to its start still stores a choice");
@@ -420,14 +422,25 @@ final class AssemblyTests {
         helper.succeed();
     }
 
+    private static void nextIgnoresOtherItems(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper, Items.STONE, 1);
+        NextChoice.press(player, false);
+        NextChoice.press(player, true);
+        ItemStack held = player.getMainHandItem();
+        if (!held.is(Items.STONE) || held.getCount() != 1 || !held.getComponentsPatch().isEmpty()) {
+            helper.fail("Next Choice changed a held stone to " + held + " " + held.getComponentsPatch());
+        }
+        helper.succeed();
+    }
+
     private static void reverseStepsBack(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, Items.LODESTONE, 1);
         player.setGameMode(GameType.CREATIVE);
-        Assemblies.press(player, true);
+        NextChoice.press(player, true);
         expectKeyAlone(helper, player);
-        Assemblies.press(player, true);
+        NextChoice.press(player, true);
         expectPlanned(helper, player, 3, "the tall tower");
-        Assemblies.press(player, true);
+        NextChoice.press(player, true);
         expectPlanned(helper, player, 2, "the short tower");
         helper.succeed();
     }
@@ -435,7 +448,7 @@ final class AssemblyTests {
     private static void remembersItsChoice(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, Items.LODESTONE, 2);
         stock(player, MAIN_SLOT, Items.STONE, 4);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         click(helper, player, SPOT);
         click(helper, player, OTHER_SPOT);
         for (BlockPos spot : List.of(SPOT, OTHER_SPOT)) {
@@ -664,7 +677,7 @@ final class AssemblyTests {
         if (plan == null || plan.isRefused() || plan.blocks().size() != 5) {
             helper.fail("the plan was " + plan + ", not the plinth");
         }
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         expectKeyAlone(helper, player);
         helper.succeed();
     }
@@ -793,7 +806,7 @@ final class AssemblyTests {
 
     /**
      * The fletching table's first declaration by id starts on its Assembly, its second on the Key
-     * alone: the second is enough, so a fresh stack places the Key alone, and Next Assembly wraps
+     * alone: the second is enough, so a fresh stack places the Key alone, and Next Choice wraps
      * to the first.
      */
     private static void anyOneStartsAlone(GameTestHelper helper) {
@@ -801,7 +814,7 @@ final class AssemblyTests {
         player.setGameMode(GameType.CREATIVE);
         click(helper, player);
         expectAlone(helper, Blocks.FLETCHING_TABLE);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         expectPlanned(helper, player, 2, "the fletching table's first Assembly", OTHER_SPOT);
         helper.succeed();
     }

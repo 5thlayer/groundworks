@@ -5,7 +5,7 @@ package io.github._5thlayer.groundworks.gametest;
 
 import java.util.Map;
 
-import io.github._5thlayer.groundworks.Assemblies;
+import io.github._5thlayer.groundworks.NextChoice;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.Placements;
 import net.minecraft.core.BlockPos;
@@ -48,7 +48,7 @@ final class VanillaAssemblyTests {
 
     static void register(GroundworksGameTests.Registrar tests) {
         tests.test("a_carved_pumpkin_places_an_iron_golem_which_spawns", 20, VanillaAssemblyTests::ironGolem);
-        tests.test("a_carved_pumpkin_places_a_snow_golem_after_next_assembly_which_spawns", 20,
+        tests.test("a_carved_pumpkin_places_a_snow_golem_after_next_choice_which_spawns", 20,
                 VanillaAssemblyTests::snowGolem);
         tests.test("a_carved_pumpkin_places_a_copper_golem_after_two_next_assemblies_which_spawns", 20,
                 VanillaAssemblyTests::copperGolem);
@@ -66,9 +66,9 @@ final class VanillaAssemblyTests {
                 VanillaAssemblyTests::otherPlayerInsideThePyramid);
         tests.tallTest("a_conduit_places_its_sixteen_block_ring_underwater_and_activates", 200,
                 VanillaAssemblyTests::conduitRing);
-        tests.tallTest("a_conduit_places_its_full_frame_underwater_after_next_assembly_and_activates", 200,
+        tests.tallTest("a_conduit_places_its_full_frame_underwater_after_next_choice_and_activates", 200,
                 VanillaAssemblyTests::conduitFullFrame);
-        tests.tallTest("obsidian_places_alone_then_the_unlit_portal_frame_after_next_assembly_which_lights", 40,
+        tests.tallTest("obsidian_places_alone_then_the_unlit_portal_frame_after_next_choice_which_lights", 40,
                 VanillaAssemblyTests::portalFrame);
     }
 
@@ -86,7 +86,7 @@ final class VanillaAssemblyTests {
     private static void snowGolem(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, PLAYER, Items.CARVED_PUMPKIN, 1);
         stock(player, Items.SNOW_BLOCK, 2);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         click(helper, player, SPOT);
         if (helper.getEntities(EntityType.SNOW_GOLEM).isEmpty()) {
             helper.fail("no snow golem spawned from the placed body and pumpkin");
@@ -102,8 +102,8 @@ final class VanillaAssemblyTests {
     private static void copperGolem(GameTestHelper helper) {
         ListeningPlayer player = holding(helper, PLAYER, Items.CARVED_PUMPKIN, 1);
         stock(player, Items.EXPOSED_COPPER, 1);
-        Assemblies.press(player, false);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
+        NextChoice.press(player, false);
         click(helper, player, SPOT);
         if (helper.getEntities(EntityType.COPPER_GOLEM).isEmpty()) {
             helper.fail("no copper golem spawned from the placed body and pumpkin");
@@ -121,7 +121,7 @@ final class VanillaAssemblyTests {
         player.getInventory().setItem(22, new ItemStack(Items.IRON_BLOCK, 36));
         player.getInventory().setItem(23, new ItemStack(Items.GOLD_BLOCK, 10));
         for (int press = 0; press < 3; press++) {
-            Assemblies.press(player, false);
+            NextChoice.press(player, false);
         }
         click(helper, player, TALL_SPOT);
         BlockPos beacon = TALL_SPOT.above(4);
@@ -184,8 +184,8 @@ final class VanillaAssemblyTests {
         ListeningPlayer player = holding(helper, TALL_SPOT.west(), Items.BEACON, 1);
         player.getInventory().setItem(20, new ItemStack(Items.IRON_BLOCK, 64));
         player.getInventory().setItem(21, new ItemStack(Items.IRON_BLOCK, 19));
-        Assemblies.press(player, false);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
+        NextChoice.press(player, false);
         BlockPos beacon = TALL_SPOT.above(3);
         player.enterTheLevel();
         try {
@@ -278,7 +278,7 @@ final class VanillaAssemblyTests {
         flood(helper);
         ListeningPlayer player = holding(helper, TALL_PLAYER, Items.CONDUIT, 1);
         stock(player, Items.PRISMARINE, 42);
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         click(helper, player, TALL_SPOT);
         BlockPos conduit = TALL_SPOT.above(2);
         expectStanding(helper, Map.of(conduit.east(2), Blocks.PRISMARINE, conduit.west(2), Blocks.PRISMARINE,
@@ -303,7 +303,7 @@ final class VanillaAssemblyTests {
         if (!helper.getBlockState(alone.above()).isAir()) {
             helper.fail("a fresh obsidian came with " + helper.getBlockState(alone.above()), alone.above());
         }
-        Assemblies.press(player, false);
+        NextChoice.press(player, false);
         click(helper, player, TALL_SPOT);
         BlockPos right = TALL_SPOT.south();
         expectStanding(helper, Map.of(TALL_SPOT, Blocks.OBSIDIAN, right, Blocks.OBSIDIAN,

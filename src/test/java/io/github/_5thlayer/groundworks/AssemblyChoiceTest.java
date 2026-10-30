@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import org.junit.jupiter.api.Test;
 
 /**
- * Next Assembly over a Key with two Assemblies, choices 0 and 1, and the Key alone, choice 2: a
+ * Next Choice over a Key with two Assemblies, choices 0 and 1, and the Key alone, choice 2: a
  * stack with no choice stored is on its starting choice, and one stepped back to it stores none.
  */
 class AssemblyChoiceTest {

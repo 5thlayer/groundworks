@@ -124,7 +124,7 @@ class VanillaAssembliesTest {
 
     /**
      * Vanilla's {@code aisle("^", "#")}, the {@code #} any of {@code minecraft:copper}, with no air
-     * checked. Its id sorts after the iron and snow golems', so Next Assembly reaches it third, as
+     * checked. Its id sorts after the iron and snow golems', so Next Choice reaches it third, as
      * {@code VanillaAssemblyTests} places it.
      */
     @Test

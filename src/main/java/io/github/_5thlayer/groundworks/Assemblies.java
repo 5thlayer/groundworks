@@ -192,19 +192,21 @@ public final class Assemblies {
     }
 
     /**
-     * A press of Next Assembly, or of its reverse, decided on the server: the main hand's Key steps
-     * to its next choice, or its previous, through its Assemblies and the Key alone and round. A
-     * stack that is no Key is left as it is.
+     * The Assembly's part of a press of Next Choice, or of its reverse: a held Key steps to its
+     * next choice, or its previous, through its Assemblies and the Key alone and round. A stack
+     * that is no Key is left as it is.
+     *
+     * @return whether the stack was a Key, so the press was the Assembly's
      */
-    public static void press(Player player, boolean reverse) {
-        ItemStack held = player.getMainHandItem();
-        List<AssemblyShape> assemblies = choicesOf(player.level(), held);
+    static boolean stepChoice(Level level, ItemStack held, boolean reverse) {
+        List<AssemblyShape> assemblies = choicesOf(level, held);
         if (assemblies.isEmpty()) {
-            return;
+            return false;
         }
         AssemblyChoice next = AssemblyChoice.next(CHOICE.get(held), start(assemblies),
                 assemblies.size() + 1, reverse);
         CHOICE.set(held, next);
+        return true;
     }
 
     /**
