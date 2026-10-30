@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.7.0
+
 ### Players
 
 - **Breaking**: Next Assembly and Reverse Next Assembly are now **Next Choice** and **Reverse Next Choice**, still `V` and `Shift+V`, which step the held item's choice; a held Key steps through its Assemblies and the Key alone as before. Their key mapping ids are now `key.groundworks.next_choice` and `key.groundworks.reverse_next_choice`, so a player who rebound either must bind it again. (#77)
