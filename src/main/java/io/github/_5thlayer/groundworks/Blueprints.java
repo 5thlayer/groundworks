@@ -22,6 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -37,6 +38,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -55,7 +57,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A sheet holding a Blueprint plans its paste at the aim, as every Groundworks plan is planned:
  * resting on the aimed face in the {@linkplain BlueprintLanding orientation it was captured in},
- * air skipped, a block already standing as wanted kept uncharged, refused whole where a position
+ * air skipped, or, where Next Choice set the sheet to paste air, what stands there broken as the
+ * player would break it, its drops handed back as a Dismantle's are and an unbreakable block
+ * refusing the paste; a block already standing as wanted kept uncharged, refused whole where a position
  * it places is taken, and each block charged as the item a player would pick it with, all or none,
  * and free in creative. A sneak-use in the air clears a stored Corner or a sheet's Copy.
  */
@@ -68,6 +72,9 @@ public final class Blueprints {
 
     /** The id of the Blueprint a sheet holds; none on a blank sheet. */
     private static final HeldValue<UUID> HELD = new HeldValue<>(() -> Groundworks.BLUEPRINT.get(), null);
+
+    /** The sheet's choice, stepped by Next Choice; none on a sheet at its start. */
+    private static final HeldValue<SheetChoice> CHOICE = new HeldValue<>(() -> Groundworks.SHEET_CHOICE.get(), null);
 
     /** The refusals a laying makes for a paste. */
     private static final Laying.Reasons REASONS = new Laying.Reasons(Refusal.Blueprint.MAY_NOT_BUILD,
@@ -122,6 +129,40 @@ public final class Blueprints {
         });
         NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedOutEvent.class,
                 event -> SENT.remove(event.getEntity().getUUID()));
+        NeoForge.EVENT_BUS.addListener(EntityJoinLevelEvent.class, Blueprints::onEntityJoin);
+    }
+
+    // ---- The sheet's choice --------------------------------------------------------------------
+
+    /**
+     * The choices a sheet offers Next Choice, its start first: a sheet holding a Blueprint skips
+     * its air or pastes it. None for a blank sheet, or an item that is no sheet.
+     */
+    private static List<SheetChoice> choicesOf(ItemStack stack) {
+        if (!isSheet(stack)) {
+            return List.of();
+        }
+        return holdsBlueprint(stack) ? SheetChoice.PASTE : List.of();
+    }
+
+    /**
+     * Steps the sheet's choice one on, or back when {@code reverse}, and round, telling the player
+     * the choice it is on; whether the stack is a sheet with choices, which took the press.
+     */
+    static boolean stepChoice(Player player, ItemStack held, boolean reverse) {
+        List<SheetChoice> choices = choicesOf(held);
+        if (choices.isEmpty()) {
+            return false;
+        }
+        SheetChoice next = SheetChoice.next(CHOICE.get(held), choices, reverse);
+        CHOICE.set(held, next == choices.getFirst() ? null : next);
+        Laying.tell(player, Component.translatable(next.message()));
+        return true;
+    }
+
+    /** Whether a paste of the sheet clears what stands where its Blueprint has air. */
+    private static boolean pastesAir(ItemStack stack) {
+        return SheetChoice.current(CHOICE.get(stack), choicesOf(stack)) == SheetChoice.PASTE_AIR;
     }
 
     /** The stored first Corner, or {@code null} where none is stored or it is in another dimension. */
@@ -277,6 +318,7 @@ public final class Blueprints {
     /** Makes a sheet blank again, stacking with any other blank sheet of its item. */
     private static void blank(ItemStack sheet) {
         HELD.set(sheet, null);
+        CHOICE.set(sheet, null);
         // Set back to the item's own, which drops the stack's patch: a removal would patch it out.
         sheet.set(DataComponents.MAX_STACK_SIZE, sheet.getItem().components().get(DataComponents.MAX_STACK_SIZE));
     }
@@ -355,20 +397,31 @@ public final class Blueprints {
         List<PlacementPlan.Placed> placed = new ArrayList<>();
         Map<BlockPos, Item> items = new LinkedHashMap<>();
         Map<Item, Integer> cost = new LinkedHashMap<>();
-        BlockPos taken = null;
+        List<BlockPos> clears = new ArrayList<>();
+        boolean pastesAir = pastesAir(stack);
+        Refusal refusal = null;
         for (BlueprintBlocks.Captured captured : blocks.blocks()) {
             BlockState state = captured.state();
+            BlockPos pos = landing.at(captured.local());
             if (state.isAir()) {
+                if (pastesAir) {
+                    BlockState there = level.getBlockState(pos);
+                    if (Laying.emptied(there) != there) {
+                        if (refusal == null && there.getDestroySpeed(level, pos) < 0) {
+                            refusal = new Refusal.At(Refusal.Blueprint.CANT_BREAK, pos);
+                        }
+                        clears.add(pos);
+                    }
+                }
                 continue;
             }
-            BlockPos pos = landing.at(captured.local());
             BlockState there = level.getBlockState(pos);
             if (there == state) {
                 continue;
             }
-            if (taken == null && (!level.isInWorldBounds(pos) || !there.canBeReplaced()
+            if (refusal == null && (!level.isInWorldBounds(pos) || !there.canBeReplaced()
                     || entityInTheWay(level, pos, state))) {
-                taken = pos;
+                refusal = new Refusal.At(Refusal.Blueprint.TAKEN, pos);
             }
             placed.add(new PlacementPlan.Placed(pos, state));
             Item item = pickItem(level, player, pos, state);
@@ -377,8 +430,7 @@ public final class Blueprints {
                 cost.merge(item, 1, Integer::sum);
             }
         }
-        PlacementPlan plan = new PlacementPlan(placed, List.of(), List.of(), List.of(),
-                taken == null ? null : new Refusal.At(Refusal.Blueprint.TAKEN, taken));
+        PlacementPlan plan = new PlacementPlan(placed, List.of(), clears, List.of(), refusal);
         return new Pasting(Laying.of(level, player, plan, Charge.of(player, cost, List.of()), REASONS), items);
     }
 
@@ -413,7 +465,10 @@ public final class Blueprints {
         }
         Laying laying = pasting.laying();
         laying.carryOut(level, player, refusal -> message(laying, player, refusal), () -> {
+            List<ItemStack> handed = clear(level, player, laying.plan().clears());
             laying.charge().lay(level, player, laying.plan());
+            // The inventory first, and what doesn't fit at the player's feet, as a Dismantle hands back.
+            handed.forEach(stack -> player.getInventory().placeItemBackInInventory(stack));
             for (PlacementPlan.Placed placed : laying.plan().blocks()) {
                 Charge.tellPlaced(level, player, placed.pos(), new ItemStack(pasting.items().get(placed.pos())));
             }
@@ -424,6 +479,48 @@ public final class Blueprints {
                 store.put(id, blueprint.usedAt(System.currentTimeMillis()));
             }
         });
+    }
+
+    /** What the removal at {@link #catching} spills into the world, caught to be handed back; none between removals. */
+    private static @Nullable List<ItemStack> caught;
+
+    /** The position whose removal is caught. */
+    private static @Nullable BlockPos catching;
+
+    /**
+     * Breaks each position as the player would, and returns what comes back: each block's drops,
+     * as broken with the correct tool, and what its removal spills, as a chest's contents. A
+     * creative player is handed nothing, and what a removal spills lies where it spilled, as a
+     * creative player's own break leaves it.
+     */
+    private static List<ItemStack> clear(Level level, Player player, List<BlockPos> positions) {
+        List<ItemStack> handed = new ArrayList<>();
+        boolean handsBack = !player.hasInfiniteMaterials();
+        for (BlockPos pos : positions) {
+            handed.addAll(FastReplace.drops(level, player, pos, level.getBlockState(pos)));
+            if (handsBack) {
+                caught = handed;
+                catching = pos;
+            }
+            try {
+                level.destroyBlock(pos, false, player);
+            } finally {
+                caught = null;
+                catching = null;
+            }
+        }
+        return handed;
+    }
+
+    /** Catches an item that the removal being cleared spills inside its own position, instead of letting it fall. */
+    private static void onEntityJoin(EntityJoinLevelEvent event) {
+        List<ItemStack> into = caught;
+        BlockPos at = catching;
+        if (into != null && at != null && !event.getLevel().isClientSide()
+                && event.getEntity() instanceof ItemEntity item && BlockPos.containing(item.position()).equals(at)) {
+            into.add(item.getItem().copy());
+            event.setCanceled(true);
+        }
     }
 
     /** What the player is told of a paste's refusal. */

@@ -78,6 +78,10 @@ public final class Groundworks {
                     .networkSynchronized(UUIDUtil.STREAM_CODEC)
                     .build());
 
+    /** A sheet's {@linkplain SheetChoice choice}, persistent and synced to the client, which previews it. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<SheetChoice>> SHEET_CHOICE =
+            COMPONENTS.register("sheet_choice", SheetChoice::componentType);
+
     public Groundworks(IEventBus modBus, ModContainer container) {
         COMPONENTS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, GroundworksConfig.SPEC);

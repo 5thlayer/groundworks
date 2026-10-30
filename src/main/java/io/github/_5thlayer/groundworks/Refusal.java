@@ -119,6 +119,11 @@ public interface Refusal {
          * entity in the way, or is outside the world. It is an {@link At} the first such position.
          */
         TAKEN("message.groundworks.blueprint_taken"),
+        /**
+         * The sheet pastes air, and a position where the Blueprint has air holds a block the player
+         * could not break, as bedrock. It is an {@link At} the first such position.
+         */
+        CANT_BREAK("message.groundworks.blueprint_cant_break"),
         /** The player may not build at some position the paste puts a block at. */
         MAY_NOT_BUILD("message.groundworks.blueprint_may_not_build"),
         /** The main inventory lacks some of the items the paste is charged. */
