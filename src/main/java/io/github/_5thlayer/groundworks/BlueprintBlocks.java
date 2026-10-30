@@ -27,10 +27,14 @@ import net.minecraft.world.level.levelgen.structure.BoundingBox;
 /**
  * A {@linkplain Blueprints Blueprint}'s blocks: the box's size, and each position's full block
  * state, air among them, as a palette and an index into it per position, x fastest, then z, then
- * y, so the bottom layer comes first. What the client is sent to draw a paste's preview, and what
- * the world data keeps.
+ * y, so the bottom layer comes first; a position the capture left out holds {@link #LEFT_OUT},
+ * nothing rather than air, so a paste neither places nor clears there. What the client is sent to
+ * draw a paste's preview, and what the world data keeps.
  */
 record BlueprintBlocks(Vec3i size, List<BlockState> palette, int[] indices) {
+
+    /** The index of a position the capture left out: no state of the palette. */
+    static final int LEFT_OUT = -1;
 
     BlueprintBlocks {
         palette = List.copyOf(palette);
@@ -75,7 +79,7 @@ record BlueprintBlocks(Vec3i size, List<BlockState> palette, int[] indices) {
 
     /**
      * The blocks standing in the box, both corners included, as the level holds them now, each
-     * position left out captured as air.
+     * position left out captured as {@linkplain #LEFT_OUT nothing}.
      */
     static BlueprintBlocks capture(Level level, BoundingBox box, Set<BlockPos> leftOut) {
         Vec3i size = new Vec3i(box.getXSpan(), box.getYSpan(), box.getZSpan());
@@ -88,8 +92,11 @@ record BlueprintBlocks(Vec3i size, List<BlockState> palette, int[] indices) {
             for (int z = 0; z < size.getZ(); z++) {
                 for (int x = 0; x < size.getX(); x++) {
                     at.set(box.minX() + x, box.minY() + y, box.minZ() + z);
-                    BlockState state = leftOut.contains(at) ? Blocks.AIR.defaultBlockState() : level.getBlockState(at);
-                    indices[i++] = indexOf.computeIfAbsent(state, added -> {
+                    if (leftOut.contains(at)) {
+                        indices[i++] = LEFT_OUT;
+                        continue;
+                    }
+                    indices[i++] = indexOf.computeIfAbsent(level.getBlockState(at), added -> {
                         palette.add(added);
                         return palette.size() - 1;
                     });
@@ -99,29 +106,37 @@ record BlueprintBlocks(Vec3i size, List<BlockState> palette, int[] indices) {
         return new BlueprintBlocks(size, palette, indices);
     }
 
-    /** One position of the box and the state captured there. */
-    record Captured(BlockPos local, BlockState state) {
+    /**
+     * One position of the box and the state captured there.
+     *
+     * @param state the state captured, or air where the position was {@code leftOut}
+     * @param leftOut whether the capture left the position out: nothing, which a paste leaves as it stands
+     */
+    record Captured(BlockPos local, BlockState state, boolean leftOut) {
     }
 
-    /** Every position of the box with what was captured there, air among them, in the box's order. */
+    /** Every position of the box with what was captured there, air and left-out ones among them, in the box's order. */
     List<Captured> blocks() {
         List<Captured> blocks = new ArrayList<>(indices.length);
         int i = 0;
         for (int y = 0; y < size.getY(); y++) {
             for (int z = 0; z < size.getZ(); z++) {
                 for (int x = 0; x < size.getX(); x++) {
-                    blocks.add(new Captured(new BlockPos(x, y, z), palette.get(indices[i++])));
+                    int index = indices[i++];
+                    blocks.add(index == LEFT_OUT
+                            ? new Captured(new BlockPos(x, y, z), Blocks.AIR.defaultBlockState(), true)
+                            : new Captured(new BlockPos(x, y, z), palette.get(index), false));
                 }
             }
         }
         return blocks;
     }
 
-    /** How many of the box's positions hold something other than air. */
+    /** How many of the box's positions hold something other than air, or nothing. */
     int standing() {
         int standing = 0;
         for (int index : indices) {
-            if (!palette.get(index).isAir()) {
+            if (index != LEFT_OUT && !palette.get(index).isAir()) {
                 standing++;
             }
         }

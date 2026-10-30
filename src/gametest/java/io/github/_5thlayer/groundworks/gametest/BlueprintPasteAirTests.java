@@ -20,6 +20,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -58,6 +59,8 @@ final class BlueprintPasteAirTests {
                 BlueprintPasteAirTests::creativeHandedNothing);
         tests.tallTest("blueprint_pasting_air_over_bedrock_is_refused_whole", 20, BlueprintPasteAirTests::bedrock);
         tests.tallTest("blueprint_skipping_air_leaves_the_inside_untouched", 20, BlueprintPasteAirTests::skipsAir);
+        tests.tallTest("blueprint_pasting_air_leaves_what_stands_where_a_block_was_left_out", 20,
+                BlueprintPasteAirTests::leftOutIsNothing);
     }
 
     private static void toggles(GameTestHelper helper) {
@@ -145,12 +148,29 @@ final class BlueprintPasteAirTests {
         helper.succeed();
     }
 
+    /** Bedrock at the box's heart is left out of the capture: nothing, not air, so pasting air clears nothing there. */
+    private static void leftOutIsNothing(GameTestHelper helper) {
+        ListeningPlayer player = copied(helper, Blocks.BEDROCK.defaultBlockState());
+        NextChoice.press(player, false);
+        helper.setBlock(HEART, Blocks.DIRT);
+        expectClears(helper, player, List.of());
+        paste(helper, player);
+        helper.assertBlockPresent(Blocks.DIRT, HEART);
+        helper.assertBlockPresent(Blocks.STONE, ORIGIN);
+        helper.succeed();
+    }
+
     // ---- Helpers ---------------------------------------------------------------------------------
 
     /** A creative player holding a sheet the hollow box is copied onto. */
     private static ListeningPlayer copied(GameTestHelper helper) {
+        return copied(helper, Blocks.AIR.defaultBlockState());
+    }
+
+    /** The same, the box's heart holding {@code heart} when it is copied. */
+    private static ListeningPlayer copied(GameTestHelper helper, BlockState heart) {
         BlockPos.betweenClosed(FIRST, SECOND).forEach(pos -> helper.setBlock(pos, Blocks.STONE));
-        helper.setBlock(FIRST.offset(1, 1, 1), Blocks.AIR);
+        helper.setBlock(FIRST.offset(1, 1, 1), heart);
         ListeningPlayer player = new ListeningPlayer(helper, new BlockPos(5, 1, 0));
         player.setGameMode(GameType.CREATIVE);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.PAPER));

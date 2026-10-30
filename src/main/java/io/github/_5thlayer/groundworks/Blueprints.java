@@ -444,7 +444,8 @@ public final class Blueprints {
         for (BlueprintBlocks.Captured captured : blocks.blocks()) {
             BlockPos pos = landing.at(captured.local());
             if (captured.state().isAir()) {
-                if (pastesAir) {
+                // A left-out position is nothing, not air: what stands there stays, even pasting air.
+                if (pastesAir && !captured.leftOut()) {
                     BlockState there = level.getBlockState(pos);
                     if (Laying.emptied(there) != there) {
                         if (refusal == null && there.getDestroySpeed(level, pos) < 0) {
