@@ -15,15 +15,18 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.level.storage.SavedDataStorage;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -60,6 +63,8 @@ final class BlueprintUndoTests {
         tests.tallTest("blueprint_undo_paste_with_no_paste_is_refused", 20, BlueprintUndoTests::noPaste);
         tests.tallTest("blueprint_undo_paste_history_survives_a_save_and_reload_of_the_world_data", 20,
                 BlueprintUndoTests::survivesReload);
+        tests.tallTest("blueprint_undo_paste_hands_back_a_chest_and_its_contents", 20,
+                BlueprintUndoTests::chestContents);
     }
 
     private static void takesUpThePaste(GameTestHelper helper) {
@@ -199,6 +204,31 @@ final class BlueprintUndoTests {
         UndoPaste.press(player);
         helper.assertBlockPresent(Blocks.AIR, ORIGIN);
         helper.assertBlockPresent(Blocks.AIR, ORIGIN.above());
+        helper.succeed();
+    }
+
+    /**
+     * A pasted chest filled since: the undo hands the chest and what it holds back into the
+     * inventory, none of it spilled.
+     */
+    private static void chestContents(GameTestHelper helper) {
+        ListeningPlayer player = holding(helper);
+        helper.setBlock(FIRST, Blocks.CHEST);
+        player.setShiftKeyDown(true);
+        click(helper, player, FIRST);
+        player.setShiftKeyDown(false);
+        click(helper, player, FIRST);
+        stock(player, Map.of(Items.CHEST, 1));
+        paste(helper, player, SPOT);
+        helper.assertBlockPresent(Blocks.CHEST, ORIGIN);
+        helper.getBlockEntity(ORIGIN, ChestBlockEntity.class).setItem(0, new ItemStack(Items.DIAMOND, 5));
+        UndoPaste.press(player);
+        helper.assertBlockPresent(Blocks.AIR, ORIGIN);
+        expectHeld(helper, player, Map.of(Items.CHEST, 1, Items.DIAMOND, 5));
+        if (!helper.getLevel().getEntitiesOfClass(ItemEntity.class,
+                new AABB(helper.absolutePos(ORIGIN)).inflate(2)).isEmpty()) {
+            helper.fail("the undo spilled the chest's contents");
+        }
         helper.succeed();
     }
 

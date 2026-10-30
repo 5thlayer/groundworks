@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
@@ -24,11 +23,12 @@ import net.minecraft.world.level.block.state.BlockState;
  *
  * <p>Each paste is kept with the Copy's world data, with the dimension it was laid in and each
  * block it laid as it stood once laid. An undo takes up only the blocks still standing so, leaving
- * alone any placed or changed since, latest laid first, and hands back what they drop as a
- * Dismantle does: into the inventory, and what doesn't fit at the player's feet; a creative player
- * gets nothing. What the paste cleared or replaced isn't put back. It is refused whole, with its
- * reason, with no paste left to undo, on a Cut, in another dimension than the paste's, or where
- * the paste reaches a chunk that isn't loaded.
+ * alone any placed or changed since, latest laid first, each {@linkplain BlueprintClearing broken
+ * as the player would break it}, and hands back what comes back, a container's contents among it,
+ * as a Dismantle does: into the inventory, and what doesn't fit at the player's feet; a creative
+ * player gets nothing. What the paste cleared or replaced isn't put back. It is refused whole,
+ * with its reason, with no paste left to undo, on a Cut, in another dimension than the paste's, or
+ * where the paste reaches a chunk that isn't loaded.
  */
 public final class UndoPaste {
 
@@ -80,28 +80,22 @@ public final class UndoPaste {
         }
         UUID id = Blueprints.heldId(held);
         BlueprintStore.of(level.getServer()).put(id, blueprint.undone());
-        int taken = takeUp(level, player, held, laid);
+        int taken = takeUp(level, player, laid);
         Laying.tell(player, Component.translatable("message.groundworks.blueprint_undone", taken));
     }
 
     /**
      * Takes up each block still standing as laid, latest laid first, so a block resting on another
-     * goes before what holds it up; returns how many it took.
+     * goes before what holds it up, and hands back what comes back; returns how many it took.
      */
-    private static int takeUp(ServerLevel level, ServerPlayer player, ItemStack held, List<BlueprintPaste.Laid> laid) {
-        boolean handsOver = !player.hasInfiniteMaterials();
+    private static int takeUp(ServerLevel level, ServerPlayer player, List<BlueprintPaste.Laid> laid) {
         List<ItemStack> handed = new ArrayList<>();
         int taken = 0;
         for (BlueprintPaste.Laid block : laid.reversed()) {
-            BlockPos pos = block.pos();
-            BlockState state = level.getBlockState(pos);
-            if (state != block.state()) {
+            if (level.getBlockState(block.pos()) != block.state()) {
                 continue;
             }
-            if (handsOver) {
-                handed.addAll(Block.getDrops(state, level, pos, level.getBlockEntity(pos), player, held));
-            }
-            level.destroyBlock(pos, false, player);
+            BlueprintClearing.breakAt(level, player, block.pos(), handed);
             taken++;
         }
         HandBack.give(player, handed);
