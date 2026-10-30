@@ -112,10 +112,12 @@ public final class Rotate {
      * Whether a press turns this stack held by this player: {@linkplain #isRotatable(ItemStack) as a
      * block's} or, held as a Key with an {@linkplain Assemblies Assembly} drawn, as that Assembly,
      * which turns about its Key whether or not the Key's own block has a facing. A sneaking player's
-     * Key places alone, so only its block's facing counts.
+     * Key places alone, so only its block's facing counts. A sheet holding a {@linkplain Blueprints
+     * Blueprint} turns its paste; a blank sheet isn't rotatable.
      */
     public static boolean isRotatable(Player player, ItemStack stack) {
-        return isRotatable(stack) || Assemblies.placed(player.level(), player, stack) != null;
+        return isRotatable(stack) || Assemblies.placed(player.level(), player, stack) != null
+                || Blueprints.pastes(stack);
     }
 
     private static boolean orients(Block block) {

@@ -56,7 +56,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A sheet holding a Blueprint plans its paste at the aim, as every Groundworks plan is planned:
  * resting on the aimed face in the {@linkplain BlueprintLanding orientation it was captured in},
- * air skipped, a block already standing as wanted kept uncharged, refused whole where a position
+ * turned from it by {@linkplain Rotate Rotate the Plan} and moved by {@linkplain Raise Raise and
+ * Lower} as any held stack's placement is, air skipped, a block already standing as wanted kept uncharged, refused whole where a position
  * it places is taken, and each block charged as the item a player would pick it with, all or none,
  * and free in creative. A sneak-use in the air clears a stored Corner or a sheet's Copy.
  */
@@ -150,6 +151,19 @@ public final class Blueprints {
     public static @Nullable BlueprintCorner liveCorner(Level level, ItemStack stack) {
         BlueprintCorner corner = CORNER.get(stack);
         return corner != null && corner.dimension().equals(level.dimension()) ? corner : null;
+    }
+
+    /**
+     * Whether this stack is a sheet holding a Blueprint, so its paste is planned: Rotate turns it
+     * and Raise moves it, where a blank sheet is no plan and neither does.
+     */
+    static boolean pastes(ItemStack stack) {
+        return isSheet(stack) && holdsBlueprint(stack);
+    }
+
+    /** The id of the Blueprint the sheet holds, or {@code null} on a blank sheet. */
+    static @Nullable UUID heldId(ItemStack stack) {
+        return HELD.get(stack);
     }
 
     /** Whether the sheet holds a Blueprint, whether or not this side has its blocks yet. */
@@ -377,17 +391,17 @@ public final class Blueprints {
             return null;
         }
         BlockPos spot = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, stack, hit).getClickedPos();
-        BlueprintLanding landing = BlueprintLanding.of(blocks.size(), spot, hit.getDirection());
+        BlueprintLanding landing = BlueprintLanding.of(blocks.size(), spot, hit.getDirection(), Rotate.turnOf(stack));
         List<PlacementPlan.Placed> placed = new ArrayList<>();
         Map<BlockPos, Item> items = new LinkedHashMap<>();
         Map<Item, Integer> cost = new LinkedHashMap<>();
         BlockPos taken = null;
         for (BlueprintBlocks.Captured captured : blocks.blocks()) {
-            BlockState state = captured.state();
-            if (state.isAir()) {
+            if (captured.state().isAir()) {
                 continue;
             }
             BlockPos pos = landing.at(captured.local());
+            BlockState state = landing.turned(level, pos, captured.state());
             BlockState there = level.getBlockState(pos);
             if (there == state) {
                 continue;
@@ -447,7 +461,7 @@ public final class Blueprints {
             UUID id = HELD.get(held);
             Blueprint blueprint = store.get(id);
             if (blueprint != null) {
-                store.put(id, blueprint.usedAt(System.currentTimeMillis()));
+                store.put(id, UndoPaste.recorded(blueprint, level, laying.plan()).usedAt(System.currentTimeMillis()));
             }
         });
     }

@@ -128,7 +128,15 @@ public interface Refusal {
         /** The Selection reaches a chunk that isn't loaded. */
         UNLOADED("message.groundworks.blueprint_unloaded"),
         /** The capture would take one sheet off a stack, and the inventory has no room for it. */
-        NO_ROOM_FOR_THE_SHEET("message.groundworks.blueprint_no_room_for_the_sheet");
+        NO_ROOM_FOR_THE_SHEET("message.groundworks.blueprint_no_room_for_the_sheet"),
+        /** Undo Paste found no paste of the held sheet's Copy to take back, or no Copy on it. */
+        NOTHING_TO_UNDO("message.groundworks.blueprint_nothing_to_undo"),
+        /** The paste Undo Paste would take back was laid in another dimension than the player's. */
+        UNDO_IN_ANOTHER_DIMENSION("message.groundworks.blueprint_undo_in_another_dimension"),
+        /** The paste Undo Paste would take back reaches a chunk that isn't loaded. */
+        UNDO_UNLOADED("message.groundworks.blueprint_undo_unloaded"),
+        /** The held sheet holds a Cut, whose paste Undo Paste never takes back. */
+        UNDO_ON_A_CUT("message.groundworks.blueprint_undo_on_a_cut");
 
         private final String message;
 
