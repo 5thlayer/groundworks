@@ -3,6 +3,7 @@
 
 package io.github._5thlayer.groundworks;
 
+import java.time.Duration;
 import java.util.List;
 
 import net.minecraft.resources.Identifier;
@@ -28,6 +29,11 @@ public final class GroundworksConfig {
     /** The cap's default, 32×32×32. */
     private static final int DEFAULT_MAX_SELECTION = 32_768;
 
+    /** How many days a Copy is kept unheld and unpasted before it is pruned; a Cut never is. */
+    public static final ModConfigSpec.IntValue PRUNE_COPIES_AFTER_DAYS;
+
+    private static final int DEFAULT_PRUNE_COPIES_AFTER_DAYS = 30;
+
     static {
         var builder = new ModConfigSpec.Builder();
         PLAN_OPT_IN_NAMESPACES = builder
@@ -39,6 +45,10 @@ public final class GroundworksConfig {
                 .comment("The most positions, air included, a Blueprint's Selection may hold. A capture over it is",
                         "refused, and a paste of the largest is laid in one tick.")
                 .defineInRange("maxSelection", DEFAULT_MAX_SELECTION, 1, Integer.MAX_VALUE);
+        PRUNE_COPIES_AFTER_DAYS = builder
+                .comment("Days a Blueprint's Copy is kept in the world data while no one holds or pastes it. After",
+                        "that it is pruned and its sheet is blank again. A Cut is never pruned.")
+                .defineInRange("pruneCopiesAfterDays", DEFAULT_PRUNE_COPIES_AFTER_DAYS, 1, 36_500);
         SPEC = builder.build();
     }
 
@@ -56,5 +66,10 @@ public final class GroundworksConfig {
     /** The Selection's cap, its default until a world's config is loaded. */
     static int maxSelection() {
         return SPEC.isLoaded() ? MAX_SELECTION.get() : DEFAULT_MAX_SELECTION;
+    }
+
+    /** How long a Copy is kept unused before it is pruned, its default until a world's config is loaded. */
+    public static Duration copyPruneAge() {
+        return Duration.ofDays(SPEC.isLoaded() ? PRUNE_COPIES_AFTER_DAYS.get() : DEFAULT_PRUNE_COPIES_AFTER_DAYS);
     }
 }

@@ -3,6 +3,7 @@
 
 package io.github._5thlayer.groundworks;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -11,11 +12,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -46,6 +49,9 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -124,6 +130,21 @@ public final class Blueprints {
     /** The Blueprint each player was last sent, by the player's id, so a held sheet is sent once. */
     private static final Map<UUID, UUID> SENT = new ConcurrentHashMap<>();
 
+    /** The Blueprint each player holds, by the player's id, so taking a sheet in hand is told from keeping it there. */
+    private static final Map<UUID, UUID> HOLDING = new ConcurrentHashMap<>();
+
+    /**
+     * How stale a held Blueprint's last use may grow before holding it on marks it used again, so
+     * a sheet kept in hand doesn't change the world data every tick.
+     */
+    private static final long HELD_USE_EVERY = Duration.ofHours(1).toMillis();
+
+    /** How often a running server prunes its unused Copies, in ticks: hourly. */
+    private static final int PRUNE_EVERY = 20 * 60 * 60;
+
+    /** The time a Blueprint is used at, and pruned by, in milliseconds since the epoch. */
+    private static volatile LongSupplier clock = System::currentTimeMillis;
+
     private Blueprints() {
     }
 
@@ -175,8 +196,18 @@ public final class Blueprints {
                 sendHeld(player);
             }
         });
-        NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedOutEvent.class,
-                event -> SENT.remove(event.getEntity().getUUID()));
+        NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedOutEvent.class, event -> {
+            SENT.remove(event.getEntity().getUUID());
+            HOLDING.remove(event.getEntity().getUUID());
+        });
+        NeoForge.EVENT_BUS.addListener(ServerStartedEvent.class,
+                event -> prune(event.getServer()));
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, event -> {
+            if (event.getServer().getTickCount() % PRUNE_EVERY == 0) {
+                prune(event.getServer());
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, BlueprintCommand::register);
         NeoForge.EVENT_BUS.addListener(EntityJoinLevelEvent.class, Blueprints::onEntityJoin);
     }
 
@@ -243,7 +274,7 @@ public final class Blueprints {
     }
 
     /** The id of the Blueprint the sheet holds, or {@code null} on a blank sheet. */
-    static @Nullable UUID heldId(ItemStack stack) {
+    public static @Nullable UUID heldId(ItemStack stack) {
         return HELD.get(stack);
     }
 
@@ -272,19 +303,37 @@ public final class Blueprints {
         arrivals++;
     }
 
-    /** Sends the player the Blueprint their main hand's sheet holds, once per sheet held. */
+    /**
+     * Keeps up with the sheet in the player's main hand: its Blueprint is used now, as the sheet is
+     * taken in hand and hourly while it stays there, and sent to the player once per sheet held.
+     * A sheet whose Blueprint is gone from the world data, as a pruned Copy or a Cut pasted
+     * through another sheet is, is made blank, and the player told.
+     */
     private static void sendHeld(ServerPlayer player) {
         ItemStack held = player.getMainHandItem();
         UUID id = isSheet(held) ? HELD.get(held) : null;
         if (id == null) {
             SENT.remove(player.getUUID());
+            HOLDING.remove(player.getUUID());
             return;
+        }
+        BlueprintStore store = BlueprintStore.of(player.level().getServer());
+        Blueprint blueprint = store.get(id);
+        if (blueprint == null) {
+            blank(held);
+            SENT.remove(player.getUUID());
+            HOLDING.remove(player.getUUID());
+            Laying.tell(player, Component.translatable("message.groundworks.blueprint_gone"));
+            return;
+        }
+        long now = now();
+        if (!id.equals(HOLDING.put(player.getUUID(), id)) || now - blueprint.lastUsed() > HELD_USE_EVERY) {
+            store.put(id, blueprint.usedAt(now));
         }
         if (id.equals(SENT.get(player.getUUID()))) {
             return;
         }
-        Blueprint blueprint = BlueprintStore.of(player.level().getServer()).get(id);
-        if (blueprint == null || player.connection == null || !player.connection.hasChannel(BlueprintPayload.TYPE)) {
+        if (player.connection == null || !player.connection.hasChannel(BlueprintPayload.TYPE)) {
             return;
         }
         PacketDistributor.sendToPlayer(player,
@@ -442,16 +491,10 @@ public final class Blueprints {
         List<Blueprint.Held> contents = cut ? BlueprintCut.takeOut(level, box, leftOut.keySet()) : List.of();
         UUID id = UUID.randomUUID();
         BlueprintStore.of(level.getServer()).put(id, new Blueprint(blocks,
-                cut ? Blueprint.Kind.CUT : Blueprint.Kind.COPY, player.getUUID(), System.currentTimeMillis(), contents));
+                cut ? Blueprint.Kind.CUT : Blueprint.Kind.COPY, player.getUUID(), now(), contents));
         CORNER.set(held, null);
         ItemStack sheet = split ? held.copyWithCount(1) : held;
-        HELD.set(sheet, id);
-        CHOICE.set(sheet, null);
-        sheet.set(DataComponents.MAX_STACK_SIZE, 1);
-        if (cut) {
-            sheet.set(DataComponents.DAMAGE_RESISTANT, new DamageResistant(
-                    level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(DamageTypeTags.IS_FIRE)));
-        }
+        naming(level, sheet, id, cut);
         if (split) {
             held.shrink(1);
             player.getInventory().add(sheet);
@@ -461,6 +504,67 @@ public final class Blueprints {
         Laying.tell(player, told == null
                 ? Component.translatable(key, blocks.standing())
                 : Component.translatable(key + "_left_out", blocks.standing(), told));
+    }
+
+    /**
+     * Makes a single sheet name the Blueprint of this id, at its start: alone in its stack, and,
+     * for a Cut, surviving fire and lava.
+     */
+    private static void naming(Level level, ItemStack sheet, UUID id, boolean cut) {
+        HELD.set(sheet, id);
+        CHOICE.set(sheet, null);
+        sheet.set(DataComponents.MAX_STACK_SIZE, 1);
+        if (cut) {
+            sheet.set(DataComponents.DAMAGE_RESISTANT, new DamageResistant(
+                    level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(DamageTypeTags.IS_FIRE)));
+        }
+    }
+
+    /**
+     * A new sheet naming the Cut of this id, as an operator recovers a Cut whose sheet was lost:
+     * paper where paper is a sheet, else the first registered item some Consumer states is one;
+     * {@code null} where no item is. The first of its sheets pasted takes the Cut, and the other
+     * finds it gone.
+     */
+    static @Nullable ItemStack recovered(Level level, UUID id) {
+        ItemStack sheet = new ItemStack(Items.PAPER);
+        if (!isSheet(sheet)) {
+            sheet = BuiltInRegistries.ITEM.stream().map(ItemStack::new).filter(Blueprints::isSheet).findFirst()
+                    .orElse(null);
+        }
+        if (sheet != null) {
+            naming(level, sheet, id, true);
+        }
+        return sheet;
+    }
+
+    /**
+     * Sets the clock Blueprints read the time from, in milliseconds since the epoch: when each is
+     * captured, held and pasted, and when a prune finds a Copy unused for long enough. The wall
+     * clock, {@code System::currentTimeMillis}, unless set.
+     */
+    public static void clock(LongSupplier now) {
+        clock = now;
+    }
+
+    /** The time on the {@linkplain #clock clock}. */
+    static long now() {
+        return clock.getAsLong();
+    }
+
+    /**
+     * Prunes the world data: every Copy no one has held or pasted for the server's prune age is
+     * gone, and its sheets are blank once held or pasted. A Cut is never pruned. Called as the
+     * server starts and hourly while it runs.
+     */
+    public static void prune(MinecraftServer server) {
+        long before = now() - GroundworksConfig.copyPruneAge().toMillis();
+        BlueprintStore store = BlueprintStore.of(server);
+        store.all().forEach((id, blueprint) -> {
+            if (blueprint.kind() == Blueprint.Kind.COPY && blueprint.lastUsed() < before) {
+                store.remove(id);
+            }
+        });
     }
 
     private static void refuse(Player player, Refusal.Blueprint refusal, Object... args) {
@@ -639,7 +743,7 @@ public final class Blueprints {
             }
             Blueprint blueprint = store.get(id);
             if (blueprint != null) {
-                store.put(id, UndoPaste.recorded(blueprint, level, laying.plan()).usedAt(System.currentTimeMillis()));
+                store.put(id, UndoPaste.recorded(blueprint, level, laying.plan()).usedAt(now()));
             }
         });
     }

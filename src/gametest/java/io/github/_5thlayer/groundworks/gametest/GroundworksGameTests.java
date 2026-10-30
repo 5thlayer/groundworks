@@ -191,6 +191,7 @@ public final class GroundworksGameTests {
         BlueprintLeftOutTests.register(tests);
         BlueprintStandingTests.register(tests);
         BlueprintCutTests.register(tests);
+        BlueprintPruneTests.register(tests);
     }
 
     private static Identifier id(String path) {
@@ -224,6 +225,15 @@ public final class GroundworksGameTests {
 
         void test(String name, int maxTicks, Consumer<GameTestHelper> body) {
             test(PLATFORM, name, maxTicks, body);
+        }
+
+        /**
+         * The same, in a batch of its own, which no other test runs beside: for a test that
+         * changes what the whole server holds, such as every Blueprint of the world.
+         */
+        void testAlone(String name, int maxTicks, Consumer<GameTestHelper> body) {
+            new Registrar(event, event.registerEnvironment(id("alone_" + name),
+                    new TestEnvironmentDefinition.AllOf(List.of())), packEnvironments).test(name, maxTicks, body);
         }
 
         /** The same, on {@link #TALL_PLATFORM}. */

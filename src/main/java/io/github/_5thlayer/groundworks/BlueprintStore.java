@@ -48,6 +48,11 @@ public final class BlueprintStore extends SavedData {
         setDirty();
     }
 
+    /** Every Blueprint of the world, by its id: a copy, which a change to the store leaves as it was. */
+    Map<UUID, Blueprint> all() {
+        return Map.copyOf(blueprints);
+    }
+
     void remove(UUID id) {
         if (blueprints.remove(id) != null) {
             setDirty();
