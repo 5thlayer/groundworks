@@ -53,7 +53,7 @@ final class BlueprintCommand {
     /** The world's Cuts not yet pasted, the longest unused first. */
     private static List<Map.Entry<UUID, Blueprint>> cuts(MinecraftServer server) {
         return BlueprintStore.of(server).all().entrySet().stream()
-                .filter(entry -> entry.getValue().kind() == Blueprint.Kind.CUT)
+                .filter(entry -> entry.getValue().isCut())
                 .sorted(Comparator.comparingLong(entry -> entry.getValue().lastUsed()))
                 .toList();
     }
@@ -65,7 +65,7 @@ final class BlueprintCommand {
             source.sendSuccess(() -> Component.translatable("command.groundworks.blueprint.none"), false);
             return 0;
         }
-        long now = Blueprints.now();
+        long now = BlueprintPrune.now();
         source.sendSuccess(() -> Component.translatable("command.groundworks.blueprint.cuts", cuts.size()), false);
         for (Map.Entry<UUID, Blueprint> cut : cuts) {
             Blueprint blueprint = cut.getValue();
@@ -86,7 +86,7 @@ final class BlueprintCommand {
     private static int give(CommandSourceStack source, UUID id) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         Blueprint blueprint = BlueprintStore.of(source.getServer()).get(id);
-        if (blueprint == null || blueprint.kind() != Blueprint.Kind.CUT) {
+        if (blueprint == null || !blueprint.isCut()) {
             source.sendFailure(Component.translatable("command.groundworks.blueprint.no_such_cut", id.toString()));
             return 0;
         }

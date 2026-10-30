@@ -21,9 +21,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BedPart;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.gameevent.GameEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -116,8 +113,7 @@ record Charge(Map<Item, Integer> cost, List<ItemStack> returned) {
      */
     static void tellPlaced(Level level, Player player, BlockPos pos, ItemStack with) {
         BlockState state = level.getBlockState(pos);
-        if (state.getOptionalValue(BlockStateProperties.DOUBLE_BLOCK_HALF).orElse(null) == DoubleBlockHalf.UPPER
-                || state.getOptionalValue(BlockStateProperties.BED_PART).orElse(null) == BedPart.HEAD) {
+        if (Placements.isCompanion(state)) {
             return;
         }
         state.getBlock().setPlacedBy(level, pos, state, player, with);

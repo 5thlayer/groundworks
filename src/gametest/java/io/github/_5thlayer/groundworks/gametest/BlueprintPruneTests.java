@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.github._5thlayer.groundworks.BlueprintPrune;
 import io.github._5thlayer.groundworks.Blueprints;
 import io.github._5thlayer.groundworks.GroundworksConfig;
 import io.github._5thlayer.groundworks.NextChoice;
@@ -63,7 +64,7 @@ final class BlueprintPruneTests {
             helper.setBlock(FIRST, Blocks.STONE);
             capture(helper, player);
             at(pastTheAge(CAPTURED));
-            Blueprints.prune(helper.getLevel().getServer());
+            BlueprintPrune.prune(helper.getLevel().getServer());
             EventHooks.firePlayerTickPost(player);
             expectBlank(helper, player);
             expectHeard(helper, player, "message.groundworks.blueprint_gone");
@@ -78,7 +79,7 @@ final class BlueprintPruneTests {
             capture(helper, player);
             expectHeard(helper, player, "message.groundworks.blueprint_cut");
             at(pastTheAge(CAPTURED));
-            Blueprints.prune(helper.getLevel().getServer());
+            BlueprintPrune.prune(helper.getLevel().getServer());
             click(helper, player, SPOT.below());
             helper.assertBlockPresent(Blocks.STONE, LANDED);
         });
@@ -96,7 +97,7 @@ final class BlueprintPruneTests {
             at(CAPTURED + Duration.ofDays(10).toMillis());
             EventHooks.firePlayerTickPost(player);
             at(pastTheAge(CAPTURED));
-            Blueprints.prune(helper.getLevel().getServer());
+            BlueprintPrune.prune(helper.getLevel().getServer());
             player.getInventory().add(new ItemStack(Items.STONE));
             click(helper, player, SPOT.below());
             helper.assertBlockPresent(Blocks.STONE, LANDED);
@@ -114,7 +115,7 @@ final class BlueprintPruneTests {
             click(helper, player, SPOT.below());
             helper.assertBlockPresent(Blocks.STONE, LANDED);
             at(pastTheAge(CAPTURED));
-            Blueprints.prune(helper.getLevel().getServer());
+            BlueprintPrune.prune(helper.getLevel().getServer());
             click(helper, player, SPOT.offset(-4, 0, 0).below());
             helper.assertBlockPresent(Blocks.STONE, LANDED.offset(-4, 0, 0));
         });
@@ -130,14 +131,14 @@ final class BlueprintPruneTests {
         try {
             body.run();
         } finally {
-            Blueprints.clock(System::currentTimeMillis);
+            BlueprintPrune.clock(System::currentTimeMillis);
         }
         helper.succeed();
     }
 
     /** Stands Blueprints' clock at {@code now}. */
     private static void at(long now) {
-        Blueprints.clock(() -> now);
+        BlueprintPrune.clock(() -> now);
     }
 
     /**

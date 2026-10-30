@@ -90,6 +90,19 @@ public final class HandBack {
         }
     }
 
+    /**
+     * Hands {@code returned} back with no slot freed for it, as a Dismantle does: into the
+     * inventory, and what doesn't fit {@linkplain #atFeet at the player's feet}.
+     */
+    static void give(Player player, List<ItemStack> returned) {
+        give(player, InteractionHand.MAIN_HAND, false, returned);
+    }
+
+    /** Drops {@code stack} at the player's feet, as what doesn't fit the inventory is dropped. */
+    static void atFeet(Player player, ItemStack stack) {
+        player.drop(stack, false);
+    }
+
     /** A player's slots and the ledger over them: the main inventory, and the off hand after it for the off hand. */
     private record View(List<ItemStack> slots, Ledger<Item> ledger) {
     }

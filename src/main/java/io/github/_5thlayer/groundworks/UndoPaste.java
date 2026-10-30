@@ -51,36 +51,35 @@ public final class UndoPaste {
             return;
         }
         ServerLevel level = player.level();
-        BlueprintStore store = BlueprintStore.of(level.getServer());
-        UUID id = Blueprints.heldId(held);
-        Blueprint blueprint = id == null ? null : store.get(id);
+        Blueprint blueprint = Blueprints.heldBlueprint(level, held);
         if (blueprint == null) {
-            refuse(player, Refusal.Blueprint.NOTHING_TO_UNDO);
+            Blueprints.refuse(player, Refusal.Blueprint.NOTHING_TO_UNDO);
             return;
         }
         // A Cut's paste is never undone.
-        if (blueprint.kind() != Blueprint.Kind.COPY) {
-            refuse(player, Refusal.Blueprint.UNDO_ON_A_CUT);
+        if (blueprint.isCut()) {
+            Blueprints.refuse(player, Refusal.Blueprint.UNDO_ON_A_CUT);
             return;
         }
         List<BlueprintPaste> pastes = blueprint.pastes();
         if (pastes.isEmpty()) {
-            refuse(player, Refusal.Blueprint.NOTHING_TO_UNDO);
+            Blueprints.refuse(player, Refusal.Blueprint.NOTHING_TO_UNDO);
             return;
         }
         BlueprintPaste paste = pastes.getLast();
         if (!paste.dimension().equals(level.dimension())) {
-            refuse(player, Refusal.Blueprint.UNDO_IN_ANOTHER_DIMENSION);
+            Blueprints.refuse(player, Refusal.Blueprint.UNDO_IN_ANOTHER_DIMENSION);
             return;
         }
         List<BlueprintPaste.Laid> laid = paste.laid();
         for (BlueprintPaste.Laid block : laid) {
             if (!level.isLoaded(block.pos())) {
-                refuse(player, Refusal.Blueprint.UNDO_UNLOADED);
+                Blueprints.refuse(player, Refusal.Blueprint.UNDO_UNLOADED);
                 return;
             }
         }
-        store.put(id, blueprint.undone());
+        UUID id = Blueprints.heldId(held);
+        BlueprintStore.of(level.getServer()).put(id, blueprint.undone());
         int taken = takeUp(level, player, held, laid);
         Laying.tell(player, Component.translatable("message.groundworks.blueprint_undone", taken));
     }
@@ -105,14 +104,7 @@ public final class UndoPaste {
             level.destroyBlock(pos, false, player);
             taken++;
         }
-        for (ItemStack stack : handed) {
-            // The inventory first, and what doesn't fit at the player's feet.
-            player.getInventory().placeItemBackInInventory(stack);
-        }
+        HandBack.give(player, handed);
         return taken;
-    }
-
-    private static void refuse(ServerPlayer player, Refusal.Blueprint refusal) {
-        Laying.tell(player, Component.translatable(refusal.message()));
     }
 }

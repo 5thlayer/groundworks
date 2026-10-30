@@ -14,7 +14,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.Container;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -80,9 +79,9 @@ final class BlueprintCut {
     }
 
     /** Loads what a Cut's blocks held into the block entities the paste laid where they landed. */
-    static void putBack(Level level, PlacementPlan plan, Map<BlockPos, CompoundTag> held) {
-        for (PlacementPlan.Placed placed : plan.blocks()) {
-            CompoundTag data = held.get(placed.pos());
+    static void putBack(Level level, BlueprintPasting pasting) {
+        for (PlacementPlan.Placed placed : pasting.laying().plan().blocks()) {
+            CompoundTag data = pasting.held().get(placed.pos());
             BlockEntity entity = data == null ? null : level.getBlockEntity(placed.pos());
             if (entity != null) {
                 entity.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), data));
@@ -97,30 +96,23 @@ final class BlueprintCut {
      * Drops each block of a Cut that can't stand where it landed at the player's feet: the item a
      * player would pick it with, where it has one, and what it held, where it was a container.
      */
-    static void drop(Level level, Player player, List<PlacementPlan.Placed> cantStand, Map<BlockPos, Item> items,
-            Map<BlockPos, CompoundTag> held) {
-        for (PlacementPlan.Placed placed : cantStand) {
-            Item item = items.getOrDefault(placed.pos(), Items.AIR);
+    static void drop(Level level, Player player, BlueprintPasting pasting) {
+        for (PlacementPlan.Placed placed : pasting.cantStand()) {
+            Item item = pasting.items().getOrDefault(placed.pos(), Items.AIR);
             if (item != Items.AIR) {
-                atFeet(level, player, new ItemStack(item));
+                HandBack.atFeet(player, new ItemStack(item));
             }
-            CompoundTag data = held.get(placed.pos());
+            CompoundTag data = pasting.held().get(placed.pos());
             BlockEntity entity = data == null ? null
                     : BlockEntity.loadStatic(placed.pos(), placed.state(), data, level.registryAccess());
             if (entity instanceof Container container) {
                 for (int slot = 0; slot < container.getContainerSize(); slot++) {
                     ItemStack stack = container.getItem(slot);
                     if (!stack.isEmpty()) {
-                        atFeet(level, player, stack.copy());
+                        HandBack.atFeet(player, stack.copy());
                     }
                 }
             }
         }
-    }
-
-    private static void atFeet(Level level, Player player, ItemStack stack) {
-        ItemEntity item = new ItemEntity(level, player.getX(), player.getY(), player.getZ(), stack, 0, 0, 0);
-        item.setDefaultPickUpDelay();
-        level.addFreshEntity(item);
     }
 }

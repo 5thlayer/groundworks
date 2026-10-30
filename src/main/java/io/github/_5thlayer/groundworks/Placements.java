@@ -12,6 +12,8 @@ import io.github._5thlayer.groundworks.mixin.UseOnContextInvoker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -24,6 +26,10 @@ import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -214,6 +220,27 @@ public final class Placements {
             }
         }
         return companions;
+    }
+
+    /**
+     * Whether the state is a Companion, the half its block puts down itself: an upper {@code
+     * DOUBLE_BLOCK_HALF}, as a door's, or a bed's head.
+     */
+    static boolean isCompanion(BlockState state) {
+        return state.getOptionalValue(BlockStateProperties.DOUBLE_BLOCK_HALF).orElse(null) == DoubleBlockHalf.UPPER
+                || state.getOptionalValue(BlockStateProperties.BED_PART).orElse(null) == BedPart.HEAD;
+    }
+
+    /**
+     * Whether an entity that blocks building stands where the block would, {@code except} aside,
+     * as the placing player whom an Assembly lifts out of its shape; {@code null} counts every one.
+     */
+    static boolean entityInTheWay(Level level, @Nullable Entity except, BlockPos pos, BlockState state) {
+        VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty()).move(pos);
+        return !shape.isEmpty() && !level.getEntities(except, shape.bounds(), EntitySelector.NO_SPECTATORS.and(
+                entity -> !entity.isRemoved() && entity.blocksBuilding
+                        && Shapes.joinIsNotEmpty(shape, Shapes.create(entity.getBoundingBox()), BooleanOp.AND)))
+                .isEmpty();
     }
 
     /**

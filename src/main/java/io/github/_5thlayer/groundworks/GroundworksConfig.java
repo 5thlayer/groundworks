@@ -68,7 +68,11 @@ public final class GroundworksConfig {
         return SPEC.isLoaded() ? MAX_SELECTION.get() : DEFAULT_MAX_SELECTION;
     }
 
-    /** How long a Copy is kept unused before it is pruned, its default until a world's config is loaded. */
+    /**
+     * How long a Copy is kept unused before it is pruned, its default until a world's config is loaded.
+     *
+     * <p>Not API: public for the Module's own runs, and a Consumer must not call it.
+     */
     public static Duration copyPruneAge() {
         return Duration.ofDays(SPEC.isLoaded() ? PRUNE_COPIES_AFTER_DAYS.get() : DEFAULT_PRUNE_COPIES_AFTER_DAYS);
     }

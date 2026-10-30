@@ -29,7 +29,6 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -345,11 +344,7 @@ public final class Assemblies {
          */
         @Override
         public boolean entityInTheWay(BlockPos pos, BlockState state) {
-            VoxelShape shape = state.getCollisionShape(level, pos, CollisionContext.empty()).move(pos);
-            return !shape.isEmpty() && !level.getEntities(player, shape.bounds(), EntitySelector.NO_SPECTATORS.and(
-                    entity -> !entity.isRemoved() && entity.blocksBuilding
-                            && Shapes.joinIsNotEmpty(shape, Shapes.create(entity.getBoundingBox()), BooleanOp.AND)))
-                    .isEmpty();
+            return Placements.entityInTheWay(level, player, pos, state);
         }
 
         @Override

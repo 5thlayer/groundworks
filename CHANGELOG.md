@@ -19,12 +19,9 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 ### Consumers
 
 - The `next_assembly` payload is now `next_choice`: a client and server must both be on this version. (#77)
-- `Blueprints.sheets` states which held stacks are Blueprint sheets, as the vanilla Consumer does for `groundworks:blueprints`, and the `Feature` order a click walks now asks a sheet's Blueprint first. A world gains Groundworks' first saved data, `data/groundworks/blueprints.dat`, and a client is sent the new `blueprint` payload while it holds a sheet holding a Blueprint. (#78)
+- `Blueprints.sheets` states which held stacks are Blueprint sheets, as the vanilla Consumer does for `groundworks:blueprints`, and `Blueprints.denies` which blocks a capture leaves out silently, as it does for `groundworks:blueprint_deny`. The `Feature` order a click walks asks a sheet's Blueprint first. A world gains Groundworks' first saved data, `data/groundworks/blueprints.dat`; a client is sent the new `blueprint` payload while it holds a sheet holding a Blueprint, and sends the new `undo_paste` payload when Undo Paste is pressed. A capture of a Cut by a player fires NeoForge's `BreakBlockEvent` for each of its blocks, and leaves out each one whose event is cancelled. (#78, #81, #83, #84)
 - `PlacementPlan` gains `leftOut`, the positions a plan leaves out each alone while the rest is laid, which the preview outlines red; its former canonical constructor stays, leaving nothing out. (#80)
-- `Blueprints.denies` states which blocks a capture leaves out silently, as the vanilla Consumer does for `groundworks:blueprint_deny`. (#81)
-- A client sends the new `undo_paste` payload when Undo Paste is pressed, and `UndoPaste.press` takes back the held sheet's latest paste. (#84)
-- The `blueprint` payload carries whether the Blueprint is a Cut, so a client and server must both be on this version. `BlueprintSelection.Capturing` gains `cut`, `BlueprintSelection.shown` takes it, and `Blueprints.cuts` tells whether a blank sheet is set to capture a Cut. A capture by a player now fires NeoForge's `BreakBlockEvent` for each block of a Cut, and leaves out each one whose event is cancelled. (#83)
-- Groundworks registers its first command, `/groundworks`, through NeoForge's `RegisterCommandsEvent`. `Blueprints.prune` prunes the world's unused Copies, `Blueprints.clock` sets the clock Blueprints read their time from, and `Blueprints.heldId` gives the id of the Blueprint a sheet holds. (#85)
+- Groundworks registers its first command, `/groundworks`, through NeoForge's `RegisterCommandsEvent`. (#85)
 
 ## 0.6.4
 

@@ -37,6 +37,11 @@ record Blueprint(BlueprintBlocks blocks, Kind kind, UUID owner, long lastUsed, L
         this(blocks, kind, owner, lastUsed, List.of(), held);
     }
 
+    /** Whether it is a Cut, pasted once, uncharged, with what its blocks held. */
+    boolean isCut() {
+        return kind == Kind.CUT;
+    }
+
     /** What a Cut's block held: its block entity's data, saved whole, at its place in the box. */
     record Held(BlockPos local, CompoundTag data) {
 
