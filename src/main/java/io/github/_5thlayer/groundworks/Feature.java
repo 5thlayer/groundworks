@@ -12,7 +12,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The features that plan a click on a block, in the order they take it: a Stretch being drawn or
+ * The features that plan a click on a block, in the order they take it: a sheet's Blueprint, a Stretch being drawn or
  * started, then an Assembly, then a Fast Replace. The click and the Placement Preview walk this one
  * order, so the feature a click carries out is the one whose plan the preview drew. A click none of
  * them takes places as the item would, and the preview draws its Vanilla Plan, if any.
@@ -21,6 +21,20 @@ import org.jspecify.annotations.Nullable;
  * family (ADR 0010), and it plans spans rather than placements, so it is no feature of this order.
  */
 enum Feature {
+
+    /** A sheet's click: a Corner stored, a Selection captured, or a Blueprint pasted. */
+    BLUEPRINT {
+        @Override
+        @Nullable Claim claim(Level level, @Nullable Player player, InteractionHand hand, ItemStack stack,
+                BlockHitResult hit) {
+            return Blueprints.claim(level, player, hand, stack, hit);
+        }
+
+        @Override
+        InteractionResult useOn(Player player, InteractionHand hand, BlockHitResult hit) {
+            return Blueprints.useOn(player, hand, hit);
+        }
+    },
 
     STRETCH {
         @Override

@@ -553,7 +553,7 @@ public final class Assemblies {
     }
 
     /** What is missing, as "3 Stone, 1 Cobblestone". */
-    private static Component missing(Map<Item, Integer> missing) {
+    static Component missing(Map<Item, Integer> missing) {
         MutableComponent list = Component.empty();
         missing.forEach((item, count) -> {
             if (!list.getSiblings().isEmpty()) {

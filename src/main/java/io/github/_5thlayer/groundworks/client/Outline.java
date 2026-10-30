@@ -54,6 +54,12 @@ public final class Outline {
         });
     }
 
+    /** One outline round the whole box from {@code min} to {@code max}, both included. */
+    static void box(SubmitCustomGeometryEvent event, BlockPos min, BlockPos max, int colour) {
+        AABB box = new AABB(0, 0, 0, max.getX() - min.getX() + 1, max.getY() - min.getY() + 1, max.getZ() - min.getZ() + 1);
+        draw(event, min, Shapes.create(box.inflate(MARGIN)), colour);
+    }
+
     private static void draw(SubmitCustomGeometryEvent event, BlockPos pos, VoxelShape shape, int colour) {
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
         PoseStack poseStack = event.getPoseStack();

@@ -22,6 +22,12 @@ public final class GroundworksConfig {
      */
     public static final ModConfigSpec.ConfigValue<List<? extends String>> PLAN_OPT_IN_NAMESPACES;
 
+    /** The most positions a Blueprint's Selection may hold, so a capture, and the pastes of it, stay bounded. */
+    public static final ModConfigSpec.IntValue MAX_SELECTION;
+
+    /** The cap's default, 32×32×32. */
+    private static final int DEFAULT_MAX_SELECTION = 32_768;
+
     static {
         var builder = new ModConfigSpec.Builder();
         PLAN_OPT_IN_NAMESPACES = builder
@@ -29,6 +35,10 @@ public final class GroundworksConfig {
                         "groundworks:plan_opt_in block tag held it. For example [\"mypack\"].")
                 .defineListAllowEmpty("planOptInNamespaces", List.of(), () -> "",
                         value -> value instanceof String namespace && Identifier.isValidNamespace(namespace));
+        MAX_SELECTION = builder
+                .comment("The most positions, air included, a Blueprint's Selection may hold. A capture over it is",
+                        "refused, and a paste of the largest is laid in one tick.")
+                .defineInRange("maxSelection", DEFAULT_MAX_SELECTION, 1, Integer.MAX_VALUE);
         SPEC = builder.build();
     }
 
@@ -41,5 +51,10 @@ public final class GroundworksConfig {
      */
     static boolean listsNamespace(String namespace) {
         return SPEC.isLoaded() && PLAN_OPT_IN_NAMESPACES.get().contains(namespace);
+    }
+
+    /** The Selection's cap, its default until a world's config is loaded. */
+    static int maxSelection() {
+        return SPEC.isLoaded() ? MAX_SELECTION.get() : DEFAULT_MAX_SELECTION;
     }
 }

@@ -4,6 +4,7 @@
 package io.github._5thlayer.groundworks.client;
 
 import io.github._5thlayer.groundworks.Assemblies;
+import io.github._5thlayer.groundworks.Blueprints;
 import io.github._5thlayer.groundworks.Groundworks;
 
 import net.minecraft.client.KeyMapping;
@@ -19,7 +20,7 @@ import net.neoforged.neoforge.common.NeoForge;
 /**
  * The client half: the Placement Preview, which has no toggle and no state beyond its own cache,
  * the Dismantle's preview, which takes the frame before any Consumer's Takeover, the Stretch's
- * markers, and the keys for Rotate, for Raise and Lower, and for Next Choice.
+ * markers and a blank sheet's Corner and Selection, and the keys for Rotate, for Raise and Lower, and for Next Choice.
  */
 @Mod(value = Groundworks.MOD_ID, dist = Dist.CLIENT)
 public final class GroundworksClient {
@@ -33,6 +34,7 @@ public final class GroundworksClient {
         NeoForge.EVENT_BUS.addListener(PlacementPreview::onSubmitGeometry);
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, DismantlePreview::onTakeover);
         NeoForge.EVENT_BUS.addListener(StretchPreview::onMarker);
+        NeoForge.EVENT_BUS.addListener(BlueprintPreview::onMarker);
         modBus.addListener(RotateKeys::onRegisterKeys);
         NeoForge.EVENT_BUS.addListener(RotateKeys::onClientTick);
         modBus.addListener(RaiseKeys::onRegisterKeys);
@@ -41,5 +43,7 @@ public final class GroundworksClient {
         NeoForge.EVENT_BUS.addListener(NextChoiceKeys::onClientTick);
         // A server's Assemblies are its own, so a later server without them draws none.
         NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> Assemblies.forget());
+        // So are its Blueprints.
+        NeoForge.EVENT_BUS.addListener(ClientPlayerNetworkEvent.LoggingOut.class, event -> Blueprints.forget());
     }
 }

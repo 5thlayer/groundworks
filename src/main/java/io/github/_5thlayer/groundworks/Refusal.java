@@ -109,6 +109,40 @@ public interface Refusal {
     }
 
     /**
+     * The library's own reasons for capturing and pasting a {@linkplain
+     * io.github._5thlayer.groundworks.Blueprints Blueprint}, which it tells the player itself, each
+     * by its own message.
+     */
+    enum Blueprint implements Refusal {
+        /**
+         * A position the paste would put a block at holds one a placement can't replace, has an
+         * entity in the way, or is outside the world. It is an {@link At} the first such position.
+         */
+        TAKEN("message.groundworks.blueprint_taken"),
+        /** The player may not build at some position the paste puts a block at. */
+        MAY_NOT_BUILD("message.groundworks.blueprint_may_not_build"),
+        /** The main inventory lacks some of the items the paste is charged. */
+        NOT_ENOUGH_ITEMS("message.groundworks.blueprint_not_enough_items"),
+        /** The Selection holds more positions than the server's config allows. */
+        OVER_THE_CAP("message.groundworks.blueprint_over_the_cap"),
+        /** The Selection reaches a chunk that isn't loaded. */
+        UNLOADED("message.groundworks.blueprint_unloaded"),
+        /** The capture would take one sheet off a stack, and the inventory has no room for it. */
+        NO_ROOM_FOR_THE_SHEET("message.groundworks.blueprint_no_room_for_the_sheet");
+
+        private final String message;
+
+        Blueprint(String message) {
+            this.message = message;
+        }
+
+        /** The translation key of what the player is told. */
+        String message() {
+            return message;
+        }
+    }
+
+    /**
      * A refusal that stands at a position, such as the block in a leg's way: {@code reason} is why,
      * and what the player is told is asked of it alone.
      */

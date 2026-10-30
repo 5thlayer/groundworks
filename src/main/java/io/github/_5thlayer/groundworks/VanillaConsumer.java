@@ -43,6 +43,9 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
  *
  * <p>Its {@linkplain Assemblies#keys statement of Assembly Keys} is the block tag {@link
  * #ASSEMBLY_KEYS}; a Key places the Assemblies declared for it as data.
+ *
+ * <p>Its {@linkplain Blueprints#sheets sheets}, which copy a box of blocks and paste it, are the
+ * items in the item tag {@link #BLUEPRINTS}, shipped holding paper.
  */
 public final class VanillaConsumer {
 
@@ -69,6 +72,10 @@ public final class VanillaConsumer {
     public static final TagKey<Block> ASSEMBLY_KEYS =
             TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "assembly_keys"));
 
+    /** The items that are sheets, capturing a Selection as a {@linkplain Blueprints Blueprint} and pasting it. */
+    public static final TagKey<Item> BLUEPRINTS =
+            TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(Groundworks.MOD_ID, "blueprints"));
+
     private VanillaConsumer() {
     }
 
@@ -84,6 +91,7 @@ public final class VanillaConsumer {
         // Read as the tag is now, so a datapack reload reaches the next press.
         Rotate.turnsInPlace(block -> block.defaultBlockState().is(ROTATES_IN_PLACE));
         Assemblies.keys(block -> block.defaultBlockState().is(ASSEMBLY_KEYS));
+        Blueprints.sheets(stack -> stack.is(BLUEPRINTS));
         modBus.addListener(FMLCommonSetupEvent.class, event -> {
             Stretches.register(new VanillaLegs());
             Dismantles.register(new VanillaFamilies());

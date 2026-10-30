@@ -15,6 +15,7 @@ import java.util.function.Supplier;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.github._5thlayer.groundworks.Blueprints;
 import io.github._5thlayer.groundworks.PlacementPlan;
 import io.github._5thlayer.groundworks.PlanHull;
 import io.github._5thlayer.groundworks.Placements;
@@ -83,7 +84,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A multiblock's plan can be a few hundred block reads and this runs every frame, so the plan is
  * kept until the item, the aimed position, the hit face, the player's horizontal facing or their
- * sneaking changes -- the things a plan is a function of. A world edit under a still cursor is a
+ * sneaking changes -- the things a plan is a function of -- or a Blueprint reaches the client,
+ * since a held sheet's paste is drawn only once its Blueprint has arrived. A world edit under a still cursor is a
  * stale frame and resolves on the next change; a preview is not authoritative and the click
  * re-asks on the server.
  */
@@ -102,7 +104,8 @@ final class PlacementPreview {
     }
 
     /** The things a plan is a function of, so the cache turns over exactly when it must. */
-    private record Key(ItemStack stack, BlockPos aimed, Direction face, Direction facing, boolean sneaking) {
+    private record Key(ItemStack stack, BlockPos aimed, Direction face, Direction facing, boolean sneaking,
+                       int blueprints) {
 
         /**
          * Stacks are compared by item and components rather than by identity, because the hand's
@@ -114,7 +117,8 @@ final class PlacementPreview {
                     && aimed.equals(other.aimed)
                     && face == other.face
                     && facing == other.facing
-                    && sneaking == other.sneaking;
+                    && sneaking == other.sneaking
+                    && blueprints == other.blueprints;
         }
     }
 
@@ -163,11 +167,12 @@ final class PlacementPreview {
             forget();
             return null;
         }
-        Key now = new Key(stack, hit.getBlockPos(), hit.getDirection(), player.getDirection(), player.isShiftKeyDown());
+        Key now = new Key(stack, hit.getBlockPos(), hit.getDirection(), player.getDirection(), player.isShiftKeyDown(),
+                Blueprints.arrivals());
         if (key == null || !key.matches(now)) {
             // A copy, so a component set on the held stack itself -- a Rotate's turn, a Raise's
             // height -- still turns the cache over.
-            key = new Key(stack.copy(), now.aimed(), now.face(), now.facing(), now.sneaking());
+            key = new Key(stack.copy(), now.aimed(), now.face(), now.facing(), now.sneaking(), now.blueprints());
             cached = Placements.planFor(level, player, InteractionHand.MAIN_HAND, stack, hit);
             shown = cached == null ? Map.of() : shownFaces(level, cached);
             clearing = cached == null ? Map.of() : ClearMark.shapes(level, cached);

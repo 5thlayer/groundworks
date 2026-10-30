@@ -4,7 +4,9 @@
 package io.github._5thlayer.groundworks;
 
 import java.util.List;
+import java.util.UUID;
 
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.InteractionResult;
@@ -62,11 +64,26 @@ public final class Groundworks {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<AssemblyChoice>> ASSEMBLY_CHOICE =
             COMPONENTS.register("assembly_choice", AssemblyChoice::componentType);
 
+    /** A blank sheet's stored first {@linkplain Blueprints Corner}, persistent and synced to the client, which marks it. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlueprintCorner>> BLUEPRINT_CORNER =
+            COMPONENTS.register("blueprint_corner", BlueprintCorner::componentType);
+
+    /**
+     * The id of the {@linkplain Blueprints Blueprint} a sheet holds, persistent and synced to the
+     * client, which asks for nothing: the server sends the Blueprint while the sheet is held.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<UUID>> BLUEPRINT =
+            COMPONENTS.register("blueprint", () -> DataComponentType.<UUID>builder()
+                    .persistent(UUIDUtil.CODEC)
+                    .networkSynchronized(UUIDUtil.STREAM_CODEC)
+                    .build());
+
     public Groundworks(IEventBus modBus, ModContainer container) {
         COMPONENTS.register(modBus);
         container.registerConfig(ModConfig.Type.SERVER, GroundworksConfig.SPEC);
         VanillaConsumer.register(modBus);
         Assemblies.register(modBus);
+        Blueprints.register(modBus);
         modBus.addListener(RotatePayload::register);
         modBus.addListener(RaisePayload::register);
         modBus.addListener(NextChoicePayload::register);
@@ -93,6 +110,9 @@ public final class Groundworks {
             InteractionResult result = Dismantles.use(event.getEntity(), event.getHand());
             if (result == InteractionResult.PASS) {
                 result = Stretches.use(event.getEntity(), event.getHand());
+            }
+            if (result == InteractionResult.PASS) {
+                result = Blueprints.use(event.getEntity(), event.getHand());
             }
             if (result != InteractionResult.PASS) {
                 event.setCanceled(true);

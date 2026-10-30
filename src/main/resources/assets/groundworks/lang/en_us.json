@@ -47,5 +47,17 @@
   "message.groundworks.rotate_unchanged": "It can't be turned here.",
   "tag.item.groundworks.dismantles": "Dismantling Tools",
   "tag.item.groundworks.stretches": "Stretch Items",
-  "tag.item.groundworks.stretches_vertically": "Column Items"
+  "tag.item.groundworks.stretches_vertically": "Column Items",
+  "message.groundworks.blueprint_corner_stored": "Corner stored.",
+  "message.groundworks.blueprint_corner_cleared": "Corner cleared.",
+  "message.groundworks.blueprint_copied": "Copied %s blocks.",
+  "message.groundworks.blueprint_cleared": "Copy cleared.",
+  "message.groundworks.blueprint_gone": "This Blueprint is gone.",
+  "message.groundworks.blueprint_over_the_cap": "That Selection holds %s positions; the server allows %s.",
+  "message.groundworks.blueprint_unloaded": "That Selection reaches a chunk that isn't loaded.",
+  "message.groundworks.blueprint_no_room_for_the_sheet": "You have no room for the Blueprint's sheet.",
+  "message.groundworks.blueprint_taken": "Something stands where that would go.",
+  "message.groundworks.blueprint_may_not_build": "You may not build everywhere that would go.",
+  "message.groundworks.blueprint_not_enough_items": "You need %s more to paste that.",
+  "tag.item.groundworks.blueprints": "Blueprint Sheets"
 }

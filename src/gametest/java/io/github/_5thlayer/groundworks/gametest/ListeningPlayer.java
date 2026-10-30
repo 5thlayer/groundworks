@@ -12,6 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
@@ -29,6 +30,13 @@ final class ListeningPlayer extends FakePlayer {
         super(helper.getLevel(), new GameProfile(UUID.randomUUID(), "groundworks_listener"));
         setGameMode(GameType.SURVIVAL);
         standOn(helper, at);
+    }
+
+    /** A survival player standing in {@code level}, a dimension of its own, at {@code feet}. */
+    ListeningPlayer(ServerLevel level, Vec3 feet) {
+        super(level, new GameProfile(UUID.randomUUID(), "groundworks_listener"));
+        setGameMode(GameType.SURVIVAL);
+        setPos(feet.x, feet.y, feet.z);
     }
 
     /** Moves the player onto the block at {@code at}. */
