@@ -4,6 +4,8 @@ From 0.5.0 each version has two sections: Players, what a player or pack develop
 
 ## Unreleased
 
+## 0.7.1
+
 ### Players
 
 - A sheet holding a Blueprint is told from paper: it is named **Blueprint**, glints, and its tooltip says Copy or Cut, how many blocks it holds and the box's size, and "Pasting air" when set to. A blank sheet with a Corner stored says where. A sheet stamped by an earlier version catches up the first time it is held. An anvil's name shows over Blueprint, and goes nowhere. (#87)
