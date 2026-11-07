@@ -78,6 +78,13 @@ public final class Groundworks {
                     .networkSynchronized(UUIDUtil.STREAM_CODEC)
                     .build());
 
+    /**
+     * What a sheet's tooltip says of the Blueprint it holds, its {@linkplain BlueprintSummary
+     * summary}, persistent and synced to the client, which draws it.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BlueprintSummary>> BLUEPRINT_SUMMARY =
+            COMPONENTS.register("blueprint_summary", BlueprintSummary::componentType);
+
     /** A sheet's {@linkplain SheetChoice choice}, persistent and synced to the client, which previews it. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<SheetChoice>> SHEET_CHOICE =
             COMPONENTS.register("sheet_choice", SheetChoice::componentType);

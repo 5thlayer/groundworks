@@ -20,7 +20,7 @@ import net.neoforged.neoforge.common.NeoForge;
 /**
  * The client half: the Placement Preview, which has no toggle and no state beyond its own cache,
  * the Dismantle's preview, which takes the frame before any Consumer's Takeover, the Stretch's
- * markers and a blank sheet's Corner and Selection, and the keys for Rotate, for Raise and Lower, for Next Choice, and for Undo Paste.
+ * markers, a blank sheet's Corner and Selection and a sheet's tooltip, and the keys for Rotate, for Raise and Lower, for Next Choice, and for Undo Paste.
  */
 @Mod(value = Groundworks.MOD_ID, dist = Dist.CLIENT)
 public final class GroundworksClient {
@@ -35,6 +35,7 @@ public final class GroundworksClient {
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGHEST, DismantlePreview::onTakeover);
         NeoForge.EVENT_BUS.addListener(StretchPreview::onMarker);
         NeoForge.EVENT_BUS.addListener(BlueprintPreview::onMarker);
+        NeoForge.EVENT_BUS.addListener(SheetTooltip::onTooltip);
         modBus.addListener(RotateKeys::onRegisterKeys);
         NeoForge.EVENT_BUS.addListener(RotateKeys::onClientTick);
         modBus.addListener(RaiseKeys::onRegisterKeys);

@@ -4,6 +4,7 @@
 package io.github._5thlayer.groundworks;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,8 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -88,6 +91,9 @@ public final class Blueprints {
 
     /** The id of the Blueprint a sheet holds; none on a blank sheet. */
     private static final HeldValue<UUID> HELD = new HeldValue<>(() -> Groundworks.BLUEPRINT.get(), null);
+
+    /** What the sheet's tooltip says of the Blueprint it holds; none on a blank sheet. */
+    private static final HeldValue<BlueprintSummary> SUMMARY = new HeldValue<>(() -> Groundworks.BLUEPRINT_SUMMARY.get(), null);
 
     /** The sheet's choice, stepped by Next Choice; none on a sheet at its start. */
     private static final HeldValue<SheetChoice> CHOICE = new HeldValue<>(() -> Groundworks.SHEET_CHOICE.get(), null);
@@ -305,6 +311,10 @@ public final class Blueprints {
             Laying.tell(player, Component.translatable("message.groundworks.blueprint_gone"));
             return;
         }
+        if (SUMMARY.get(held) == null) {
+            // A sheet stamped before a stamped sheet was told from paper catches up on its first hold.
+            stamp(player.level(), held, id, blueprint);
+        }
         long now = BlueprintPrune.now();
         if (!id.equals(HOLDING.put(player.getUUID(), id)) || now - blueprint.lastUsed() > HELD_USE_EVERY) {
             store.put(id, blueprint.usedAt(now));
@@ -420,13 +430,23 @@ public final class Blueprints {
         return InteractionResult.SUCCESS;
     }
 
-    /** Makes a sheet blank again, stacking with any other blank sheet of its item. */
+    /**
+     * Makes a sheet blank again, stacking with any other blank sheet of its item: its name, its
+     * glint and its summary go with its Blueprint.
+     */
     private static void blank(ItemStack sheet) {
         HELD.set(sheet, null);
         CHOICE.set(sheet, null);
+        SUMMARY.set(sheet, null);
         // Set back to the item's own, which drops the stack's patch: a removal would patch it out.
-        sheet.set(DataComponents.MAX_STACK_SIZE, sheet.getItem().components().get(DataComponents.MAX_STACK_SIZE));
-        sheet.set(DataComponents.DAMAGE_RESISTANT, sheet.getItem().components().get(DataComponents.DAMAGE_RESISTANT));
+        for (DataComponentType<?> type : List.of(DataComponents.MAX_STACK_SIZE, DataComponents.DAMAGE_RESISTANT,
+                DataComponents.ITEM_NAME, DataComponents.ENCHANTMENT_GLINT_OVERRIDE)) {
+            setBack(sheet, type);
+        }
+    }
+
+    private static <T> void setBack(ItemStack sheet, DataComponentType<T> type) {
+        sheet.set(type, sheet.getItem().components().get(type));
     }
 
     // ---- Capture --------------------------------------------------------------------------------
@@ -465,11 +485,12 @@ public final class Blueprints {
         BlueprintBlocks blocks = BlueprintBlocks.capture(level, box, leftOut.keySet());
         List<Blueprint.Held> contents = cut ? BlueprintCut.takeOut(level, box, leftOut.keySet()) : List.of();
         UUID id = UUID.randomUUID();
-        BlueprintStore.of(level.getServer()).put(id, new Blueprint(blocks,
-                cut ? Blueprint.Kind.CUT : Blueprint.Kind.COPY, player.getUUID(), BlueprintPrune.now(), contents));
+        Blueprint blueprint = new Blueprint(blocks, cut ? Blueprint.Kind.CUT : Blueprint.Kind.COPY, player.getUUID(),
+                BlueprintPrune.now(), contents);
+        BlueprintStore.of(level.getServer()).put(id, blueprint);
         CORNER.set(held, null);
         ItemStack sheet = split ? held.copyWithCount(1) : held;
-        naming(level, sheet, id, cut);
+        naming(level, sheet, id, blueprint);
         if (split) {
             held.shrink(1);
             player.getInventory().add(sheet);
@@ -482,14 +503,28 @@ public final class Blueprints {
     }
 
     /**
-     * Makes a single sheet name the Blueprint of this id, at its start: alone in its stack, and,
-     * for a Cut, surviving fire and lava.
+     * Makes a single sheet name this Blueprint, at its start: {@linkplain #stamp stamped}, told
+     * from a blank sheet. A custom name an anvil gave the sheet is vanilla's, and shows over
+     * Blueprint.
      */
-    private static void naming(Level level, ItemStack sheet, UUID id, boolean cut) {
-        HELD.set(sheet, id);
+    private static void naming(Level level, ItemStack sheet, UUID id, Blueprint blueprint) {
         CHOICE.set(sheet, null);
+        stamp(level, sheet, id, blueprint);
+    }
+
+    /**
+     * Stamps a sheet with this Blueprint, leaving its choice as it is: its id, its name,
+     * Blueprint, its glint, its summary, alone in its stack, and, for a Cut, surviving fire and
+     * lava.
+     */
+    private static void stamp(Level level, ItemStack sheet, UUID id, Blueprint blueprint) {
+        HELD.set(sheet, id);
+        SUMMARY.set(sheet, new BlueprintSummary(blueprint.isCut(), blueprint.blocks().standing(),
+                blueprint.blocks().size()));
+        sheet.set(DataComponents.ITEM_NAME, Component.translatable("item.groundworks.blueprint"));
+        sheet.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
         sheet.set(DataComponents.MAX_STACK_SIZE, 1);
-        if (cut) {
+        if (blueprint.isCut()) {
             sheet.set(DataComponents.DAMAGE_RESISTANT, new DamageResistant(
                     level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(DamageTypeTags.IS_FIRE)));
         }
@@ -498,19 +533,58 @@ public final class Blueprints {
     /**
      * A new sheet naming the Cut of this id, as an operator recovers a Cut whose sheet was lost:
      * paper where paper is a sheet, else the first registered item some Consumer states is one;
-     * {@code null} where no item is. The first of its sheets pasted takes the Cut, and the other
-     * finds it gone.
+     * {@code null} where no item is, or the Cut is gone. The first of its sheets pasted takes the
+     * Cut, and the other finds it gone.
      */
     static @Nullable ItemStack recovered(Level level, UUID id) {
+        Blueprint blueprint = BlueprintStore.of(level.getServer()).get(id);
+        if (blueprint == null) {
+            return null;
+        }
         ItemStack sheet = new ItemStack(Items.PAPER);
         if (!isSheet(sheet)) {
             sheet = BuiltInRegistries.ITEM.stream().map(ItemStack::new).filter(Blueprints::isSheet).findFirst()
                     .orElse(null);
         }
         if (sheet != null) {
-            naming(level, sheet, id, true);
+            naming(level, sheet, id, blueprint);
         }
         return sheet;
+    }
+
+    // ---- The tooltip -----------------------------------------------------------------------------
+
+    /**
+     * What a sheet's tooltip says under its name, from the stack alone: for a sheet holding a
+     * Blueprint, Copy or Cut, its blocks and its size, and that it pastes air where set to;
+     * for a blank sheet, the Corner it stores. Nothing for any other stack.
+     *
+     * <p>Not API: public for the client's tooltip, and a Consumer must not call it.
+     */
+    public static List<Component> tooltipOf(ItemStack stack) {
+        if (!isSheet(stack)) {
+            return List.of();
+        }
+        List<Component> lines = new ArrayList<>();
+        if (holdsBlueprint(stack)) {
+            BlueprintSummary summary = SUMMARY.get(stack);
+            if (summary != null) {
+                lines.add(gray(summary.cut() ? "tooltip.groundworks.blueprint_cut" : "tooltip.groundworks.blueprint_copy"));
+                lines.add(gray("tooltip.groundworks.blueprint_size", summary.blocks(),
+                        summary.size().getX(), summary.size().getY(), summary.size().getZ()));
+                if (pastesAir(stack)) {
+                    lines.add(gray("tooltip.groundworks.blueprint_pasting_air"));
+                }
+            }
+        } else if (CORNER.get(stack) instanceof BlueprintCorner corner) {
+            lines.add(gray("tooltip.groundworks.blueprint_corner",
+                    corner.pos().getX(), corner.pos().getY(), corner.pos().getZ()));
+        }
+        return lines;
+    }
+
+    private static Component gray(String key, Object... args) {
+        return Component.translatable(key, args).withStyle(ChatFormatting.GRAY);
     }
 
     /** Tells the player a Blueprint's press or click is refused, and why. */

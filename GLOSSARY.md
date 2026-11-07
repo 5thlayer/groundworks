@@ -152,8 +152,12 @@ _Avoid_: dismantle group, connected type
 
 ### Blueprints
 
+**Sheet**:
+The item that holds at most one **Blueprint**: paper by default, or whatever item a pack names. A blank Sheet stacks and may hold a **Corner**; a stamped Sheet holds its Blueprint, is named Blueprint, glints, stands alone in its stack, and says on its tooltip whether it is a **Copy** or a **Cut** and what it holds, until it is blank again.
+_Avoid_: template, redprint, paper (once stamped)
+
 **Blueprint**:
-A box of blocks the player captured from the world onto one sheet of paper, or another item a pack names, to paste elsewhere: each block with its full state, at its place in the box. A sheet holds one Blueprint and stands alone in its stack, so a Blueprint is never split or merged. It is a **Copy** or a **Cut**. Pasting it is planned as an **Assembly** is, without a **Key**: it rests on the aimed face, drawn whole by the **Placement Preview**, laid all or none, refused whole when a position it places is taken, and remembered by nothing once laid. It keeps the orientation it was captured in; **Rotate the Plan** turns it and **Raise** and **Lower** move it. Air in the box is skipped by default, or, when the sheet is set to paste air, clears what stands there as the player would break it, handed back as a **Dismantle** hands back what it takes; a block there the player could not break refuses the paste. Whoever holds the sheet may paste it, in any dimension.
+A box of blocks the player captured from the world onto one **Sheet**, to paste elsewhere: each block with its full state, at its place in the box. A Sheet holds one Blueprint and stands alone in its stack, so a Blueprint is never split or merged. It is a **Copy** or a **Cut**. Pasting it is planned as an **Assembly** is, without a **Key**: it rests on the aimed face, drawn whole by the **Placement Preview**, laid all or none, refused whole when a position it places is taken, and remembered by nothing once laid. It keeps the orientation it was captured in; **Rotate the Plan** turns it and **Raise** and **Lower** move it. Air in the box is skipped by default, or, when the sheet is set to paste air, clears what stands there as the player would break it, handed back as a **Dismantle** hands back what it takes; a block there the player could not break refuses the paste. Whoever holds the sheet may paste it, in any dimension.
 _Avoid_: template, schematic, structure (vanilla's), clipboard
 
 **Copy**:

@@ -86,6 +86,12 @@
   "message.groundworks.blueprint_cut": "Cut %s blocks.",
   "message.groundworks.blueprint_cut_left_out": "Cut %s blocks, leaving out %s.",
   "message.groundworks.blueprint_cant_clear_a_cut": "A Cut can't be cleared; paste it to blank the sheet.",
+  "item.groundworks.blueprint": "Blueprint",
+  "tooltip.groundworks.blueprint_copy": "Copy",
+  "tooltip.groundworks.blueprint_cut": "Cut",
+  "tooltip.groundworks.blueprint_size": "%s blocks, %s\u00d7%s\u00d7%s",
+  "tooltip.groundworks.blueprint_pasting_air": "Pasting air",
+  "tooltip.groundworks.blueprint_corner": "Corner stored at %s, %s, %s",
   "tag.item.groundworks.blueprints": "Blueprint Sheets",
   "tag.block.groundworks.blueprint_deny": "Blocks Blueprints Leave Out"
 }
