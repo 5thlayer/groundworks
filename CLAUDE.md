@@ -49,6 +49,10 @@ A change adds its line under `## Unreleased` in `CHANGELOG.md` as it lands, unde
 
 A release that must reach Beltworks follows the `release-train` skill: one owning session per checkout, releases in order Groundworks → Beltworks, and pushes only on the user's word.
 
+## Code navigation
+
+Find code through the ctags index `tags`, which gives a symbol's file and line, instead of opening files to look for it. Then read the whole method or type you found, or the whole file when it's under about 300 lines. Rebuild `tags` after adding, renaming or moving classes or methods. See `docs/agents/code-navigation.md`.
+
 ## Agent skills
 
 ### Issue tracker
